@@ -27,6 +27,17 @@ public static class SilkKeys {
   [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
   [DllImport("user32.dll")] static extern short GetAsyncKeyState(int vKey);
   public static bool LeftDown() { return (GetAsyncKeyState(0x01) & 0x8000) != 0; }
+  static bool Down(int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; }
+  // Verhindert, dass das Loslassen von Alt die Menüleiste des Programms öffnet (unbelegte Taste 0xE8)
+  public static void MaskMenu() { keybd_event(0xE8, 0, 0, UIntPtr.Zero); keybd_event(0xE8, 0, 2, UIntPtr.Zero); }
+  // Warten, bis Umschalt, Strg, Alt und Windows-Taste losgelassen sind
+  public static void WaitModifiersUp(int ms) {
+    DateTime until = DateTime.Now.AddMilliseconds(ms);
+    while (DateTime.Now < until) {
+      if (!Down(0x10) && !Down(0x11) && !Down(0x12) && !Down(0x5B) && !Down(0x5C)) return;
+      System.Threading.Thread.Sleep(15);
+    }
+  }
   public static void Copy() {
     keybd_event(0x11, 0x1D, 0, UIntPtr.Zero);
     keybd_event(0x43, 0x2E, 0, UIntPtr.Zero);
@@ -35,6 +46,7 @@ public static class SilkKeys {
   }
 }
 "@
+try { Add-Type -AssemblyName System.Windows.Forms } catch { }
 # Wo steht der markierte Text auf dem Bildschirm? (UI Automation – wie Bildschirmleser)
 $uia = $true
 try {
@@ -90,6 +102,8 @@ while ($true) {
   if ($line -eq $null) { break }
   try {
     if ($line -eq 'copy') { [SilkKeys]::Copy(); [Console]::Out.WriteLine('ok') }
+    elseif ($line -eq 'hotcopy') { [SilkKeys]::MaskMenu(); [SilkKeys]::WaitModifiersUp(2000); Start-Sleep -Milliseconds 40; [SilkKeys]::Copy(); [Console]::Out.WriteLine('ok') }
+    elseif ($line -eq 'files') { $l = [System.Windows.Forms.Clipboard]::GetFileDropList(); [Console]::Out.WriteLine((@($l) -join '|')) }
     elseif ($line -eq 'rects') { if ($uia) { [Console]::Out.WriteLine([SilkText]::Selection(160)) } else { [Console]::Out.WriteLine('{}') } }
     elseif ($line -eq 'btn') { if ([SilkKeys]::LeftDown()) { [Console]::Out.WriteLine('down') } else { [Console]::Out.WriteLine('up') } }
     else { [Console]::Out.WriteLine('ok') }
@@ -133,7 +147,7 @@ function helperCommand(cmd, timeoutMs) {
   });
 }
 
-const windowsCopy = () => helperCommand('copy', 2500); // beim ersten Mal startet der Helfer ggf. noch
+const windowsCopy = (hotkey) => helperCommand(hotkey ? 'hotcopy' : 'copy', hotkey ? 4500 : 2500); // beim ersten Mal startet der Helfer ggf. noch
 
 /**
  * Bildschirm-Rechtecke der markierten Wörter (und Zeilen) im aktiven Programm.
@@ -162,8 +176,8 @@ function warmUp() {
   if (process.platform === 'win32') startWindowsHelper();
 }
 
-function sendCopyKeystroke() {
-  if (process.platform === 'win32') return windowsCopy();
+function sendCopyKeystroke(hotkey) {
+  if (process.platform === 'win32') return windowsCopy(hotkey);
   if (process.platform === 'darwin') {
     return run('osascript', ['-e', 'tell application "System Events" to keystroke "c" using command down']);
   }
@@ -200,12 +214,13 @@ async function restoreClipboard(snap) {
  * @param {{ waitForKeys?: number }} opts  waitForKeys: kurz warten, bis Tastenkürzel losgelassen sind
  * @returns {Promise<{ text: string|null, files: string[] }>}
  */
-async function grabSelection({ waitForKeys = 0 } = {}) {
-  if (waitForKeys) await sleep(waitForKeys);
+async function grabSelection({ hotkey = false } = {}) {
+  // Per Tastenkürzel ausgelöst: Auf Windows wartet der Helfer selbst, bis die Tasten losgelassen sind
+  if (hotkey && process.platform !== 'win32') await sleep(350);
   const before = await snapshotClipboard();
   const marker = `silkreader-marker-${Date.now()}-${Math.random()}`;
   await clipboard.writeText(marker);
-  await sendCopyKeystroke();
+  await sendCopyKeystroke(hotkey);
 
   let text = null;
   for (let i = 0; i < 15; i++) {
@@ -222,6 +237,11 @@ async function grabSelection({ waitForKeys = 0 } = {}) {
 
 async function readClipboardFiles() {
   if (process.platform !== 'win32') return [];
+  if (helper?.ready) {
+    // schnell über den Helfer (läuft schon)
+    const r = await helperCommand('files', 1500);
+    if (r !== null && r !== 'err') return r.split('|').map((x) => x.trim()).filter((p) => p && fs.existsSync(p));
+  }
   const out = await run('powershell', ['-NoProfile', '-NonInteractive', '-Command',
     'Get-Clipboard -Format FileDropList | ForEach-Object { $_.FullName }']);
   return out ? out.split(/\r?\n/).map((s) => s.trim()).filter((p) => p && fs.existsSync(p)) : [];

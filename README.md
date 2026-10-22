@@ -8,7 +8,7 @@ Eine kleine schwebende Spinne auf deinem Desktop. Klick sie an, und sie liest je
 
 ## Installation (Windows)
 
-1. `Silkreader-Setup-1.8.0.exe` herunterladen.
+1. `Silkreader-Setup-1.9.0.exe` herunterladen.
 2. Falls Windows blockiert: Rechtsklick auf die Datei → **Eigenschaften** → unten den Haken bei **„Zulassen“** setzen → OK.
 3. Setup starten und durchklicken. Beim ersten Mal fragt Windows, ob du dem Zertifikat „Silkreader“ vertraust: **Ja**. Ab dann steht bei Windows „Herausgeber: Silkreader“, und Updates können ihre Echtheit prüfen.
 4. Die Spinne erscheint oben am Bildschirmrand. Beim ersten Start öffnen sich die Einstellungen (siehe unten).
@@ -43,10 +43,10 @@ Ist das große Fenster offen, tollt die kleine Spinne darin herum (hüpft, schl�
 
 | Aktion | Ergebnis |
 |---|---|
-| **Text markieren, dann auf die Spinne klicken** | Die kleine Spinne erschrickt und versteckt sich, eine große Spinne kriecht vom Bildschirmrand herein und liest Wort für Wort über den markierten Text (die genauen Wortpositionen kommen über Windows UI Automation, z. B. aus Chrome, Edge, Word). Danach erscheint unter der Spinne eine kleine Sprechblase, die Analyse startet sofort, und das Ergebnis erscheint direkt dort – das Wichtigste in einfachen Stichpunkten („Details“ öffnet das große Fenster mit markierten Fundstellen). Strg+C ist nicht nötig, deine Zwischenablage bleibt erhalten. Ist nichts markiert, öffnet ein Klick einfach die App. |
+| **Text markieren, dann auf die Spinne klicken** | Die kleine Spinne erschrickt und versteckt sich, eine große Spinne kriecht vom Bildschirmrand herein und liest Wort für Wort über den markierten Text (die genauen Wortpositionen erkennt die App an der Markierungsfarbe auf dem Bildschirm – das Bildschirmfoto bleibt nur kurz im Speicher; ersatzweise über Windows UI Automation). Danach erscheint unter der Spinne eine kleine Sprechblase, die Analyse startet sofort, und das Ergebnis erscheint direkt dort – das Wichtigste in einfachen Stichpunkten („Details“ öffnet das große Fenster mit markierten Fundstellen). Strg+C ist nicht nötig, deine Zwischenablage bleibt erhalten. Ist nichts markiert, öffnet ein Klick einfach die App. |
 | **Auf eine Info im Ergebnis klicken** | Die Leseansicht öffnet sich und die Spinne läuft zu der Stelle im Text, wo die Info steht |
 | **Datei oder Text zur Spinne ziehen** | Sobald man mit gedrückter Maustaste in die Nähe kommt, spannt sie ihr Netz auf („Hier ablegen“) – man muss die Spinne nicht treffen. Das Dokument klebt danach mit Vorschaubild im Netz. |
-| **Dateien im Explorer markieren, dann auf die Spinne klicken** | Werden ebenfalls im Netz festgehalten |
+| **Dateien oder Ordner im Explorer markieren, dann auf die Spinne oder das Netz klicken** | Werden im Netz festgehalten (mit dem echten Datei- bzw. Ordnersymbol) |
 | **Dokument im Netz anklicken** | In die Zwischenablage kopieren (Dateien lassen sich im Explorer mit Strg+V einfügen) |
 | **Dokument aus dem Netz ziehen** | Datei direkt auf den Desktop, in einen Ordner oder in eine Mail ziehen |
 | **Rechtsklick auf ein Dokument im Netz** | Kopieren, Analysieren, Im Ordner zeigen, Entfernen |
@@ -55,6 +55,8 @@ Ist das große Fenster offen, tollt die kleine Spinne darin herum (hüpft, schl�
 | **Rechtsklick** auf die Spinne | Menü mit Kokon-Ablage, Datei öffnen, Einstellungen … |
 
 ### Tastenkürzel
+
+Alle globalen Kürzel lassen sich in den Einstellungen ändern (anklicken, neue Tasten drücken).
 
 | Überall | |
 |---|---|
@@ -108,4 +110,5 @@ Aufbau:
 - `src/mascot.js`: die kleine Spinne, die im Analysefenster herumtollt
 - `src/popup.html`: Ergebnis-Sprechblase unter der Spinne
 - `src/grab.js`: markierten Text aus anderen Programmen holen
+- `src/selectionScan.js`: markierte Wörter auf dem Bildschirm finden (über die Markierungsfarbe)
 - `src/cocoons.js`: Kokon-Ablage

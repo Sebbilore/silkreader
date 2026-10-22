@@ -33,7 +33,9 @@
   .keys div { display: flex; gap: 10px; align-items: baseline; font-size: 12px; margin: 4px 0; color: var(--muted); }
   .keys kbd { font: 11px Consolas, monospace; color: var(--text); background: var(--card); border: 1px solid var(--line); border-bottom-width: 2px;
     border-radius: 4px; padding: 1px 6px; min-width: 112px; text-align: center; }
-  .keys em { color: #ff7a9c; font-style: normal; } .bad { color: #ff7a9c; }
+  .keys em { color: #ff7a9c; font-style: normal; }
+  .keys kbd.rec { cursor: pointer; } .keys kbd.rec:hover { border-color: var(--pink); }
+  .keys kbd.on { border-color: var(--pink); color: var(--pink); } .bad { color: #ff7a9c; }
   ol { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 12px; } ol li { margin-bottom: 4px; }
 </style>
 </head>
@@ -89,7 +91,9 @@
 </select>
 <label class="check"><input type="checkbox" id="hatch"> Spinnen-Animation: Eine große Spinne kriecht herein und liest den markierten Text (die kleine versteckt sich so lange)</label>
 
-<label>Tastenkürzel</label>
+<label class="check"><input type="checkbox" id="lowPower"> Sparmodus: ohne Grafikbeschleunigung – braucht weniger Arbeitsspeicher (wirkt nach einem Neustart von Silkreader)</label>
+
+<label>Tastenkürzel <span class="hint" style="font-weight:400">– zum Ändern anklicken und neue Tasten drücken</span></label>
 <div id="shortcuts" class="keys"></div>
 
 <div class="row">
@@ -184,6 +188,7 @@
     for (const [id, name] of Object.entries(s.models)) $('model').add(new Option(name, id, false, id === s.model));
     $('lang').value = s.language;
     $('hatch').checked = s.hatchAnimation;
+    $('lowPower').checked = s.lowPower;
     wantedOllama = s.ollamaModel;
     if (s.hasKey) $('key').placeholder = '•••••••• (gespeichert – leer lassen, um ihn zu behalten)';
     setProvider(s.provider);
@@ -191,18 +196,46 @@
     loadModelStatus(true);
   });
   $('refresh').addEventListener('click', loadOllama);
-  window.spider.shortcuts().then((list) => {
+  function loadShortcuts() { return window.spider.shortcuts().then((list) => {
     const extra = [['Enter', 'Im Fenster: Analyse starten'], ['Esc', 'Im Fenster: schließen'], ['Strg+O', 'Im Fenster: Datei öffnen'],
       ['Strg+K', 'Im Fenster: Text in Kokon packen'], ['Strg+Umschalt+C', 'Im Fenster: Ergebnis kopieren']];
-    $('shortcuts').innerHTML = list.map((k) => `<div><kbd>${k.label}</kbd><span>${k.desc}${k.ok ? '' : ' <em>(von anderem Programm belegt)</em>'}</span></div>`).join('')
+    $('shortcuts').innerHTML = list.map((k) => `<div><kbd class="rec" data-id="${k.id}" title="Klicken und neue Tasten drücken">${k.label}</kbd><span>${k.desc}${k.ok ? '' : ' <em>(von anderem Programm belegt – bitte ändern)</em>'}</span></div>`).join('')
       + extra.map(([k, d]) => `<div><kbd>${k}</kbd><span>${d}</span></div>`).join('');
+    document.querySelectorAll('kbd.rec').forEach((el) => el.addEventListener('click', () => record(el)));
+  }); }
+  loadShortcuts();
+
+  // Neues Tastenkürzel aufnehmen: Strg/Alt/Umschalt + eine weitere Taste
+  let recording = null;
+  function record(el) {
+    if (recording) recording.el.classList.remove('on');
+    recording = { el, old: el.textContent };
+    el.classList.add('on');
+    el.textContent = 'Tasten drücken …';
+  }
+  window.addEventListener('keydown', async (e) => {
+    if (!recording) return;
+    e.preventDefault();
+    if (e.key === 'Escape') { recording.el.textContent = recording.old; recording.el.classList.remove('on'); recording = null; return; }
+    if (['Control', 'Alt', 'Shift', 'Meta', 'AltGraph'].includes(e.key)) return;
+    if (!e.ctrlKey && !e.altKey && !e.metaKey) { recording.el.textContent = 'Mit Strg oder Alt!'; return; }
+    const keyName = e.code.startsWith('Key') ? e.code.slice(3) : e.code.startsWith('Digit') ? e.code.slice(5)
+      : ({ Space: 'Space', Enter: 'Enter', Backquote: '`', Period: '.', Comma: ',', Minus: '-' })[e.code] || (/^F\d+$/.test(e.code) ? e.code : null);
+    if (!keyName) { recording.el.textContent = 'Taste nicht möglich'; return; }
+    const accel = [e.ctrlKey && 'CommandOrControl', e.altKey && 'Alt', e.shiftKey && 'Shift', e.metaKey && 'Super', keyName].filter(Boolean).join('+');
+    const label = [e.ctrlKey && 'Strg', e.altKey && 'Alt', e.shiftKey && 'Umschalt', e.metaKey && 'Win', keyName === 'Space' ? 'Leertaste' : keyName].filter(Boolean).join('+');
+    const id = recording.el.dataset.id;
+    recording.el.classList.remove('on');
+    recording = null;
+    await window.spider.setShortcut(id, accel, label);
+    loadShortcuts();
   });
   $('ollamaLink').addEventListener('click', () => window.spider.openExternal('https://ollama.com/download'));
   $('console').addEventListener('click', () => window.spider.openExternal('https://platform.claude.com/settings/keys'));
   $('save').addEventListener('click', async () => {
     await window.spider.saveSettings({
       provider, apiKey: $('key').value, model: $('model').value,
-      ollamaModel: $('ollamaModel').value, language: $('lang').value, builtinModel, hatchAnimation: $('hatch').checked,
+      ollamaModel: $('ollamaModel').value, language: $('lang').value, builtinModel, hatchAnimation: $('hatch').checked, lowPower: $('lowPower').checked,
     });
     $('key').value = '';
     $('msg').textContent = 'Gespeichert ✓';

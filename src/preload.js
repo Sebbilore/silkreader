@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('spider', {
   pickFile: () => ipcRenderer.invoke('pick-file'),
   analyzeClipboard: () => ipcRenderer.invoke('analyze-clipboard'),
   spiderTake: () => ipcRenderer.invoke('spider-take'),
+  pinSelection: () => ipcRenderer.invoke('pin-selection'),
+  setShortcut: (id, keys, label) => ipcRenderer.invoke('set-shortcut', id, keys, label),
   clipboardPreview: () => ipcRenderer.invoke('clipboard-preview'),
   popupClose: () => ipcRenderer.invoke('popup-close'),
   popupDetails: (doc, result, focus) => ipcRenderer.invoke('popup-details', doc, result, focus),

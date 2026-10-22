@@ -16,6 +16,7 @@ const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoU
 
 const { grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, helperAvailable } = require('./grab');
 const { CocoonStore } = require('./cocoons');
+const { scanSelection } = require('./selectionScan');
 
 // Globale Tastenkürzel. Strg+Alt statt Strg+Umschalt, weil viele Programme Strg+Umschalt
 // selbst benutzen (z. B. Strg+Umschalt+Leertaste in Word, Strg+Umschalt+B in Chrome).
@@ -27,6 +28,23 @@ const SHORTCUTS = [
   { id: 'toggle', keys: 'CommandOrControl+Alt+H', label: 'Strg+Alt+H', desc: 'Spinne verstecken / zeigen' },
 ];
 const HOTKEY = SHORTCUTS[0].keys;
+const shortcutActions = {
+  take: () => spiderTake({ fromHotkey: true }),
+  analyze: () => spiderTake({ fromHotkey: true, autoStart: true }),
+  cocoon: () => cocoonFromSelection(),
+  cocoons: () => { bubbleWin.show(); Menu.buildFromTemplate(cocoonsMenuTemplate()).popup({ window: bubbleWin }); },
+  toggle: () => (bubbleWin.isVisible() ? bubbleWin.hide() : bubbleWin.show()),
+};
+// Eigene Tastenkürzel aus den Einstellungen übernehmen und alle (neu) anmelden
+function registerShortcuts() {
+  const custom = loadSettings().shortcuts || {};
+  globalShortcut.unregisterAll();
+  for (const sc of SHORTCUTS) {
+    if (custom[sc.id]) { sc.keys = custom[sc.id].keys; sc.label = custom[sc.id].label; }
+    try { shortcutStatus[sc.id] = globalShortcut.register(sc.keys, shortcutActions[sc.id]); } catch { shortcutStatus[sc.id] = false; }
+    if (!shortcutStatus[sc.id]) console.warn('Tastenkürzel belegt:', sc.label);
+  }
+}
 const shortcutStatus = {};
 let cocoons = null;
 const OLLAMA_URL = 'http://127.0.0.1:11434';
@@ -140,6 +158,7 @@ function createBubble() {
     const x = c.x - wx, y = c.y - wy;
     const far = x < -300 || x > RIG.width + 300 || y > RIG.height + 300;
     const now = Date.now();
+    if (far && now - lastSent < 150 && !dropZone) return; // weit weg: nur ~7× pro Sekunde nachsehen
     checkDropZone(x, y);
     if (lastPos && lastPos.x === x && lastPos.y === y) return; // Maus bewegt sich nicht
     if (far && now - lastSent < 400) return;
@@ -198,15 +217,22 @@ function createMain() {
   // Solange das Fenster offen ist, tobt die kleine Spinne darin herum statt am Bildschirmrand zu hängen
   const rigAway = () => { if (bubbleWin?.isVisible()) { rigHiddenForMain = true; bubbleWin.hide(); } };
   const rigBack = () => { if (rigHiddenForMain) { rigHiddenForMain = false; bubbleWin?.showInactive(); } };
-  mainWin.on('show', rigAway);
+  mainWin.on('show', () => { rigAway(); clearTimeout(mainWin.__freeTimer); });
   mainWin.on('restore', rigAway);
-  mainWin.on('hide', rigBack);
+  mainWin.on('hide', () => { rigBack(); scheduleFree(mainWin, 3 * 60 * 1000); });
   mainWin.on('minimize', rigBack);
   return mainWin;
 }
 
+// Ein verstecktes Fenster nach einer Weile ganz schließen, damit es keinen Speicher belegt.
+function scheduleFree(win, ms) {
+  clearTimeout(win.__freeTimer);
+  win.__freeTimer = setTimeout(() => {
+    if (!win.isDestroyed() && !win.isVisible()) { win.removeAllListeners('close'); win.destroy(); }
+  }, ms);
+}
+
 function showMain() {
-  preloadBuiltinModel();
   const w = createMain();
   w.show();
   w.focus();
@@ -227,6 +253,7 @@ function openSettings() {
 // Öffnet das Analysefenster und übergibt ihm ein Dokument. Analysiert wird erst nach Enter
 // (oder sofort, wenn autoStart gesetzt ist).
 function showDocument(doc, { autoStart = false, result = null, focus = null } = {}) {
+  if (!result) preloadBuiltinModel(); // gleich wird analysiert → Modell schon mal laden
   const win = showMain();
   const send = () => win.webContents.send('document', { doc, autoStart, result, focus });
   if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send);
@@ -247,6 +274,8 @@ function createPopup() {
   popupWin.setAlwaysOnTop(true, 'floating');
   popupWin.loadFile(path.join(__dirname, 'popup.html'));
   popupWin.on('closed', () => { popupWin = null; });
+  popupWin.on('hide', () => scheduleFree(popupWin, 90 * 1000));
+  popupWin.on('show', () => clearTimeout(popupWin.__freeTimer));
   return popupWin;
 }
 
@@ -304,9 +333,11 @@ async function spiderTake({ autoStart = false, fromHotkey = false } = {}) {
   taking = true;
   try {
     preloadBuiltinModel();
-    createMain(); // schon mal vorbereiten
     const anchor = selectionAnchor(fromHotkey);
-    const grabbed = await grabSelection({ waitForKeys: fromHotkey ? 350 : 0 });
+    // Bildschirmfoto der Markierung gleich mit aufnehmen (nur im Speicher), solange sie sichtbar ist
+    const wantAnimation = loadSettings().hatchAnimation !== false && bubbleWin?.isVisible();
+    const scanned = wantAnimation ? scanSelection(anchor).catch(() => null) : Promise.resolve(null);
+    const grabbed = await grabSelection({ hotkey: fromHotkey });
     // Analysiert wird nur markierter Text. Markierte Dateien werden festgehalten.
     if (!grabbed.text && grabbed.files.length) {
       grabbed.files.slice(0, 6).forEach((f) => cocoons.addFile(f));
@@ -320,10 +351,12 @@ async function spiderTake({ autoStart = false, fromHotkey = false } = {}) {
     }
     const doc = { title: 'Markierter Text', source: 'selection', pages: [grabbed.text] };
 
-    if (loadSettings().hatchAnimation !== false && bubbleWin?.isVisible()) {
+    if (wantAnimation) {
       // Die kleine Spinne erschrickt und versteckt sich, die große kriecht herein
       bubbleWin.webContents.send('rig-trick', 'scared');
-      const rects = await selectionRects(); // genaue Wortpositionen, falls das Programm sie verrät
+      // Wortpositionen: 1. aus dem Bildschirmfoto (klappt überall), 2. von Windows (UI Automation)
+      const fromScreen = await scanned;
+      const rects = fromScreen?.length ? { words: fromScreen, dip: true } : await selectionRects();
       await runCrawlOverlay(anchor, rects);
       bubbleWin.webContents.send('rig-trick', 'return');
     }
@@ -344,8 +377,8 @@ function toDipRects(list) {
 // Die große Spinne kriecht vom Bildschirmrand herein, liest die markierten Wörter und verschwindet wieder.
 function runCrawlOverlay(anchorAbs, rects) {
   return new Promise((resolve) => {
-    const words = toDipRects(rects?.words);
-    const lines = toDipRects(rects?.lines);
+    const words = rects?.dip ? rects.words : toDipRects(rects?.words);
+    const lines = rects?.dip ? [] : toDipRects(rects?.lines);
     const first = words[0] || lines[0];
     if (first) anchorAbs = { x: first[0], y: first[1] };
     const b = screen.getDisplayNearestPoint(anchorAbs).bounds;
@@ -391,28 +424,21 @@ async function iconFor(it) {
   if (it.type !== 'file' || it.missing) return null;
   if (iconCache.has(it.path)) return iconCache.get(it.path);
   let img = null;
-  // Bilder: echtes Vorschaubild; sonst Windows-/macOS-Vorschau, sonst das Dateisymbol
-  if (/\.(png|jpe?g|gif|webp|bmp)$/i.test(it.path)) {
-    try { img = nativeImage.createFromPath(it.path); if (!img.isEmpty()) img = img.resize({ width: 64 }); } catch { img = null; }
-  }
-  if (!img || img.isEmpty()) {
-    try { img = await nativeImage.createThumbnailFromPath(it.path, { width: 64, height: 64 }); } catch { /* kein Vorschaubild */ }
-  }
-  if (!img || img.isEmpty()) {
-    try { img = await app.getFileIcon(it.path, { size: 'normal' }); } catch { img = null; }
-  }
+  // Genau das Symbol, das auch der Explorer zeigt (Dokument, Ordner, Programm …)
+  try { img = await app.getFileIcon(it.path, { size: 'large' }); } catch { img = null; }
   const url = img && !img.isEmpty() ? img.toDataURL() : null;
   iconCache.set(it.path, url);
   return url;
 }
 
 async function sendCocoons() {
-  const list = await Promise.all(cocoons.list().map(async (it) => ({ ...it, icon: await iconFor(it) })));
+  const isDir = (p) => { try { return fs.statSync(p).isDirectory(); } catch { return false; } };
+  const list = await Promise.all(cocoons.list().map(async (it) => ({ ...it, icon: await iconFor(it), folder: it.type === 'file' && isDir(it.path) })));
   bubbleWin?.webContents.send('cocoons', list);
 }
 
-async function cocoonFromSelection() {
-  const grabbed = await grabSelection({ waitForKeys: 350 });
+async function cocoonFromSelection({ hotkey = true } = {}) {
+  const grabbed = await grabSelection({ hotkey });
   if (grabbed.files.length) grabbed.files.slice(0, 6).forEach((f) => cocoons.addFile(f));
   else if (grabbed.text) cocoons.addText(grabbed.text);
   else return;
@@ -427,15 +453,16 @@ async function copyCocoon(id) {
   return copyFileToClipboard(it.path);
 }
 
+const isFolder = (p) => { try { return fs.statSync(p).isDirectory(); } catch { return false; } };
 function cocoonMenu(id) {
   const it = cocoons.get(id);
   if (!it) return [];
   return [
     { label: 'Kopieren', click: async () => { if (await copyCocoon(id)) bubbleWin?.webContents.send('cocoon-copied', id); } },
-    { label: 'Analysieren', click: async () => {
+    ...(it.type === 'file' && isFolder(it.path) ? [{ label: 'Öffnen', click: () => shell.openPath(it.path) }] : [{ label: 'Analysieren', click: async () => {
       if (it.type === 'text') showDocument({ title: 'Text aus dem Kokon', source: 'cocoon', pages: [it.text] });
       else openFile(it.path);
-    } },
+    } }]),
     ...(it.type === 'file' ? [{ label: 'Im Ordner zeigen', click: () => shell.showItemInFolder(it.path) }] : []),
     { type: 'separator' },
     { label: 'Kokon entfernen', click: () => { cocoons.remove(id); sendCocoons(); } },
@@ -645,7 +672,7 @@ async function unloadBuiltinModel() {
 // Das Modell belegt 1–2,5 GB Arbeitsspeicher. Deshalb wird es erst geladen, wenn sich eine
 // Analyse anbahnt (Maus über der Spinne, Analysefenster offen …), und nach 10 Minuten ohne
 // Benutzung wieder freigegeben – so bremst Silkreader den PC im Hintergrund nicht aus.
-const MODEL_IDLE_MS = 10 * 60 * 1000;
+const MODEL_IDLE_MS = 3 * 60 * 1000;
 let lastModelUse = 0;
 let analysisRunning = 0;
 
@@ -989,6 +1016,7 @@ ipcMain.handle('open-file', (_e, p) => openFile(p));
 ipcMain.handle('pick-file', () => pickFile());
 ipcMain.handle('analyze-clipboard', () => spiderTake());
 ipcMain.handle('spider-take', () => spiderTake());
+ipcMain.handle('pin-selection', () => cocoonFromSelection({ hotkey: false }));
 ipcMain.handle('hide-main', () => mainWin?.hide());
 ipcMain.handle('popup-close', () => popupWin?.hide());
 ipcMain.handle('popup-details', (_e, doc, result, focus) => { popupWin?.hide(); showDocument(doc, { result, focus }); });
@@ -1019,7 +1047,14 @@ ipcMain.on('cocoon-drag', (e, id) => {
   if (!file || !fs.existsSync(file)) return;
   e.sender.startDrag({ file, icon: nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png')) });
 });
-ipcMain.handle('shortcuts', () => SHORTCUTS.map((s) => ({ label: s.label, desc: s.desc, ok: shortcutStatus[s.id] !== false })));
+ipcMain.handle('shortcuts', () => SHORTCUTS.map((s) => ({ id: s.id, label: s.label, desc: s.desc, ok: shortcutStatus[s.id] !== false })));
+ipcMain.handle('set-shortcut', (_e, id, keys, label) => {
+  const st = loadSettings();
+  st.shortcuts = { ...(st.shortcuts || {}), [id]: { keys, label } };
+  saveSettings(st);
+  registerShortcuts();
+  return shortcutStatus[id] !== false;
+});
 ipcMain.handle('open-settings', () => openSettings());
 ipcMain.handle('open-main', () => { const w = createMain(); w.show(); w.focus(); });
 
@@ -1028,6 +1063,7 @@ ipcMain.handle('get-settings', () => {
   return {
     provider: s.provider, model: s.model, ollamaModel: s.ollamaModel, language: s.language,
     hatchAnimation: s.hatchAnimation !== false,
+    lowPower: !!s.lowPower,
     hasKey: !!getApiKey(), models: MODELS, hotkey: SHORTCUTS[0].label,
   };
 });
@@ -1041,13 +1077,14 @@ ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await
 ipcMain.handle('ollama-models', async () => {
   try { return { ok: true, models: await ollamaModels() }; } catch { return { ok: false, models: [] }; }
 });
-ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation }) => {
+ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower }) => {
   if (apiKey) setApiKey(apiKey.trim());
   const s = loadSettings();
   if (['builtin', 'claude', 'ollama'].includes(provider)) s.provider = provider;
   if (ollamaModel) s.ollamaModel = ollamaModel.trim();
   if (BUILTIN_MODELS[builtinModel]) s.builtinModel = builtinModel;
   if (typeof hatchAnimation === 'boolean') s.hatchAnimation = hatchAnimation;
+  if (typeof lowPower === 'boolean') s.lowPower = lowPower;
   if (model && MODELS[model]) s.model = model;
   if (language) s.language = language;
   saveSettings(s);
@@ -1076,7 +1113,7 @@ ipcMain.on('bubble-menu', () => {
 // Nur über der Spinne Mausereignisse annehmen, sonst durchklicken lassen.
 ipcMain.on('rig-hover', (_e, inside) => {
   bubbleWin?.setIgnoreMouseEvents(!inside, { forward: true });
-  if (inside) preloadBuiltinModel(); // Maus an der Spinne → gleich geht's wahrscheinlich los
+
 });
 
 // Ziehen: seitwärts wandert die Spinne am Rand entlang, hoch/runter ändert die Fadenlänge.
@@ -1172,6 +1209,16 @@ function checkUpdatesNow() {
 
 // ---------- Start ----------
 
+// Sparmodus (Einstellungen): ohne Grafikbeschleunigung – spart den Grafik-Prozess (~100 MB).
+// Muss vor dem Start feststehen, deshalb direkt aus der Einstellungsdatei gelesen.
+try {
+  const early = JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'settings.json'), 'utf8'));
+  if (early.lowPower || process.env.SILK_LOW_POWER) app.disableHardwareAcceleration();
+} catch { if (process.env.SILK_LOW_POWER) app.disableHardwareAcceleration(); }
+
+// Chromium hält sonst einen Reserve-Prozess (~60 MB) bereit, den Silkreader nicht braucht.
+app.commandLine.appendSwitch('disable-features', 'SpareRendererForSitePerProcess');
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -1203,19 +1250,9 @@ if (!app.requestSingleInstanceLock()) {
     ]));
     tray.on('click', () => bubbleWin.show());
 
-    const actions = {
-      take: () => spiderTake({ fromHotkey: true }),
-      analyze: () => spiderTake({ fromHotkey: true, autoStart: true }),
-      cocoon: () => cocoonFromSelection(),
-      cocoons: () => { bubbleWin.show(); Menu.buildFromTemplate(cocoonsMenuTemplate()).popup({ window: bubbleWin }); },
-      toggle: () => (bubbleWin.isVisible() ? bubbleWin.hide() : bubbleWin.show()),
-    };
-    for (const sc of SHORTCUTS) {
-      try { shortcutStatus[sc.id] = globalShortcut.register(sc.keys, actions[sc.id]); } catch { shortcutStatus[sc.id] = false; }
-      if (!shortcutStatus[sc.id]) console.warn('Tastenkürzel belegt:', sc.label);
-    }
+    registerShortcuts();
     // Analysefenster unsichtbar vorbereiten, damit es später sofort da ist
-    setTimeout(() => { createMain(); createPopup(); }, 4000);
+    // (Fenster werden erst bei Bedarf erzeugt und nach einer Weile im Hintergrund wieder freigegeben – spart RAM)
     setupUpdates();
 
     const s = loadSettings();

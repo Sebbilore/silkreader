@@ -28,6 +28,20 @@ execSync(`xdotool mousemove ${Math.round(b.x + sp.x)} ${Math.round(b.y + sp.y)}`
 const sp2 = await rig.evaluate(() => spiderPos);
 execSync(`xdotool mousemove ${Math.round(b.x + sp2.x)} ${Math.round(b.y + sp2.y)} click 1`);
 console.log('editor still focused after click:', await app.evaluate(() => globalThis.editor.isFocused()));
+await new Promise((r) => setTimeout(r, 1200));
+const ov = app.windows().find((w) => w.url().includes('overlay'));
+if (ov) {
+  const boxes = await ov.evaluate(() => [...document.querySelectorAll('.w')].map((e) => [e.offsetLeft, e.offsetTop, e.offsetWidth, e.offsetHeight]));
+  const truth = await app.evaluate(async () => {
+    const w = globalThis.editor; const [cx, cy] = w.getContentBounds ? [w.getContentBounds().x, w.getContentBounds().y] : [0, 0];
+    const rects = await w.webContents.executeJavaScript(`(() => { const t = document.getElementById('t').firstChild; const out = []; const re = /\\S+/g; let m; while ((m = re.exec(t.data))) { const r = document.createRange(); r.setStart(t, m.index); r.setEnd(t, m.index + m[0].length); for (const b of r.getClientRects()) out.push([b.x, b.y, b.width, b.height]); } return out; })()`);
+    return rects.map(([x, y, ww, h]) => [x + cx, y + cy, ww, h]);
+  });
+  const c = (r) => [r[0] + r[2] / 2, r[1] + r[3] / 2];
+  const inR = (p, r) => p[0] >= r[0] - 4 && p[0] <= r[0] + r[2] + 4 && p[1] >= r[1] - 6 && p[1] <= r[1] + r[3] + 6;
+  const onWord = boxes.filter((b) => truth.some((t) => inR(c(b), t))).length;
+  console.log(`Overlay-Kästen: ${boxes.length}, davon auf echtem Wort: ${onWord}, echte Wörter: ${truth.length}`);
+} else console.log('kein Overlay gefunden');
 const rigTricks = [];
 for (let i = 0; i < 30; i++) {
   execSync(`import -window root ${out}/s${String(i).padStart(2, '0')}.png`);

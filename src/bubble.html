@@ -7,6 +7,8 @@
 <style>
   html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; user-select: none; }
   svg { display: block; width: 100%; height: 100%; }
+  #webSvg { position: absolute; inset: 0; pointer-events: none; will-change: transform; }
+  #svg { position: absolute; inset: 0; }
   #thread { stroke: rgba(245,245,250,.95); stroke-width: 1; }
   #threadShadow { stroke: rgba(20,20,30,.45); stroke-width: 2.4; }
   #web { transition: opacity 4s; }
@@ -63,8 +65,8 @@
 </style>
 </head>
 <body>
+<svg id="webSvg"><g id="holdWeb" opacity="0"></g></svg>
 <svg id="svg">
-  <g id="holdWeb" opacity="0"></g>
   <g id="web" opacity="0"></g>
   <line id="threadShadow" x1="0" y1="0" x2="0" y2="0"/>
   <line id="thread" x1="0" y1="0" x2="0" y2="0"/>
@@ -241,7 +243,7 @@
     requestAnimationFrame(frame);
     // Bildrate begrenzen: ruhig 20 fps, schlafend 10 fps, nur bei Action volle Bildrate
     const active = dragging || hover || trick || catching || busy || Math.abs(omega) > 0.6 || Math.abs(lenV) > 40;
-    const minGap = sleeping ? 100 : active ? 0 : 50;
+    const minGap = sleeping ? 250 : active ? 0 : 83;
     if (now - lastDraw < minGap) return;
     lastDraw = now;
 
@@ -413,7 +415,7 @@
     const onThread = cursor.y > 0 && cursor.y < spiderPos.y - 10 &&
       Math.abs(cursor.x - (AX + (spiderPos.x - AX) * (cursor.y / Math.max(spiderPos.y, 1)))) < 6;
     const inRect = (r) => r && cursor.x >= r.x && cursor.x <= r.x + r.w && cursor.y >= r.y && cursor.y <= r.y + r.h;
-    const inside = dragging || down !== null || d < (noZoneHelper ? 52 : 42) || onThread || itemRects.some(inRect) || inRect(zoneRect());
+    const inside = dragging || down !== null || d < (noZoneHelper ? 52 : 42) || onThread || itemRects.some(inRect) || inRect(zoneRect()) || onWeb(cursor);
     if (inside !== wasInside) {
       wasInside = inside;
       window.spider.rigHover(inside);
@@ -453,7 +455,7 @@
   const SPOTS = [[-56, -36, -7], [56, -36, 6], [-76, 10, 5], [76, 10, -6], [-50, 56, -4], [50, 56, 7]]
     .map(([dx, dy, rot]) => ({ x: HOLD.cx + dx, y: HOLD.cy + dy, rot }));
   (function drawHoldWeb() {
-    const g = el.svg.querySelector('#holdWeb');
+    const g = document.getElementById('holdWeb');
     const N = 12;
     const dirs = Array.from({ length: N }, (_, i) => (i / N) * Math.PI * 2 + 0.13);
     const pt = (a, r) => [HOLD.cx + Math.cos(a) * r, Math.max(1, HOLD.cy + Math.sin(a) * r * 0.92)];
@@ -476,7 +478,7 @@
   let itemRects = [], itemIds = [], knownIds = new Set(), dropZone = false;
   let noZoneHelper = false; // Windows-Helfer nicht verfügbar → größere Fangfläche um die Spinne
   function updateHoldWeb() {
-    const g = el.svg.querySelector('#holdWeb');
+    const g = document.getElementById('holdWeb');
     g.setAttribute('opacity', itemIds.length || dropZone ? '1' : '0');
     g.classList.toggle('zone', dropZone);
     $('zoneGlow').style.display = dropZone ? 'block' : 'none';
@@ -491,15 +493,15 @@
     list.slice(0, SPOTS.length).forEach((it, i) => {
       const { x, y } = SPOTS[i];
       const c = document.createElement('div');
-      const isPhoto = it.type === 'file' && /\.(png|jpe?g|gif|webp|bmp)$/i.test(it.name) && it.icon;
+      const isPhoto = false; // immer das echte Datei-/Ordnersymbol zeigen
       c.className = `item ${it.type}${isPhoto ? ' photo' : ''}${it.missing ? ' missing' : ''}${knownIds.has(it.id) ? '' : ' new'}`;
       c.style.left = `${x}px`; c.style.top = `${y}px`; c.style.setProperty('--rot', `${SPOTS[i].rot}deg`);
       c.title = `${it.name}${it.missing ? ' (Datei fehlt)' : ''}\nKlick: kopieren · Ziehen: ablegen · Rechtsklick: mehr`;
       c.draggable = true;
-      const ext = it.type === 'file' ? (it.name.includes('.') ? it.name.split('.').pop().slice(0, 4).toUpperCase() : '') : '';
+      const ext = it.type === 'file' && !it.folder ? (it.name.includes('.') ? it.name.split('.').pop().slice(0, 4).toUpperCase() : '') : '';
       const short = it.type === 'file' ? it.name.replace(/\.[^.]+$/, '') : it.name;
       const icon = it.type === 'text' ? '<div class="ic">📝</div>'
-        : `<div class="ic" style="${it.icon ? `background-image:url('${it.icon}')` : ''}">${it.icon ? '' : '📄'}</div>`;
+        : `<div class="ic" style="${it.icon ? `background-image:url('${it.icon}')` : ''}">${it.icon ? '' : it.folder ? '📁' : '📄'}</div>`;
       c.innerHTML = `<div class="card">${icon}</div>${ext ? `<span class="ext">${ext}</span>` : ''}<span class="nm">${short.replace(/[<>&]/g, '')}</span>`;
       c.addEventListener('click', async () => { if (await window.spider.cocoonCopy(it.id)) flashCopied(c); });
       c.addEventListener('dragstart', (e) => { e.preventDefault(); window.spider.cocoonDrag(it.id); });
@@ -523,21 +525,26 @@
     dropZone = on; catching = on; if (on) wake(); updateHoldWeb();
   });
   const zoneRect = () => (dropZone ? { x: 0, y: 0, w: W, h: H } : null);
+  const onWeb = (p) => itemIds.length > 0 && Math.hypot(p.x - HOLD.cx, (p.y - HOLD.cy) / 0.92) < HOLD.r + 6;
 
 
   // ---------- Bedienung ----------
   let down = null;
   el.svg.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
-    down = true;
+    // Klick aufs Netz (nicht auf die Spinne selbst) = Markiertes festhalten
+    const p = { x: e.clientX, y: e.clientY };
+    down = { onWeb: onWeb(p) && Math.hypot(p.x - spiderPos.x, p.y - spiderPos.y) > 40 };
     wake();
     el.svg.setPointerCapture(e.pointerId);
-    window.spider.rigDragStart(baseLen);
+    if (!down.onWeb) window.spider.rigDragStart(baseLen);
   });
   el.svg.addEventListener('pointerup', async (e) => {
     if (!down) return;
+    const wasWeb = down.onWeb;
     down = null;
     el.svg.releasePointerCapture(e.pointerId);
+    if (wasWeb) { doTrick('wrap'); window.spider.pinSelection(); return; }
     const { moved } = await window.spider.rigDragEnd();
     if (!moved) {
       if (trick) endTrick();
