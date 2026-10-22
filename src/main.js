@@ -13,6 +13,15 @@ const { autoUpdater } = require('electron-updater');
 
 const HOTKEY = 'CommandOrControl+Shift+Space';
 const OLLAMA_URL = 'http://127.0.0.1:11434';
+
+// Eingebautes KI-Modell (läuft mit llama.cpp direkt in der App, kostenlos und offline).
+// Die Modelldatei wird einmalig aus der App heraus geladen und im Benutzerordner gespeichert.
+const BUILTIN_MODEL = {
+  name: 'Qwen3 4B Instruct',
+  uri: 'hf:unsloth/Qwen3-4B-Instruct-2507-GGUF/Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
+  file: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
+  sizeLabel: '2,5 GB',
+};
 const MODELS = {
   'claude-opus-5-5': 'Claude Opus 5.5 (beste Qualität)',
   'claude-sonnet-5-5': 'Claude Sonnet 5.5 (schneller, günstiger)',
@@ -30,7 +39,7 @@ const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
 
 function loadSettings() {
   const defaults = {
-    provider: 'ollama', model: 'claude-opus-5-5', ollamaModel: 'gemma3:12b',
+    provider: 'builtin', model: 'claude-opus-5-5', ollamaModel: 'gemma3:12b',
     language: 'Deutsch', apiKeyEnc: null, bubble: null,
   };
   try {
@@ -262,6 +271,7 @@ async function analyze(doc, onProgress) {
     return JSON.parse(fs.readFileSync(process.env.SPIDER_MOCK, 'utf8'));
   }
   const s = loadSettings();
+  if (s.provider === 'builtin') return analyzeBuiltin(doc, s, onProgress);
   return s.provider === 'ollama' ? analyzeOllama(doc, s, onProgress) : analyzeClaude(doc, s, onProgress);
 }
 
@@ -292,6 +302,104 @@ async function analyzeClaude(doc, s, onProgress) {
   if (msg.stop_reason === 'max_tokens') throw new Error('Die Antwort wurde abgeschnitten – das Dokument ist zu umfangreich.');
   const text = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
   return JSON.parse(text);
+}
+
+// ---------- Kostenlos & eingebaut: llama.cpp ----------
+
+const modelDir = () => path.join(app.getPath('userData'), 'models');
+const builtinModelPath = () => process.env.SILK_MODEL_PATH || path.join(modelDir(), BUILTIN_MODEL.file);
+const builtinModelReady = () => fs.existsSync(builtinModelPath());
+
+let llamaRuntime = null; // { llama, model } – bleibt geladen, damit weitere Analysen schnell starten
+let modelDownload = null;
+let modelDownloadCanceled = false;
+
+async function loadBuiltinModel() {
+  if (llamaRuntime) return llamaRuntime;
+  const { getLlama } = await import('node-llama-cpp');
+  const llama = await getLlama({ gpu: 'auto' }); // nutzt die Grafikkarte, falls möglich, sonst den Prozessor
+  const model = await llama.loadModel({ modelPath: builtinModelPath() });
+  llamaRuntime = { llama, model };
+  return llamaRuntime;
+}
+
+async function analyzeBuiltin(doc, s, onProgress) {
+  if (!builtinModelReady()) {
+    throw Object.assign(new Error(`Das eingebaute KI-Modell ist noch nicht heruntergeladen (einmalig ${BUILTIN_MODEL.sizeLabel}). Bitte in den Einstellungen auf „Herunterladen“ klicken.`), { code: 'NO_MODEL' });
+  }
+  const { LlamaChatSession } = await import('node-llama-cpp');
+  const { llama, model } = await loadBuiltinModel();
+
+  const prompt = buildPrompt(doc, s.language);
+  const promptTokens = model.tokenize(prompt).length;
+  const answerTokens = 4096;
+  const maxCtx = Math.min(model.trainContextSize || 32768, 32768);
+  if (promptTokens + answerTokens + 300 > maxCtx) {
+    throw new Error(`Das Dokument ist zu lang für das eingebaute Modell (ca. ${Math.round(promptTokens / 1000)}k von max. ${Math.round((maxCtx - answerTokens) / 1000)}k Token). Kürzere Abschnitte analysieren oder in den Einstellungen Claude wählen.`);
+  }
+
+  const context = await model.createContext({ contextSize: promptTokens + answerTokens + 300 });
+  try {
+    const session = new LlamaChatSession({
+      contextSequence: context.getSequence(),
+      systemPrompt: 'Du bist ein sorgfältiger Analyst. Antworte ausschließlich mit JSON nach dem vorgegebenen Schema.',
+    });
+    const grammar = await llama.createGrammarForJsonSchema(ANALYSIS_SCHEMA);
+    let chars = 0;
+    const text = await session.prompt(prompt, {
+      grammar,
+      maxTokens: answerTokens,
+      temperature: 0.2,
+      onTextChunk: (chunk) => { chars += chunk.length; onProgress(chars); },
+    });
+    try {
+      return normalizeResult(grammar.parse(text));
+    } catch {
+      throw new Error('Das eingebaute Modell hat keine vollständige Antwort geliefert. Bitte erneut versuchen.');
+    }
+  } finally {
+    await context.dispose();
+  }
+}
+
+async function startModelDownload(sender) {
+  if (modelDownload) return;
+  const send = (ch, d) => { if (!sender.isDestroyed()) sender.send(ch, d); };
+  try {
+    const { createModelDownloader } = await import('node-llama-cpp');
+    fs.mkdirSync(modelDir(), { recursive: true });
+    let lastProgress = Date.now();
+    let stalled = false;
+    const downloader = await Promise.race([
+      createModelDownloader({
+        modelUri: BUILTIN_MODEL.uri,
+        dirPath: modelDir(),
+        fileName: BUILTIN_MODEL.file,
+        onProgress: ({ totalSize, downloadedSize, averageSpeed }) => {
+          lastProgress = Date.now();
+          send('model-progress', { total: totalSize, done: downloadedSize, speed: averageSpeed });
+        },
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('keine Verbindung zum Download-Server (Hugging Face)')), 60000)),
+    ]);
+    modelDownload = downloader;
+    modelDownloadCanceled = false;
+    // Hängt der Download länger als 90 Sekunden, abbrechen und Fehler melden.
+    const watchdog = setInterval(() => {
+      if (Date.now() - lastProgress > 90000) { stalled = true; clearInterval(watchdog); downloader.cancel(); }
+    }, 5000);
+    try {
+      await downloader.download();
+    } finally {
+      clearInterval(watchdog);
+    }
+    if (stalled) throw new Error('der Download ist hängen geblieben – bitte Internetverbindung prüfen und erneut versuchen');
+    send('model-progress', { finished: true });
+  } catch (e) {
+    send('model-progress', { error: modelDownloadCanceled && !String(e.message).includes('hängen') ? 'Download abgebrochen.' : `Download fehlgeschlagen: ${e.message || e}` });
+  } finally {
+    modelDownload = null;
+  }
 }
 
 // ---------- Kostenlos & lokal: Ollama ----------
@@ -374,7 +482,7 @@ function normalizeResult(r) {
 }
 
 function friendlyError(e) {
-  if (e.code === 'NO_KEY' || e.code === 'NO_OLLAMA') return e.message;
+  if (e.code === 'NO_KEY' || e.code === 'NO_OLLAMA' || e.code === 'NO_MODEL') return e.message;
   if (e instanceof Anthropic.AuthenticationError) return 'Der API-Schlüssel ist ungültig. Bitte in den Einstellungen prüfen.';
   if (e instanceof Anthropic.RateLimitError) return 'Zu viele Anfragen – bitte kurz warten und erneut versuchen.';
   if (e instanceof Anthropic.BadRequestError) return `Anfrage abgelehnt: ${e.message}`;
@@ -391,7 +499,7 @@ ipcMain.handle('analyze', async (event, doc) => {
     const result = await analyze(doc, (n) => event.sender.send('progress', n));
     return { ok: true, result };
   } catch (e) {
-    return { ok: false, error: friendlyError(e), needsKey: e.code === 'NO_KEY' || e.code === 'NO_OLLAMA' || e instanceof Anthropic.AuthenticationError };
+    return { ok: false, error: friendlyError(e), needsKey: e.code === 'NO_KEY' || e.code === 'NO_OLLAMA' || e.code === 'NO_MODEL' || e instanceof Anthropic.AuthenticationError };
   } finally {
     setBusy(false);
   }
@@ -411,13 +519,18 @@ ipcMain.handle('get-settings', () => {
     hasKey: !!getApiKey(), models: MODELS, hotkey: 'Strg+Umschalt+Leertaste',
   };
 });
+ipcMain.handle('model-status', () => ({
+  ready: builtinModelReady(), downloading: !!modelDownload, name: BUILTIN_MODEL.name, size: BUILTIN_MODEL.sizeLabel,
+}));
+ipcMain.handle('model-download', (event) => { startModelDownload(event.sender); });
+ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await modelDownload?.cancel(); });
 ipcMain.handle('ollama-models', async () => {
   try { return { ok: true, models: await ollamaModels() }; } catch { return { ok: false, models: [] }; }
 });
 ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language }) => {
   if (apiKey) setApiKey(apiKey.trim());
   const s = loadSettings();
-  if (provider === 'claude' || provider === 'ollama') s.provider = provider;
+  if (['builtin', 'claude', 'ollama'].includes(provider)) s.provider = provider;
   if (ollamaModel) s.ollamaModel = ollamaModel.trim();
   if (model && MODELS[model]) s.model = model;
   if (language) s.language = language;
@@ -572,6 +685,7 @@ if (!app.requestSingleInstanceLock()) {
 
     const s = loadSettings();
     if (s.provider === 'claude' && !getApiKey()) openSettings();
+    if (s.provider === 'builtin' && !builtinModelReady()) openSettings();
     if (s.provider === 'ollama') ollamaModels().then((m) => { if (!m.length) openSettings(); }).catch(openSettings);
   });
 

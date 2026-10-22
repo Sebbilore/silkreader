@@ -15,7 +15,9 @@
   .hint { color: var(--muted); font-size: 12px; margin-top: 5px; }
   a { color: var(--pink); cursor: pointer; }
   code { font-family: Consolas, monospace; background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; color: var(--text); user-select: all; }
-  .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .choice { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .progress { height: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 5px; overflow: hidden; margin: 10px 0 6px; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--pink); transition: width .3s; }
   .opt { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; background: var(--card); }
   .opt.on { border-color: var(--pink); box-shadow: 0 0 0 1px var(--pink); }
   .opt b { display: block; } .opt span { color: var(--muted); font-size: 12px; }
@@ -32,8 +34,21 @@
 <h1>🕷 Einstellungen</h1>
 
 <div class="choice">
-  <div class="opt" data-p="ollama"><b>Lokal: kostenlos</b><span>Läuft auf deinem PC mit Ollama, ohne Konto und offline</span></div>
-  <div class="opt" data-p="claude"><b>Claude: beste Qualität</b><span>Braucht einen API-Schlüssel, kostet ein paar Cent pro Analyse</span></div>
+  <div class="opt" data-p="builtin"><b>Eingebaut</b><span>Kostenlos und offline, direkt in der App</span></div>
+  <div class="opt" data-p="claude"><b>Claude</b><span>Beste Qualität, braucht API-Schlüssel (ein paar Cent pro Analyse)</span></div>
+  <div class="opt" data-p="ollama"><b>Ollama</b><span>Für Profis: eigenes Modell über Ollama</span></div>
+</div>
+
+<div class="box" id="boxBuiltin">
+  <label>Eingebautes KI-Modell</label>
+  <div id="modelInfo" class="hint"></div>
+  <div class="progress" id="modelBar" style="display:none"><i></i></div>
+  <div class="hint" id="modelProgress"></div>
+  <div class="inline" style="margin-top:10px">
+    <button class="primary" id="modelDl">Herunterladen</button>
+    <button id="modelCancel" style="display:none">Abbrechen</button>
+  </div>
+  <div class="hint" style="margin-top:10px">Wird nur einmal geladen und dann auf diesem PC gespeichert. Läuft danach komplett offline; deine Texte verlassen den PC nicht. Empfohlen: 8 GB RAM oder mehr.</div>
 </div>
 
 <div class="box" id="boxOllama">
@@ -80,9 +95,40 @@
     provider = p;
     document.querySelectorAll('.opt').forEach((o) => o.classList.toggle('on', o.dataset.p === p));
     $('boxOllama').style.display = p === 'ollama' ? '' : 'none';
+    $('boxBuiltin').style.display = p === 'builtin' ? '' : 'none';
     $('boxClaude').style.display = p === 'claude' ? '' : 'none';
   }
   document.querySelectorAll('.opt').forEach((o) => o.addEventListener('click', () => setProvider(o.dataset.p)));
+
+  const gb = (b) => (b / 1e9).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+  async function loadModelStatus() {
+    const m = await window.spider.modelStatus();
+    $('modelInfo').textContent = m.ready
+      ? `✓ ${m.name} ist bereit.`
+      : `${m.name}: noch nicht heruntergeladen (einmalig ${m.size}).`;
+    $('modelInfo').className = m.ready ? 'hint ok' : 'hint';
+    $('modelDl').style.display = m.ready || m.downloading ? 'none' : '';
+    $('modelCancel').style.display = m.downloading ? '' : 'none';
+    $('modelBar').style.display = m.downloading ? '' : 'none';
+  }
+  window.spider.onModelProgress((p) => {
+    if (p.finished) { $('modelProgress').textContent = ''; loadModelStatus(); return; }
+    if (p.error) { $('modelProgress').textContent = p.error; $('modelProgress').className = 'hint bad'; loadModelStatus(); return; }
+    $('modelBar').style.display = '';
+    $('modelBar').firstElementChild.style.width = `${p.total ? (p.done / p.total) * 100 : 0}%`;
+    const mbs = p.speed ? ` · ${(p.speed / 1e6).toFixed(1)} MB/s` : '';
+    $('modelProgress').className = 'hint';
+    $('modelProgress').textContent = `${gb(p.done)} von ${gb(p.total)} GB${mbs}`;
+  });
+  $('modelDl').addEventListener('click', () => {
+    $('modelDl').style.display = 'none';
+    $('modelCancel').style.display = '';
+    $('modelBar').style.display = '';
+    $('modelProgress').className = 'hint';
+    $('modelProgress').textContent = 'Starte Download …';
+    window.spider.modelDownload();
+  });
+  $('modelCancel').addEventListener('click', () => window.spider.modelCancel());
 
   async function loadOllama() {
     $('ollamaStatus').textContent = 'Suche Ollama …';
@@ -118,6 +164,7 @@
     if (s.hasKey) $('key').placeholder = '•••••••• (gespeichert – leer lassen, um ihn zu behalten)';
     setProvider(s.provider);
     loadOllama();
+    loadModelStatus();
   });
   $('refresh').addEventListener('click', loadOllama);
   $('ollamaLink').addEventListener('click', () => window.spider.openExternal('https://ollama.com/download'));

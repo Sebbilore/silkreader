@@ -18,7 +18,10 @@
     "productName": "Silkreader",
     "files": [
       "src/**/*",
-      "package.json"
+      "package.json",
+      "!node_modules/@node-llama-cpp/*-cuda*/**",
+      "!node_modules/@node-llama-cpp/*arm*/**",
+      "!node_modules/node-llama-cpp/llama/**/*.{h,c,cpp,hpp,cu,cuh,txt,md}"
     ],
     "icon": "build/icon.png",
     "nsis": {
@@ -56,12 +59,17 @@
         ]
       },
       "legalTrademarks": "Silkreader"
-    }
+    },
+    "asarUnpack": [
+      "node_modules/node-llama-cpp/**",
+      "node_modules/@node-llama-cpp/**"
+    ]
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.1.0",
     "electron-updater": "^6.8.9",
     "mammoth": "^1.13.0",
+    "node-llama-cpp": "^3.22.1",
     "unpdf": "^1.9.1"
   },
   "devDependencies": {

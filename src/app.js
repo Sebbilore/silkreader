@@ -308,7 +308,9 @@ window.spider.onProgress((n) => {
 });
 
 function showModel(s) {
-  $('modelName').textContent = s.provider === 'ollama'
+  $('modelName').textContent = s.provider === 'builtin'
+    ? '· Eingebautes Modell · kostenlos'
+    : s.provider === 'ollama'
     ? `· Lokal (${s.ollamaModel}) · kostenlos`
     : `· ${s.models[s.model]?.split(' (')[0] || s.model}`;
 }

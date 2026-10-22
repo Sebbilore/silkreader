@@ -1,0 +1,11 @@
+import { _electron as electron } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+const app = await electron.launch({ executablePath: './node_modules/electron/dist/electron', args: ['--no-sandbox', '.'], env: { ...process.env, HOME: process.argv[2] } });
+await new Promise((r) => setTimeout(r, 3500));
+const w = app.windows().find((x) => x.url().includes('settings'));
+console.log('settings opened automatically:', !!w);
+await w.screenshot({ path: process.argv[3] + '/dl-before.png' });
+await w.click('#modelDl');
+await new Promise((r) => setTimeout(r, 8000));
+console.log('progress text:', await w.textContent('#modelProgress'));
+await w.screenshot({ path: process.argv[3] + '/dl-after.png' });
+await app.close();
