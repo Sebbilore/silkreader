@@ -16,7 +16,7 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Gibt es diese Version schon?
         id: check
@@ -35,7 +35,7 @@ jobs:
           }
           $global:LASTEXITCODE = 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: steps.check.outputs.skip == 'false'
         with:
           node-version: 22
@@ -55,7 +55,15 @@ jobs:
 
       - name: Bauen, signieren und veröffentlichen
         if: steps.check.outputs.skip == 'false'
-        run: npx electron-builder --win nsis --x64 --publish always
+        shell: pwsh
+        run: |
+          npx electron-builder --win nsis --x64 --publish always 2>&1 | Tee-Object -FilePath build.log
+          if ($LASTEXITCODE -ne 0) {
+            # Ende des Logs als Annotation ausgeben, damit der Fehler auf der Übersichtsseite steht
+            $tail = (Get-Content build.log -Tail 60) -join '%0A'
+            Write-Output "::error title=Build fehlgeschlagen::$tail"
+            exit 1
+          }
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ runner.temp }}\silkreader.pfx
