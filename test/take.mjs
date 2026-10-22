@@ -28,7 +28,13 @@ execSync(`xdotool mousemove ${Math.round(b.x + sp.x)} ${Math.round(b.y + sp.y)}`
 const sp2 = await rig.evaluate(() => spiderPos);
 execSync(`xdotool mousemove ${Math.round(b.x + sp2.x)} ${Math.round(b.y + sp2.y)} click 1`);
 console.log('editor still focused after click:', await app.evaluate(() => globalThis.editor.isFocused()));
-for (let i = 0; i < 30; i++) { execSync(`import -window root ${out}/s${String(i).padStart(2, '0')}.png`); await new Promise((r) => setTimeout(r, 120)); }
+const rigTricks = [];
+for (let i = 0; i < 30; i++) {
+  execSync(`import -window root ${out}/s${String(i).padStart(2, '0')}.png`);
+  rigTricks.push(await rig.evaluate(() => `${trick}:${Math.round(len)}`));
+  await new Promise((r) => setTimeout(r, 120));
+}
+console.log('kleine Spinne:', [...new Set(rigTricks.map((t) => t.split(':')[0]))].join(' → '), '| min. Fadenlänge:', Math.min(...rigTricks.map((t) => Number(t.split(':')[1]))));
 await new Promise((r) => setTimeout(r, 3000));
 const pop = app.windows().find((w) => w.url().includes('popup'));
 console.log('popup visible:', await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().includes('popup') && w.isVisible())));

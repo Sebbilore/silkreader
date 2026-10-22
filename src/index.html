@@ -128,6 +128,22 @@
   #panelFoot { padding: 12px 18px; border-top: 1px solid var(--line); display: flex; gap: 8px; }
   #panelFoot button { flex: 1; }
   .hidden { display: none !important; }
+  /* Die kleine Spinne, die im Fenster herumtollt */
+  .mascot { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
+  .mascot .m-spider { position: absolute; left: 0; top: 0; overflow: visible; will-change: transform; }
+  .mascot .m-thread { position: absolute; left: 0; top: 0; overflow: visible; }
+  .mascot .m-thread line { stroke: rgba(240,240,250,.9); stroke-width: 1; }
+  .mascot .m-leg { stroke: #ff2d8a; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .mascot .m-body { fill: #16161d; stroke: #ff2d8a; stroke-width: 1.6; pointer-events: all; cursor: pointer; }
+  .mascot .m-cheek { fill: rgba(255,45,138,.45); pointer-events: none; }
+  .mascot .m-eye { fill: #fff; stroke: #16161d; stroke-width: .5; pointer-events: none; }
+  .mascot .m-pupil { fill: #111; pointer-events: none; }
+  .mascot .m-mouth { stroke: #ff2d8a; stroke-width: 1.3; fill: none; stroke-linecap: round; pointer-events: none; }
+  .mascot .m-fx span { position: absolute; font-size: 16px; animation: floatUp 1.3s ease-out forwards; }
+  @keyframes floatUp { from { transform: translate(0, 0) scale(.6); opacity: 1; } to { transform: translate(var(--dx), -70px) scale(1.2); opacity: 0; } }
+  .mascot.sleeping::after { content: 'z z Z'; position: absolute; left: var(--zx); top: var(--zy); font: 700 12px "Segoe UI", sans-serif; color: #ff2d8a;
+    animation: zz 2s ease-in-out infinite; }
+  @keyframes zz { 0% { opacity: 0; transform: translateY(6px); } 50% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }
   .jump { cursor: pointer; border-radius: 6px; transition: background .15s; }
   .jump:hover { background: var(--card); }
   ul.points li.jump { padding: 2px 4px; margin-left: -4px; }

@@ -35,12 +35,62 @@ public static class SilkKeys {
   }
 }
 "@
+# Wo steht der markierte Text auf dem Bildschirm? (UI Automation – wie Bildschirmleser)
+$uia = $true
+try {
+Add-Type -ReferencedAssemblies UIAutomationClient, UIAutomationTypes, WindowsBase -TypeDefinition @"
+using System;
+using System.Text;
+using System.Globalization;
+using System.Windows.Automation;
+using System.Windows.Automation.Text;
+public static class SilkText {
+  static string R(System.Windows.Rect rc) {
+    return string.Format(CultureInfo.InvariantCulture, "[{0:0},{1:0},{2:0},{3:0}]", rc.X, rc.Y, rc.Width, rc.Height);
+  }
+  public static string Selection(int max) {
+    try {
+      AutomationElement el = AutomationElement.FocusedElement;
+      TextPattern tp = null;
+      for (int i = 0; el != null && i < 8 && tp == null; i++) {
+        object p;
+        if (el.TryGetCurrentPattern(TextPattern.Pattern, out p)) tp = (TextPattern)p;
+        else el = TreeWalker.ControlViewWalker.GetParent(el);
+      }
+      if (tp == null) return "{}";
+      TextPatternRange[] sels = tp.GetSelection();
+      if (sels == null || sels.Length == 0) return "{}";
+      TextPatternRange sel = sels[0];
+      StringBuilder lines = new StringBuilder();
+      foreach (System.Windows.Rect rc in sel.GetBoundingRectangles()) {
+        if (rc.Width > 1 && rc.Height > 1) { if (lines.Length > 0) lines.Append(','); lines.Append(R(rc)); }
+      }
+      StringBuilder words = new StringBuilder();
+      int n = 0;
+      TextPatternRange r = sel.Clone();
+      r.MoveEndpointByRange(TextPatternRangeEndpoint.End, r, TextPatternRangeEndpoint.Start);
+      DateTime until = DateTime.Now.AddMilliseconds(1500);
+      while (n < max && DateTime.Now < until) {
+        r.ExpandToEnclosingUnit(TextUnit.Word);
+        if (r.CompareEndpoints(TextPatternRangeEndpoint.Start, sel, TextPatternRangeEndpoint.End) >= 0) break;
+        foreach (System.Windows.Rect rc in r.GetBoundingRectangles()) {
+          if (rc.Width > 1 && rc.Height > 1) { if (n > 0) words.Append(','); words.Append(R(rc)); n++; }
+        }
+        if (r.Move(TextUnit.Word, 1) == 0) break;
+      }
+      return "{\\"lines\\":[" + lines.ToString() + "],\\"words\\":[" + words.ToString() + "]}";
+    } catch { return "{}"; }
+  }
+}
+"@
+} catch { $uia = $false }
 [Console]::Out.WriteLine('ready')
 while ($true) {
   $line = [Console]::In.ReadLine()
   if ($line -eq $null) { break }
   try {
     if ($line -eq 'copy') { [SilkKeys]::Copy(); [Console]::Out.WriteLine('ok') }
+    elseif ($line -eq 'rects') { if ($uia) { [Console]::Out.WriteLine([SilkText]::Selection(160)) } else { [Console]::Out.WriteLine('{}') } }
     elseif ($line -eq 'btn') { if ([SilkKeys]::LeftDown()) { [Console]::Out.WriteLine('down') } else { [Console]::Out.WriteLine('up') } }
     else { [Console]::Out.WriteLine('ok') }
   } catch { [Console]::Out.WriteLine('err') }
@@ -84,6 +134,19 @@ function helperCommand(cmd, timeoutMs) {
 }
 
 const windowsCopy = () => helperCommand('copy', 2500); // beim ersten Mal startet der Helfer ggf. noch
+
+/**
+ * Bildschirm-Rechtecke der markierten Wörter (und Zeilen) im aktiven Programm.
+ * Liefert { words: [[x,y,w,h]…], lines: […] } in Bildschirmpixeln oder null.
+ */
+async function selectionRects() {
+  if (process.platform !== 'win32' || !helper?.ready) return null;
+  const r = await helperCommand('rects', 2500);
+  try {
+    const j = JSON.parse(r || '{}');
+    return j.words?.length || j.lines?.length ? j : null;
+  } catch { return null; }
+}
 
 /** Ist die linke Maustaste gerade gedrückt? (null = unbekannt, z. B. nicht Windows) */
 async function isMouseDown() {
@@ -177,4 +240,4 @@ async function copyFileToClipboard(filePath) {
   return true;
 }
 
-module.exports = { grabSelection, copyFileToClipboard, warmUp, isMouseDown, helperAvailable: () => process.platform === 'win32' && !!helper?.ready };
+module.exports = { grabSelection, copyFileToClipboard, warmUp, isMouseDown, selectionRects, helperAvailable: () => process.platform === 'win32' && !!helper?.ready };

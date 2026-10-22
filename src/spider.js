@@ -135,7 +135,7 @@ export class Spider {
     const stepping = this.feet.filter((f) => f.t < 1).length;
     this.feet.forEach((f, i) => {
       if (f.t < 1) {
-        f.t = Math.min(1, f.t + dt * 7);
+        f.t = Math.min(1, f.t + dt * 11); // schnellere, kleinere Schritte = flüssigerer Gang
         const e = 1 - (1 - f.t) ** 2;
         f.x = lerp(f.fx, f.tx, e);
         f.y = lerp(f.fy, f.ty, e) - Math.sin(f.t * Math.PI) * 10;
@@ -144,8 +144,8 @@ export class Spider {
       }
       const [ix, iy] = this.ideal(LEG_ANGLES[i]);
       const groupBusy = this.feet.some((g, j) => g.t < 1 && GAIT_A.has(j) !== GAIT_A.has(i));
-      if (dist(f.x, f.y, ix, iy) > this.reach * 0.5 && stepping < 4 && !groupBusy) {
-        const lead = Math.min(40, vl);
+      if (dist(f.x, f.y, ix, iy) > this.reach * 0.38 && stepping < 4 && !groupBusy) {
+        const lead = Math.min(this.reach * 0.35, vl); // weiter vorausgreifen, damit die Füße nicht hinterherhinken
         const w = this.nearestWord(ix + (vx / vl) * lead, iy + (vy / vl) * lead);
         f.fx = f.x; f.fy = f.y;
         f.tx = w ? w.x : ix; f.ty = w ? w.y : iy;

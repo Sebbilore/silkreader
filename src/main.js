@@ -14,7 +14,7 @@ const loadAnthropic = () => (Anthropic ??= require('@anthropic-ai/sdk').default)
 let autoUpdaterInstance = null;
 const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoUpdater);
 
-const { grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, helperAvailable } = require('./grab');
+const { grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, helperAvailable } = require('./grab');
 const { CocoonStore } = require('./cocoons');
 
 // Globale Tastenkürzel. Strg+Alt statt Strg+Umschalt, weil viele Programme Strg+Umschalt
@@ -179,6 +179,7 @@ function setBusy(busy) {
 // Das Analysefenster wird beim Start unsichtbar vorbereitet und beim Schließen nur versteckt –
 // so öffnet es sich danach ohne Verzögerung.
 let quitting = false;
+let rigHiddenForMain = false;
 function createMain() {
   if (mainWin && !mainWin.isDestroyed()) return mainWin;
   mainWin = new BrowserWindow({
@@ -193,7 +194,14 @@ function createMain() {
     e.preventDefault();
     mainWin.hide();
   });
-  mainWin.on('closed', () => { mainWin = null; });
+  mainWin.on('closed', () => { mainWin = null; if (rigHiddenForMain) { rigHiddenForMain = false; bubbleWin?.showInactive(); } });
+  // Solange das Fenster offen ist, tobt die kleine Spinne darin herum statt am Bildschirmrand zu hängen
+  const rigAway = () => { if (bubbleWin?.isVisible()) { rigHiddenForMain = true; bubbleWin.hide(); } };
+  const rigBack = () => { if (rigHiddenForMain) { rigHiddenForMain = false; bubbleWin?.showInactive(); } };
+  mainWin.on('show', rigAway);
+  mainWin.on('restore', rigAway);
+  mainWin.on('hide', rigBack);
+  mainWin.on('minimize', rigBack);
   return mainWin;
 }
 
@@ -313,8 +321,11 @@ async function spiderTake({ autoStart = false, fromHotkey = false } = {}) {
     const doc = { title: 'Markierter Text', source: 'selection', pages: [grabbed.text] };
 
     if (loadSettings().hatchAnimation !== false && bubbleWin?.isVisible()) {
-      bubbleWin.webContents.send('rig-trick', 'lay');
-      await runHatchOverlay(spiderScreenPos(), anchor);
+      // Die kleine Spinne erschrickt und versteckt sich, die große kriecht herein
+      bubbleWin.webContents.send('rig-trick', 'scared');
+      const rects = await selectionRects(); // genaue Wortpositionen, falls das Programm sie verrät
+      await runCrawlOverlay(anchor, rects);
+      bubbleWin.webContents.send('rig-trick', 'return');
     }
     showPopup(doc, { autoStart: true }); // In der Sprechblase geht's direkt los – Enter nur im großen Fenster
   } finally {
@@ -322,10 +333,23 @@ async function spiderTake({ autoStart = false, fromHotkey = false } = {}) {
   }
 }
 
-// Ei legen, schlüpfen lassen und die große Spinne über den Bildschirm laufen lassen.
-function runHatchOverlay(fromAbs, anchorAbs) {
+// Bildschirmpixel (von UI Automation) in Electron-Koordinaten umrechnen
+function toDipRects(list) {
+  return (list || []).map(([x, y, w, h]) => {
+    const r = process.platform === 'win32' ? screen.screenToDipRect(null, { x, y, width: w, height: h }) : { x, y, width: w, height: h };
+    return [r.x, r.y, r.width, r.height];
+  });
+}
+
+// Die große Spinne kriecht vom Bildschirmrand herein, liest die markierten Wörter und verschwindet wieder.
+function runCrawlOverlay(anchorAbs, rects) {
   return new Promise((resolve) => {
+    const words = toDipRects(rects?.words);
+    const lines = toDipRects(rects?.lines);
+    const first = words[0] || lines[0];
+    if (first) anchorAbs = { x: first[0], y: first[1] };
     const b = screen.getDisplayNearestPoint(anchorAbs).bounds;
+    const rel = (arr) => arr.map(([x, y, w, h]) => [x - b.x, y - b.y, w, h]);
     const win = new BrowserWindow({
       x: b.x, y: b.y, width: b.width, height: b.height, show: false,
       frame: false, transparent: true, resizable: false, movable: false, alwaysOnTop: true,
@@ -344,13 +368,13 @@ function runHatchOverlay(fromAbs, anchorAbs) {
     };
     const onDone = (e) => { if (e.sender === win.webContents) finish(); };
     ipcMain.on('overlay-done', onDone);
-    setTimeout(finish, 9000);
+    setTimeout(finish, 12000);
     win.webContents.once('did-finish-load', () => {
       win.showInactive();
       win.webContents.send('overlay-start', {
-        from: { x: fromAbs.x - b.x, y: fromAbs.y - b.y },
         anchor: { x: anchorAbs.x - b.x, y: anchorAbs.y - b.y },
         width: b.width, height: b.height,
+        words: rel(words), lines: rel(lines),
       });
     });
     win.loadFile(path.join(__dirname, 'overlay.html'));
@@ -965,6 +989,7 @@ ipcMain.handle('open-file', (_e, p) => openFile(p));
 ipcMain.handle('pick-file', () => pickFile());
 ipcMain.handle('analyze-clipboard', () => spiderTake());
 ipcMain.handle('spider-take', () => spiderTake());
+ipcMain.handle('hide-main', () => mainWin?.hide());
 ipcMain.handle('popup-close', () => popupWin?.hide());
 ipcMain.handle('popup-details', (_e, doc, result, focus) => { popupWin?.hide(); showDocument(doc, { result, focus }); });
 ipcMain.handle('clipboard-preview', async () => {

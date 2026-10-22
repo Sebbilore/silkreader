@@ -224,6 +224,7 @@
       webFade = setTimeout(() => { el.web.style.transition = 'opacity 4s'; el.web.setAttribute('opacity', '0'); }, 45000);
     }
     if (trick === 'fly') { fly.on = false; el.fly.style.display = 'none'; lenOverride = null; }
+    if (trick === 'scared' || trick === 'return') lenOverride = null; // nie oben hängen bleiben
     trick = null;
   }
   function wake() {
@@ -258,7 +259,7 @@
     }
 
     // Faden: gefederte Länge (wippt nach); im Schlaf leichtes Atmen
-    let lenTarget = lenOverride ?? (baseLen + (hover && !dragging ? 16 : 0) + (catching ? 22 : 0));
+    let lenTarget = lenOverride ?? (baseLen + (catching ? 22 : 0));
     if (sleeping) lenTarget = baseLen + Math.sin(t * 1.4) * 3;
     if (trick === 'web') lenTarget = WEB.cy - 11;
     const k = 140, damp = 9;
@@ -271,8 +272,10 @@
     const acc = (v - anchorV) / Math.max(dt, 0.001);
     anchorV = v; lastAnchor = ax;
     const L = Math.max(30, len + 20);
-    const breeze = sleeping ? 0 : Math.sin(t * 0.7) * 0.25 + Math.sin(t * 1.9) * 0.1;
+    const nearMouse = Math.hypot(cursor.x - spiderPos.x, cursor.y - spiderPos.y) < 130 && !dragging;
+    const breeze = sleeping || nearMouse ? 0 : Math.sin(t * 0.7) * 0.25 + Math.sin(t * 1.9) * 0.1;
     omega += (-(1700 / L) * Math.sin(theta) - 1.2 * omega - (Math.max(-6000, Math.min(6000, acc)) / L) * Math.cos(theta) * 0.9 + breeze) * dt;
+    if (nearMouse) omega *= Math.pow(0.02, dt); // Maus kommt → Spinne hält still
     if (busy) omega += Math.sin(t * 9) * 1.2 * dt;
     if (trick === 'web') omega *= 0.85;
     theta = Math.max(-1.2, Math.min(1.2, theta + omega * dt));
@@ -281,7 +284,8 @@
 
     let sx = AX + Math.sin(theta) * Math.max(len, 0);
     let sy = Math.cos(theta) * len + 11;
-    let rot = -theta * 57.3 + spin + (busy ? Math.sin(t * 14) * 8 : 0) + (trick === 'shrug' ? Math.sin(t * 22) * 14 : 0);
+    let rot = -theta * 57.3 + spin + (busy ? Math.sin(t * 14) * 8 : 0) + (trick === 'shrug' ? Math.sin(t * 22) * 14 : 0)
+      + (trick === 'scared' && lenOverride === null ? Math.sin(t * 60) * 7 : 0);
 
     if (trick === 'web') {
       const p = (now - trickStart) / (trickUntil - trickStart);
@@ -409,12 +413,12 @@
     const onThread = cursor.y > 0 && cursor.y < spiderPos.y - 10 &&
       Math.abs(cursor.x - (AX + (spiderPos.x - AX) * (cursor.y / Math.max(spiderPos.y, 1)))) < 6;
     const inRect = (r) => r && cursor.x >= r.x && cursor.x <= r.x + r.w && cursor.y >= r.y && cursor.y <= r.y + r.h;
-    const inside = dragging || down !== null || d < (noZoneHelper ? 48 : 30) || onThread || itemRects.some(inRect) || inRect(zoneRect());
+    const inside = dragging || down !== null || d < (noZoneHelper ? 52 : 42) || onThread || itemRects.some(inRect) || inRect(zoneRect());
     if (inside !== wasInside) {
       wasInside = inside;
       window.spider.rigHover(inside);
     }
-    if (!dragging) hover = inside && d < 34;
+    if (!dragging) hover = inside && d < 44;
 
     // Aufwachen, wenn die Maus in die Nähe kommt; Winken, wenn sie neu auftaucht
     const near = d < 130;
@@ -424,7 +428,19 @@
   }
   TRICKS.hello = { w: 0, run: () => 1400 };
   // Ei legen: kurz runter, dann wieder hoch (das Ei fällt im Overlay weiter)
-  TRICKS.lay = { w: 0, run: () => { lenOverride = baseLen + 45; setTimeout(() => (lenOverride = minLen + 10), 450); setTimeout(() => (lenOverride = null), 1300); return 1600; } };
+  // Die große Spinne kommt: erschrecken, zittern und nach oben verschwinden …
+  TRICKS.scared = { w: 0, run: () => {
+    surprisedUntil = performance.now() + 900;
+    setTimeout(() => { if (trick === 'scared') lenOverride = -70; }, 650);
+    return 15000; // bleibt versteckt, bis 'return' kommt
+  } };
+  // … und danach vorsichtig wieder herunterlugen
+  TRICKS.return = { w: 0, run: () => {
+    lenOverride = 12;
+    setTimeout(() => { if (trick === 'return') lenOverride = null; }, 900);
+    surprisedUntil = performance.now() + 1600;
+    return 1800;
+  } };
   // Etwas einspinnen: Salto + tanzen
   TRICKS.wrap = { w: 0, run: () => { spinTarget += 720; return 1200; } };
   // Nichts markiert: Kopf schütteln mit Fragezeichen

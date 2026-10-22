@@ -7,19 +7,17 @@
 <style>
   :root { --pink: #ff2d8a; --yellow: #ffe14d; }
   html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
-  #eggLayer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-  .egg { fill: #fbf7ef; stroke: #d9cdb8; stroke-width: 1.5; filter: drop-shadow(0 3px 5px rgba(0,0,0,.3)); }
-  .crack { stroke: #8a7a62; stroke-width: 1.4; fill: none; stroke-linejoin: round; }
-  .thread { stroke: rgba(245,245,250,.95); stroke-width: 1.2; filter: drop-shadow(0 0 1px rgba(20,20,30,.8)); }
   /* Gleiche Spinne wie im Analysefenster (spider.js) */
   #stage { position: absolute; inset: 0; }
-  .w { position: absolute; height: 22px; border-radius: 3px; }
-  .w.touched { animation: touched 2.6s ease-out forwards; }
+  .w { position: absolute; border-radius: 3px; }
+  .w.touched { animation: touched 2.4s ease-out forwards; }
   @keyframes touched {
-    0% { box-shadow: 0 0 0 1.5px var(--pink); background: rgba(255,45,138,.14); }
+    0% { box-shadow: 0 0 0 1.5px var(--pink); background: rgba(255,45,138,.16); }
     55% { box-shadow: 0 0 0 1.5px var(--pink); }
     100% { box-shadow: 0 0 0 1px rgba(255,45,138,0); }
   }
+  .w.read { animation: read 2.4s ease-out forwards; }
+  @keyframes read { 0% { background: rgba(255,225,77,.45); } 100% { background: rgba(255,225,77,0); } }
   .spider-layer { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; transition: opacity .3s; z-index: 5; }
   .spider-leg { fill: none; stroke: var(--pink); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round;
     filter: drop-shadow(0 0 2px rgba(255,45,138,.7)); }
@@ -32,121 +30,70 @@
 </head>
 <body>
 <div id="stage"></div>
-<svg id="eggLayer">
-  <line id="thread" class="thread" x1="0" y1="0" x2="0" y2="0" style="display:none"/>
-  <g id="egg">
-    <g id="eggTop"><path class="egg" d="M-14 2 C-14 -12 -8 -22 0 -22 C8 -22 14 -12 14 2 Z"/></g>
-    <g id="eggBottom"><path class="egg" d="M-14 2 C-14 14 -8 20 0 20 C8 20 14 14 14 2 Z"/></g>
-    <path id="crack" class="crack" d=""/>
-  </g>
-</svg>
 <script type="module">
   import { Spider } from './spider.js';
   const $ = (id) => document.getElementById(id);
-  const ease = (t) => 1 - (1 - t) ** 3;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  window.spider.onOverlayStart(async ({ from, anchor, width, height }) => {
-    // Bereich, über den die Spinne "liest": links vom Ende der Markierung, ein paar Zeilen hoch
-    const ax = clamp(anchor.x, 300, width - 60), ay = clamp(anchor.y, 150, height - 60);
-    const left = clamp(ax - 460, 40, width - 220), right = clamp(ax + 20, left + 180, width - 40);
-    const rows = [ay - 100, ay - 68, ay - 36, ay - 4].map((y) => clamp(y, 40, height - 40));
-    const land = { x: clamp(ax - 30, 40, width - 40), y: clamp(ay + 40, 60, height - 30) };
-
-    // Unsichtbare "Wörter" entlang der Textzeilen – an ihnen hält sich die Spinne fest
+  window.spider.onOverlayStart(async ({ anchor, width, height, words, lines }) => {
     const stage = $('stage');
-    for (const y of rows) {
-      let x = left;
-      while (x < right) {
-        const w = 26 + Math.random() * 60;
-        const s = document.createElement('span');
-        s.className = 'w';
-        s.style.left = `${x}px`; s.style.top = `${y - 11}px`; s.style.width = `${Math.min(w, right - x)}px`;
-        stage.appendChild(s);
-        x += w + 9;
+    const addBox = (x, y, w, h) => {
+      const s = document.createElement('span');
+      s.className = 'w';
+      s.style.left = `${x}px`; s.style.top = `${y}px`; s.style.width = `${w}px`; s.style.height = `${h}px`;
+      stage.appendChild(s);
+    };
+
+    if (words?.length) {
+      // Genaue Wortpositionen vom Programm (UI Automation)
+      for (const [x, y, w, h] of words) addBox(x, y, w, h);
+    } else if (lines?.length) {
+      // Nur Zeilen bekannt: in wortgroße Stücke teilen
+      for (const [x, y, w, h] of lines) {
+        for (let cx = x; cx < x + w - 8; ) { const ww = Math.min(30 + Math.random() * 50, x + w - cx); addBox(cx, y, ww - 6, h); cx += ww; }
+      }
+    } else {
+      // Geschätzt: links vom Ende der Markierung ein paar Zeilen hoch
+      const ax = clamp(anchor.x, 300, width - 60), ay = clamp(anchor.y, 150, height - 60);
+      const left = clamp(ax - 460, 40, width - 220), right = clamp(ax + 20, left + 180, width - 40);
+      for (const y of [ay - 100, ay - 68, ay - 36, ay - 4]) {
+        for (let x = left; x < right; ) { const w = 26 + Math.random() * 60; addBox(x, y - 11, Math.min(w, right - x), 22); x += w + 9; }
       }
     }
 
-    await eggAnimation(from, land);
-
-    // Die Spinne schlüpft und läuft wie im Analysefenster Wort für Wort über den Text
     const spider = new Spider(document.scrollingElement, stage);
     spider.follow = false;
-    spider.speed = 760;
     spider.index();
-    spider.teleport(land.x, land.y - 4);
-    // Schlüpfen: klein im Ei anfangen, dann mit einem Hüpfer auf volle Größe wachsen
-    spider.bodyScale = 0.25;
-    spider.reach = 20;
-    spider.show();
-    const g0 = performance.now();
-    await new Promise((resolve) => {
-      (function grow(now) {
-        const p = Math.min(1, (now - g0) / 550);
-        const pop = 1 + Math.sin(p * Math.PI) * 0.25;
-        spider.bodyScale = (0.25 + 0.75 * ease(p)) * pop;
-        spider.reach = 20 + 100 * ease(p);
-        spider.y = land.y - 4 - Math.sin(p * Math.PI) * 26; spider.ty = spider.y;
-        if (p < 1) requestAnimationFrame(grow); else { spider.bodyScale = 1; resolve(); }
-      })(g0);
-    });
-    $('egg').style.transition = 'opacity .5s';
-    $('egg').style.opacity = '0';
+    const ws = spider.words;
+    if (!ws.length) return window.spider.overlayDone();
 
-    const words = spider.words;
-    const t0 = performance.now();
-    for (let i = 0; i < words.length && performance.now() - t0 < 3400; i += 2 + Math.floor(Math.random() * 3)) {
-      const w = words[i];
-      spider.moveTo(w.x, w.y + 18);
-      await sleep(170);
+    // Vom nächstgelegenen Bildschirmrand hereinkriechen
+    const first = ws[0];
+    const fromLeft = first.x < width / 2;
+    spider.teleport(fromLeft ? -110 : width + 110, first.y + 14);
+    spider.show();
+    spider.speed = 620;
+    await new Promise((resolve) => { spider.moveTo(first.x, first.y + 14, resolve); setTimeout(resolve, 2500); });
+
+    // Wort für Wort lesen (höchstens ~4,5 Sekunden)
+    spider.speed = 420;
+    const stride = Math.max(1, Math.ceil(ws.length / 28));
+    for (let i = 0; i < ws.length; i += stride) {
+      const w = ws[i];
+      spider.moveTo(w.x, w.y + 14);
+      for (let k = i; k < Math.min(ws.length, i + stride); k++) ws[k].el.classList.add('read');
+      await sleep(150);
     }
-    // … und flitzt zufrieden nach oben davon
+    await sleep(250);
+
+    // … und wieder zum Rand hinauskriechen
     const last = { x: spider.x, y: spider.y };
-    spider.speed = 1100;
-    await new Promise((resolve) => { spider.moveTo(last.x + 60, -120, resolve); setTimeout(resolve, 1400); });
+    const outLeft = last.x < width / 2;
+    spider.speed = 700;
+    await new Promise((resolve) => { spider.moveTo(outLeft ? -140 : width + 140, last.y + 20, resolve); setTimeout(resolve, 2200); });
     window.spider.overlayDone();
   });
-
-  // Ei fällt an einem Faden herunter, wackelt, bekommt Risse und springt auf
-  async function eggAnimation(from, land) {
-    const T = { fall: 750, wobble: 650, hatch: 300 };
-    const t0 = performance.now();
-    const egg = $('egg');
-    await new Promise((resolve) => {
-      function frame(now) {
-        let k = now - t0;
-        if (k < T.fall) {
-          const p = ease(k / T.fall);
-          const x = from.x + (land.x - from.x) * p, y = from.y + (land.y - from.y) * p;
-          $('thread').style.display = '';
-          $('thread').setAttribute('x1', from.x); $('thread').setAttribute('y1', from.y - 10);
-          $('thread').setAttribute('x2', x); $('thread').setAttribute('y2', y - 20);
-          egg.setAttribute('transform', `translate(${x} ${y}) rotate(${Math.sin(p * 9) * 12 * (1 - p)})`);
-          return requestAnimationFrame(frame);
-        }
-        $('thread').style.display = 'none';
-        k -= T.fall;
-        if (k < T.wobble) {
-          const p = k / T.wobble;
-          const squash = p < 0.15 ? 1 - Math.sin((p / 0.15) * Math.PI) * 0.15 : 1;
-          egg.setAttribute('transform', `translate(${land.x} ${land.y}) rotate(${Math.sin(p * 30) * 10 * p}) scale(${2 - squash} ${squash})`);
-          const n = Math.floor(p * 6);
-          $('crack').setAttribute('d', 'M-14 2' + ' L-9 -3 L-4 3 L1 -4 L6 2 L10 -3 L14 2'.split(' L').slice(0, n + 1).join(' L'));
-          return requestAnimationFrame(frame);
-        }
-        k -= T.wobble;
-        if (k < T.hatch) {
-          const p = k / T.hatch;
-          $('eggTop').setAttribute('transform', `translate(${p * 26} ${-p * 40}) rotate(${p * 70})`);
-          $('eggTop').style.opacity = 1 - p;
-          return requestAnimationFrame(frame);
-        }
-        resolve();
-      }
-      requestAnimationFrame(frame);
-    });
-  }
 </script>
 </body>
 </html>

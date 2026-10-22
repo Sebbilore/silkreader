@@ -44,6 +44,6 @@ contextBridge.exposeInMainWorld('spider', {
   onThreadLength: (cb) => ipcRenderer.on('thread-length', (_e, l) => cb(l)),
   onBusy: (cb) => ipcRenderer.on('busy', (_e, b) => cb(b)),
   onDocument: (cb) => ipcRenderer.on('document', (_e, d) => cb(d)),
-  closeWindow: () => window.close(),
+  closeWindow: () => ipcRenderer.invoke('hide-main'),
   onProgress: (cb) => ipcRenderer.on('progress', (_e, n) => cb(n)),
 });

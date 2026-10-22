@@ -1,4 +1,5 @@
 import { Spider } from './spider.js';
+import { Mascot } from './mascot.js';
 
 const $ = (id) => document.getElementById(id);
 const MAX_WORDS = 25000; // so viele Wörter werden höchstens dargestellt (analysiert wird alles)
@@ -109,7 +110,7 @@ function startWander() {
   const first = sw[0];
   spider.teleport(first.x + 60, first.y + 40);
   spider.show();
-  spider.minGap = 33; // während die KI rechnet: 30 fps reichen und lassen ihr mehr Rechenzeit
+
   const step = () => {
     idx = (idx + 10 + Math.floor(Math.random() * 30)) % sw.length;
     const w = sw[idx];
@@ -186,8 +187,10 @@ async function startAnalysis(doc) {
   $('panelBody').innerHTML = '<div class="status" id="status">Die Spinne liest das Dokument …</div>';
 
   requestAnimationFrame(startWander);
+  window.__mascot?.setBusy(true);
 
   const res = await window.spider.analyze(doc);
+  window.__mascot?.setBusy(false);
   if (myRun !== run) return;
   stopWander();
 
@@ -485,3 +488,10 @@ function showModel(s) {
 }
 window.spider.getSettings().then(showModel);
 showStart();
+
+// Die kleine Spinne tollt im Fenster herum (rechts das Ergebnis-Panel freilassen)
+const mascot = new Mascot({
+  ceiling: 52,
+  rightInset: () => ($('analysis').style.display !== 'none' ? $('panel').offsetWidth : 0),
+});
+window.__mascot = mascot;
