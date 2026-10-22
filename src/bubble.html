@@ -24,31 +24,42 @@
   #fly .wing { fill: rgba(220,235,255,.85); stroke: rgba(40,40,60,.6); stroke-width: .4; }
   #fly .fbody { fill: #2b2b33; }
   #zzz { font: 700 11px "Segoe UI", system-ui, sans-serif; fill: #ff2d8a; paint-order: stroke; stroke: rgba(255,255,255,.85); stroke-width: 2.4px; }
-  /* Ablage-Netz: festgehaltene Dokumente kleben als Dateisymbole im Spinnennetz */
+  /* Ablage-Netz: festgehaltene Dokumente kleben als kleine Karten im Spinnennetz */
   #holdWeb { transition: opacity .4s; }
-  #holdWeb line, #holdWeb polyline { fill: none; stroke: rgba(245,245,250,.85); stroke-width: .8; stroke-linecap: round;
-    filter: drop-shadow(0 0 .7px rgba(20,20,30,.75)); }
-  #holdWeb.zone line, #holdWeb.zone polyline { stroke: #ffe14d; stroke-width: 1.1; }
-  .item { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; cursor: grab; transition: transform .15s; }
-  .item .ic { position: absolute; inset: 3px; border-radius: 6px; background: #fff center/contain no-repeat;
-    box-shadow: 0 2px 5px rgba(0,0,0,.4), 0 0 0 1px rgba(150,140,120,.5); }
-  .item .ext { position: absolute; right: -3px; bottom: -2px; font: 700 7px "Segoe UI", sans-serif; color: #fff; background: #ff2d8a;
-    padding: 0 3px; border-radius: 3px; line-height: 11px; z-index: 1; }
-  .item .ic { display: flex; align-items: center; justify-content: center; font-size: 14px; }
-  .item.text .ic { background: #fff5fa; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-  .item.missing .ic { opacity: .4; }
+  #holdWeb .silk { fill: none; stroke: rgba(255,255,255,.92); stroke-width: .75; stroke-linecap: round;
+    filter: drop-shadow(0 0 .8px rgba(15,15,25,.85)); }
+  #holdWeb .dew { fill: rgba(255,255,255,.95); filter: drop-shadow(0 0 1px rgba(120,180,255,.9)); }
+  #holdWeb.zone .silk { stroke: #ffe14d; stroke-width: 1; filter: drop-shadow(0 0 1.5px rgba(255,200,0,.9)); }
+  /* Leuchtende Ablagefläche – zugleich nötig, damit Windows auch zwischen den Fäden ablegen lässt */
+  #zoneGlow { position: absolute; inset: 0; background: rgba(255,225,77,.025); display: none; }
+  #zoneGlow::before { content: ''; position: absolute; left: calc(50% - 82px); top: -18px; width: 164px; height: 164px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,225,77,.38), rgba(255,225,77,.08) 62%, transparent 72%); animation: breathe 1.2s ease-in-out infinite; }
+  @keyframes breathe { 50% { transform: scale(1.08); } }
+  .item { position: absolute; width: 36px; height: 44px; margin: -18px 0 0 -18px; cursor: grab; transform: rotate(var(--rot, 0deg));
+    transition: transform .18s; }
+  .item .card { position: absolute; left: 3px; top: 0; width: 30px; height: 30px; border-radius: 7px; background: #fff;
+    box-shadow: 0 3px 7px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.08); overflow: hidden; }
+  .item .ic { position: absolute; inset: 3px; background: center/contain no-repeat; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .item.photo .ic { inset: 0; background-size: cover; }
+  .item.text .card { background: #fff6fb; }
+  .item.missing .card { opacity: .45; filter: grayscale(1); }
+  .item .ext { position: absolute; right: -1px; top: 20px; font: 800 7px "Segoe UI", sans-serif; color: #fff; background: #ff2d8a;
+    padding: 0 3px; border-radius: 3px; line-height: 11px; z-index: 2; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
   /* Spinnenseide, mit der das Dokument festgeklebt ist */
-  .item::after { content: ''; position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(35deg, transparent 46%, rgba(255,255,255,.95) 47%, rgba(255,255,255,.95) 50%, transparent 51%),
-                linear-gradient(-30deg, transparent 56%, rgba(255,255,255,.85) 57%, rgba(255,255,255,.85) 59%, transparent 60%); }
-  .item:hover { transform: scale(1.3); z-index: 2; }
-  .item b { position: absolute; top: 32px; left: 50%; transform: translateX(-50%); font: 700 9px "Segoe UI", sans-serif; color: #30a46c;
-    background: #fff; padding: 1px 4px; border-radius: 4px; white-space: nowrap; animation: pop 1.2s forwards; }
-  .item.new { animation: stick .5s cubic-bezier(.2,1.6,.4,1); }
-  @keyframes stick { from { transform: scale(.2) rotate(-30deg); } to { transform: none; } }
+  .item .card::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(32deg, transparent 47%, rgba(255,255,255,.95) 48%, rgba(255,255,255,.95) 50.5%, transparent 51.5%),
+                linear-gradient(-28deg, transparent 60%, rgba(255,255,255,.9) 61%, rgba(255,255,255,.9) 63%, transparent 64%),
+                linear-gradient(80deg, transparent 22%, rgba(255,255,255,.7) 23%, rgba(255,255,255,.7) 24.5%, transparent 25.5%); }
+  .item .nm { position: absolute; top: 31px; left: 50%; transform: translateX(-50%); max-width: 46px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; font: 600 8px "Segoe UI", sans-serif; color: #fff; text-shadow: 0 0 2px #000, 0 0 3px #000, 0 1px 2px #000; }
+  .item:hover { transform: rotate(0deg) scale(1.35) translateY(2px); z-index: 3; }
+  .item b { position: absolute; top: 44px; left: 50%; transform: translateX(-50%); font: 700 9px "Segoe UI", sans-serif; color: #30a46c;
+    background: #fff; padding: 1px 4px; border-radius: 4px; white-space: nowrap; animation: pop 1.2s forwards; z-index: 4; }
+  .item.new { animation: stick .6s cubic-bezier(.2,1.5,.4,1); }
+  @keyframes stick { 0% { transform: translateY(40px) scale(.3) rotate(-40deg); opacity: 0; } 60% { opacity: 1; } 100% { transform: rotate(var(--rot, 0deg)); } }
   @keyframes pop { 0% { opacity: 0; transform: translate(-50%, 4px); } 20%, 70% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
   #zoneHint { position: absolute; left: 50%; transform: translateX(-50%); font: 700 10px "Segoe UI", sans-serif; color: #16161d; background: #ffe14d;
-    padding: 2px 7px; border-radius: 6px; white-space: nowrap; display: none; }
+    padding: 3px 9px; border-radius: 10px; white-space: nowrap; display: none; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
 </style>
 </head>
 <body>
@@ -75,6 +86,7 @@
   </g>
   <text id="zzz" x="0" y="0" opacity="0">z</text>
 </svg>
+<div id="zoneGlow"></div>
 <div id="items"></div>
 <div id="zoneHint">Hier ablegen 🕸</div>
 
@@ -397,7 +409,7 @@
     const onThread = cursor.y > 0 && cursor.y < spiderPos.y - 10 &&
       Math.abs(cursor.x - (AX + (spiderPos.x - AX) * (cursor.y / Math.max(spiderPos.y, 1)))) < 6;
     const inRect = (r) => r && cursor.x >= r.x && cursor.x <= r.x + r.w && cursor.y >= r.y && cursor.y <= r.y + r.h;
-    const inside = dragging || down !== null || d < 30 || onThread || itemRects.some(inRect) || inRect(zoneRect());
+    const inside = dragging || down !== null || d < (noZoneHelper ? 48 : 30) || onThread || itemRects.some(inRect) || inRect(zoneRect());
     if (inside !== wasInside) {
       wasInside = inside;
       window.spider.rigHover(inside);
@@ -421,36 +433,39 @@
   // ---------- Ablage-Netz ----------
   // Festgehaltene Dokumente kleben als kleine Dateisymbole (mit Vorschau) im Netz.
   const HOLD = { cx: AX, cy: 64, r: 62 };
-  const SPOTS = [150, 195, 235, 305, 345, 30].map((deg) => {
-    const a = (deg * Math.PI) / 180;
-    return { x: HOLD.cx + Math.cos(a) * 44, y: HOLD.cy + Math.sin(a) * 40 };
-  });
+  // Plätze rund ums Netz: oben links/rechts, Mitte links/rechts, unten links/rechts
+  const SPOTS = [[-56, -36, -7], [56, -36, 6], [-76, 10, 5], [76, 10, -6], [-50, 56, -4], [50, 56, 7]]
+    .map(([dx, dy, rot]) => ({ x: HOLD.cx + dx, y: HOLD.cy + dy, rot }));
   (function drawHoldWeb() {
     const g = el.svg.querySelector('#holdWeb');
-    const dirs = Array.from({ length: 10 }, (_, i) => (i / 10) * Math.PI * 2 + 0.2);
-    for (const a of dirs) {
-      const l = document.createElementNS(NS, 'line');
-      l.setAttribute('x1', HOLD.cx); l.setAttribute('y1', HOLD.cy);
-      l.setAttribute('x2', HOLD.cx + Math.cos(a) * HOLD.r); l.setAttribute('y2', Math.max(0, HOLD.cy + Math.sin(a) * HOLD.r * 0.95));
-      g.appendChild(l);
+    const N = 12;
+    const dirs = Array.from({ length: N }, (_, i) => (i / N) * Math.PI * 2 + 0.13);
+    const pt = (a, r) => [HOLD.cx + Math.cos(a) * r, Math.max(1, HOLD.cy + Math.sin(a) * r * 0.92)];
+    const add = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); g.appendChild(e); return e; };
+    for (const a of dirs) { const [x, y] = pt(a, HOLD.r); add('line', { class: 'silk', x1: HOLD.cx, y1: HOLD.cy, x2: x, y2: y }); }
+    // Ringe als leicht durchhängende Bögen zwischen den Speichen
+    for (let r = 10; r <= HOLD.r - 4; r += 8.5) {
+      let d = '';
+      dirs.forEach((a, i) => {
+        const b = dirs[(i + 1) % N] + (i === N - 1 ? Math.PI * 2 : 0);
+        const [x1, y1] = pt(a, r), [x2, y2] = pt(b, r), [cx, cy] = pt((a + b) / 2, r * 0.86);
+        d += `${i ? '' : `M${x1},${y1}`} Q${cx},${cy} ${x2},${y2}`;
+      });
+      add('path', { class: 'silk', d });
     }
-    const pts = [];
-    for (let k = 0; k <= 10 * 4; k++) {
-      const a = dirs[k % 10], r = 8 + (HOLD.r - 12) * (k / 40);
-      pts.push(`${HOLD.cx + Math.cos(a) * r},${Math.max(0, HOLD.cy + Math.sin(a) * r * 0.95)}`);
-    }
-    const p = document.createElementNS(NS, 'polyline');
-    p.setAttribute('points', pts.join(' '));
-    g.appendChild(p);
+    // ein paar Tautropfen
+    [[1, 27], [4, 44], [7, 19], [9, 36], [11, 52]].forEach(([i, r]) => { const [x, y] = pt(dirs[i], r); add('circle', { class: 'dew', cx: x, cy: y, r: 1.3 }); });
   })();
 
   let itemRects = [], itemIds = [], knownIds = new Set(), dropZone = false;
+  let noZoneHelper = false; // Windows-Helfer nicht verfügbar → größere Fangfläche um die Spinne
   function updateHoldWeb() {
     const g = el.svg.querySelector('#holdWeb');
     g.setAttribute('opacity', itemIds.length || dropZone ? '1' : '0');
     g.classList.toggle('zone', dropZone);
+    $('zoneGlow').style.display = dropZone ? 'block' : 'none';
     $('zoneHint').style.display = dropZone ? 'block' : 'none';
-    $('zoneHint').style.top = `${HOLD.cy + HOLD.r - 4}px`;
+    $('zoneHint').style.top = `${HOLD.cy + HOLD.r + 4}px`;
   }
   function renderItems(list) {
     const box = $('items');
@@ -460,18 +475,21 @@
     list.slice(0, SPOTS.length).forEach((it, i) => {
       const { x, y } = SPOTS[i];
       const c = document.createElement('div');
-      c.className = `item ${it.type}${it.missing ? ' missing' : ''}${knownIds.has(it.id) ? '' : ' new'}`;
-      c.style.left = `${x}px`; c.style.top = `${y}px`;
+      const isPhoto = it.type === 'file' && /\.(png|jpe?g|gif|webp|bmp)$/i.test(it.name) && it.icon;
+      c.className = `item ${it.type}${isPhoto ? ' photo' : ''}${it.missing ? ' missing' : ''}${knownIds.has(it.id) ? '' : ' new'}`;
+      c.style.left = `${x}px`; c.style.top = `${y}px`; c.style.setProperty('--rot', `${SPOTS[i].rot}deg`);
       c.title = `${it.name}${it.missing ? ' (Datei fehlt)' : ''}\nKlick: kopieren · Ziehen: ablegen · Rechtsklick: mehr`;
       c.draggable = true;
-      const ext = it.type === 'file' ? (it.name.split('.').pop() || '').slice(0, 4).toUpperCase() : '';
-      c.innerHTML = it.type === 'text' ? '<div class="ic">📝</div>'
-        : `<div class="ic" style="${it.icon ? `background-image:url('${it.icon}')` : ''}">${it.icon ? '' : '📄'}</div>${ext ? `<span class="ext">${ext}</span>` : ''}`;
+      const ext = it.type === 'file' ? (it.name.includes('.') ? it.name.split('.').pop().slice(0, 4).toUpperCase() : '') : '';
+      const short = it.type === 'file' ? it.name.replace(/\.[^.]+$/, '') : it.name;
+      const icon = it.type === 'text' ? '<div class="ic">📝</div>'
+        : `<div class="ic" style="${it.icon ? `background-image:url('${it.icon}')` : ''}">${it.icon ? '' : '📄'}</div>`;
+      c.innerHTML = `<div class="card">${icon}</div>${ext ? `<span class="ext">${ext}</span>` : ''}<span class="nm">${short.replace(/[<>&]/g, '')}</span>`;
       c.addEventListener('click', async () => { if (await window.spider.cocoonCopy(it.id)) flashCopied(c); });
       c.addEventListener('dragstart', (e) => { e.preventDefault(); window.spider.cocoonDrag(it.id); });
       c.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); window.spider.cocoonMenu(it.id); });
       box.appendChild(c);
-      itemRects.push({ x: x - 16, y: y - 16, w: 32, h: 32 });
+      itemRects.push({ x: x - 19, y: y - 19, w: 38, h: 46 });
     });
     knownIds = new Set(itemIds);
     updateHoldWeb();
@@ -484,7 +502,10 @@
   }
   window.spider.onCocoons(renderItems);
   window.spider.onCocoonCopied((id) => { const i = itemIds.indexOf(id); if (i >= 0) flashCopied($('items').children[i]); });
-  window.spider.onDropZone((on) => { dropZone = on; catching = on; if (on) wake(); updateHoldWeb(); });
+  window.spider.onDropZone((on) => {
+    if (on === 'unavailable') { noZoneHelper = true; return; }
+    dropZone = on; catching = on; if (on) wake(); updateHoldWeb();
+  });
   const zoneRect = () => (dropZone ? { x: 0, y: 0, w: W, h: H } : null);
 
 
@@ -510,7 +531,8 @@
   });
   el.svg.addEventListener('contextmenu', (e) => { e.preventDefault(); window.spider.bubbleMenu(); });
 
-  window.addEventListener('dragover', (e) => { e.preventDefault(); catching = true; wake(); });
+  window.addEventListener('dragenter', (e) => { e.preventDefault(); catching = true; wake(); });
+  window.addEventListener('dragover', (e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; catching = true; });
   window.addEventListener('dragleave', () => { catching = false; });
   // Fallen gelassene Dokumente und Texte werden immer im Kokon festgehalten.
   window.addEventListener('drop', (e) => {

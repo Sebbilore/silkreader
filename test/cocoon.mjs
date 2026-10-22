@@ -15,8 +15,8 @@ await rig.evaluate(() => window.spider.cocoonAddFiles([]));
 await app.evaluate(() => {}); 
 await rig.evaluate(() => window.spider.cocoonAddText('Zweiter Schnipsel mit IBAN DE12 3456'));
 await new Promise((r) => setTimeout(r, 500));
-console.log('cocoons rendered:', await rig.evaluate(() => document.querySelectorAll('.cocoon').length));
-const ok = await rig.evaluate(async () => { const c = document.querySelector('.cocoon'); c.click(); await new Promise((r) => setTimeout(r, 300)); return !!c.querySelector('b'); });
+console.log('cocoons rendered:', await rig.evaluate(() => document.querySelectorAll('.item').length));
+const ok = await rig.evaluate(async () => { const c = document.querySelector('.item'); c.click(); await new Promise((r) => setTimeout(r, 300)); return !!c.querySelector('b'); });
 console.log('click copies + flash:', ok, '| clipboard:', JSON.stringify(await app.evaluate(async ({ clipboard }) => clipboard.readText())));
 await rig.screenshot({ path: `${out}/cocoons.png`, omitBackground: true });
 // Bleibt nach Neustart erhalten?

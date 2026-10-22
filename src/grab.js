@@ -87,7 +87,9 @@ const windowsCopy = () => helperCommand('copy', 2500); // beim ersten Mal starte
 
 /** Ist die linke Maustaste gerade gedrückt? (null = unbekannt, z. B. nicht Windows) */
 async function isMouseDown() {
-  if (process.platform !== 'win32' || !helper?.ready) return null;
+  if (process.platform !== 'win32') return null;
+  if (!helper) { startWindowsHelper(); return null; } // Helfer (neu) starten, nächstes Mal klappt's
+  if (!helper.ready) return null;
   const r = await helperCommand('btn', 300);
   return r === 'down' ? true : r === 'up' ? false : null;
 }
@@ -175,4 +177,4 @@ async function copyFileToClipboard(filePath) {
   return true;
 }
 
-module.exports = { grabSelection, copyFileToClipboard, warmUp, isMouseDown };
+module.exports = { grabSelection, copyFileToClipboard, warmUp, isMouseDown, helperAvailable: () => process.platform === 'win32' && !!helper?.ready };
