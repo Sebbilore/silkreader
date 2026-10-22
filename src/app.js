@@ -12,7 +12,7 @@ let run = 0;         // erhöht sich bei jeder neuen Analyse → alte Animatione
 let skip = false;
 let wanderTimer = null;
 
-const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const norm = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
 // Zusammenfassung in Stichpunkte zerlegen ("• …" je Zeile; Fließtext → nach Sätzen)
 function bullets(text) {
@@ -178,7 +178,6 @@ async function startAnalysis(doc) {
 
   $('docTitle').innerHTML = `${esc(doc.title)}`;
   $('scanLabel').textContent = 'SCANNING';
-  window.spider.getSettings().then(showModel);
   $('counter').textContent = `${words.length.toLocaleString('de-DE')} Wörter${doc.pages.length > 1 ? ` · ${doc.pages.length} Seiten` : ''}`;
   $('bar').classList.add('indeterminate');
   $('bar').firstElementChild.style.width = '';
@@ -303,6 +302,8 @@ async function focusItem(focus, rowEl) {
     loc = f && findPassage(`${f.title} ${f.detail}`);
   } else if (focus.type === 'summary') {
     loc = findPassage(result.summary);
+  } else if (focus.type === 'quote') {
+    loc = locate(focus.quote, 1) || findPassage(focus.quote);
   }
   document.querySelectorAll('.focus').forEach((e) => e.classList.remove('focus'));
   rowEl?.classList.add('focus');
@@ -378,11 +379,66 @@ $('btnAnalyze').addEventListener('click', () => {
 $('input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) $('btnAnalyze').click();
 });
-$('btnNew').addEventListener('click', showStart);
-$('btnClip').addEventListener('click', () => window.spider.clipboardPreview());
-$('btnFile').addEventListener('click', () => window.spider.pickFile());
-$('btnFile2').addEventListener('click', () => window.spider.pickFile());
-$('btnSettings').addEventListener('click', () => window.spider.openSettings());
+// Keine Kopfleiste: alles über Rechtsklick und Tastenkürzel
+window.addEventListener('contextmenu', (e) => {
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  e.preventDefault();
+  window.spider.mainMenu();
+});
+window.spider.onMenu((action) => {
+  if (action === 'new') showStart();
+  else if (action === 'paste') window.spider.clipboardPreview();
+  else if (action === 'copy') $('btnCopy').click();
+});
+
+// ---------- Notizbuch: die letzten 20 Analysen ----------
+const nb = $('notebook');
+let nbSel = 0;
+async function renderNotebook() {
+  const items = await window.spider.historyList($('nbSearch').value);
+  const list = $('nbList');
+  nbSel = Math.min(nbSel, Math.max(0, items.length - 1));
+  if (!items.length) {
+    list.innerHTML = `<div class="nbEmpty">${$('nbSearch').value ? 'Nichts gefunden' : 'Noch keine Analysen – die Spinne merkt sich hier die letzten 20.'}</div>`;
+    return;
+  }
+  list.innerHTML = items.map((h, i) => `<div class="nbItem${i === nbSel ? ' sel' : ''}" data-id="${esc(h.id)}">
+    <div class="t"><b>${esc(h.title || h.docTitle)}</b><span>${esc(bullets(h.summary || '')[0] || '')}</span></div>
+    <small>${new Date(h.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</small>
+    <button class="del" title="Löschen">✕</button></div>`).join('');
+}
+function openNotebook() {
+  nb.classList.add('open');
+  $('nbSearch').value = '';
+  nbSel = 0;
+  renderNotebook();
+  $('nbSearch').focus();
+}
+const closeNotebook = () => nb.classList.remove('open');
+nb.addEventListener('click', async (e) => {
+  if (e.target === nb) return closeNotebook();
+  const item = e.target.closest('.nbItem');
+  if (!item) return;
+  if (e.target.classList.contains('del')) { await window.spider.historyDelete(item.dataset.id); renderNotebook(); return; }
+  closeNotebook();
+  window.spider.historyOpen(item.dataset.id);
+});
+$('nbSearch').addEventListener('input', () => { nbSel = 0; renderNotebook(); });
+$('nbSearch').addEventListener('keydown', (e) => {
+  const items = [...document.querySelectorAll('.nbItem')];
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    nbSel = Math.max(0, Math.min(items.length - 1, nbSel + (e.key === 'ArrowDown' ? 1 : -1)));
+    items.forEach((el, i) => el.classList.toggle('sel', i === nbSel));
+    items[nbSel]?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter' && items[nbSel]) {
+    e.preventDefault();
+    closeNotebook();
+    window.spider.historyOpen(items[nbSel].dataset.id);
+  } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeNotebook(); }
+});
+window.spider.onShowNotebook(openNotebook);
+
 $('btnSkip').addEventListener('click', () => { skip = true; });
 $('btnCopy').addEventListener('click', async () => {
   if (!result) return;
@@ -443,6 +499,8 @@ window.addEventListener('keydown', async (e) => {
   const typing = e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT';
   const mod = e.ctrlKey || e.metaKey;
   if (e.key === 'Enter' && !typing && pending) { e.preventDefault(); startPending(); return; }
+  if (nb.classList.contains('open')) return;
+  if (mod && e.key.toLowerCase() === 'h') { e.preventDefault(); openNotebook(); return; }
   if (e.key === 'Escape') { e.preventDefault(); if (pending || result) window.spider.closeWindow(); else showStart(); return; }
   if (mod && e.key.toLowerCase() === 'o') { e.preventDefault(); window.spider.pickFile(); return; }
   if (mod && e.key.toLowerCase() === 'n') { e.preventDefault(); showStart(); return; }
@@ -479,19 +537,11 @@ window.spider.onProgress(({ chars, summary }) => {
   }
 });
 
-function showModel(s) {
-  $('modelName').textContent = s.provider === 'builtin'
-    ? '· Eingebautes Modell · kostenlos'
-    : s.provider === 'ollama'
-    ? `· Lokal (${s.ollamaModel}) · kostenlos`
-    : `· ${s.models[s.model]?.split(' (')[0] || s.model}`;
-}
-window.spider.getSettings().then(showModel);
 showStart();
 
 // Die kleine Spinne tollt im Fenster herum (rechts das Ergebnis-Panel freilassen)
 const mascot = new Mascot({
-  ceiling: 52,
+  ceiling: 0,
   rightInset: () => ($('analysis').style.display !== 'none' ? $('panel').offsetWidth : 0),
 });
 window.__mascot = mascot;

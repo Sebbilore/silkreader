@@ -16,7 +16,7 @@
     filter: drop-shadow(0 0 .8px rgba(20,20,30,.7)); }
   .leg { stroke: #ff2d8a; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
   #body { fill: #16161d; stroke: #ff2d8a; stroke-width: 1.6; }
-  .catch #body, .catch .leg { stroke: #ffe14d; }
+  .catch #body { stroke: #fff; stroke-width: 2.2; }
   .eye { fill: #fff; stroke: #16161d; stroke-width: .5; }
   .pupil { fill: #111; }
   .cheek { fill: rgba(255,45,138,.45); }
@@ -31,11 +31,11 @@
   #holdWeb .silk { fill: none; stroke: rgba(255,255,255,.92); stroke-width: .75; stroke-linecap: round;
     filter: drop-shadow(0 0 .8px rgba(15,15,25,.85)); }
   #holdWeb .dew { fill: rgba(255,255,255,.95); filter: drop-shadow(0 0 1px rgba(120,180,255,.9)); }
-  #holdWeb.zone .silk { stroke: #ffe14d; stroke-width: 1; filter: drop-shadow(0 0 1.5px rgba(255,200,0,.9)); }
+  #holdWeb.zone .silk { stroke: #ff2d8a; stroke-width: 1; filter: drop-shadow(0 0 1.5px rgba(255,45,138,.8)); }
   /* Leuchtende Ablagefläche – zugleich nötig, damit Windows auch zwischen den Fäden ablegen lässt */
-  #zoneGlow { position: absolute; inset: 0; background: rgba(255,225,77,.025); display: none; }
+  #zoneGlow { position: absolute; inset: 0; background: rgba(255,45,138,.025); display: none; }
   #zoneGlow::before { content: ''; position: absolute; left: calc(50% - 82px); top: -18px; width: 164px; height: 164px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(255,225,77,.38), rgba(255,225,77,.08) 62%, transparent 72%); animation: breathe 1.2s ease-in-out infinite; }
+    background: radial-gradient(circle, rgba(255,45,138,.28), rgba(255,45,138,.06) 62%, transparent 72%); animation: breathe 1.2s ease-in-out infinite; }
   @keyframes breathe { 50% { transform: scale(1.08); } }
   .item { position: absolute; width: 36px; height: 44px; margin: -18px 0 0 -18px; cursor: grab; transform: rotate(var(--rot, 0deg));
     transition: transform .18s; }
@@ -45,7 +45,7 @@
   .item.photo .ic { inset: 0; background-size: cover; }
   .item.text .card { background: #fff6fb; }
   .item.missing .card { opacity: .45; filter: grayscale(1); }
-  .item .ext { position: absolute; right: -1px; top: 20px; font: 800 7px "Segoe UI", sans-serif; color: #fff; background: #ff2d8a;
+  .item .ext { position: absolute; right: -1px; top: 20px; font: 800 7px "Segoe UI", sans-serif; color: #16161d; background: #fff; border: 1px solid #16161d;
     padding: 0 3px; border-radius: 3px; line-height: 11px; z-index: 2; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
   /* Spinnenseide, mit der das Dokument festgeklebt ist */
   .item .card::after { content: ''; position: absolute; inset: 0; pointer-events: none;
@@ -55,13 +55,21 @@
   .item .nm { position: absolute; top: 31px; left: 50%; transform: translateX(-50%); max-width: 46px; overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; font: 600 8px "Segoe UI", sans-serif; color: #fff; text-shadow: 0 0 2px #000, 0 0 3px #000, 0 1px 2px #000; }
   .item:hover { transform: rotate(0deg) scale(1.35) translateY(2px); z-index: 3; }
-  .item b { position: absolute; top: 44px; left: 50%; transform: translateX(-50%); font: 700 9px "Segoe UI", sans-serif; color: #30a46c;
+  .item b { position: absolute; top: 44px; left: 50%; transform: translateX(-50%); font: 700 9px "Segoe UI", sans-serif; color: #ff2d8a;
     background: #fff; padding: 1px 4px; border-radius: 4px; white-space: nowrap; animation: pop 1.2s forwards; z-index: 4; }
   .item.new { animation: stick .6s cubic-bezier(.2,1.5,.4,1); }
   @keyframes stick { 0% { transform: translateY(40px) scale(.3) rotate(-40deg); opacity: 0; } 60% { opacity: 1; } 100% { transform: rotate(var(--rot, 0deg)); } }
   @keyframes pop { 0% { opacity: 0; transform: translate(-50%, 4px); } 20%, 70% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
-  #zoneHint { position: absolute; left: 50%; transform: translateX(-50%); font: 700 10px "Segoe UI", sans-serif; color: #16161d; background: #ffe14d;
+  #zoneHint { position: absolute; left: 50%; transform: translateX(-50%); font: 700 10px "Segoe UI", sans-serif; color: #fff; background: #16161d; border: 1px solid #ff2d8a;
     padding: 3px 9px; border-radius: 10px; white-space: nowrap; display: none; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+  body.faded #svg, body.faded #items, body.faded #webSvg, body.faded #count { opacity: .4; }
+  #svg, #items, #webSvg, #count { transition: opacity .8s; }
+  /* Eingeklapptes Netz: nur ein kleiner Zähler am Faden */
+  #items { transition: opacity .3s, transform .3s; transform-origin: 50% 20%; }
+  body.webClosed #items { opacity: 0; transform: scale(.4); pointer-events: none; }
+  #count { position: absolute; top: 6px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: #16161d; border: 1.5px solid #ff2d8a;
+    color: #fff; font: 700 9px/13px "Segoe UI", sans-serif; text-align: center; display: none; transition: opacity .3s; }
+  body.webClosed.hasItems #count { display: block; }
 </style>
 </head>
 <body>
@@ -90,7 +98,8 @@
 </svg>
 <div id="zoneGlow"></div>
 <div id="items"></div>
-<div id="zoneHint">Hier ablegen 🕸</div>
+<div id="zoneHint">Hier ablegen</div>
+<div id="count"></div>
 
 <script>
   const NS = 'http://www.w3.org/2000/svg';
@@ -410,12 +419,21 @@
 
   // Nur über der Spinne (oder direkt am Faden) Mausereignisse annehmen, sonst durchklicken lassen
   let wasInside = null;
+  let lastNear = performance.now();
   function hitTest(now) {
     const d = Math.hypot(cursor.x - spiderPos.x, cursor.y - spiderPos.y);
     const onThread = cursor.y > 0 && cursor.y < spiderPos.y - 10 &&
       Math.abs(cursor.x - (AX + (spiderPos.x - AX) * (cursor.y / Math.max(spiderPos.y, 1)))) < 6;
     const inRect = (r) => r && cursor.x >= r.x && cursor.x <= r.x + r.w && cursor.y >= r.y && cursor.y <= r.y + r.h;
-    const inside = dragging || down !== null || d < (noZoneHelper ? 52 : 42) || onThread || itemRects.some(inRect) || inRect(zoneRect()) || onWeb(cursor);
+    // Netz aufspannen, wenn die Maus in die Nähe kommt; unauffällig werden nach 30 s Ruhe
+    const nearWeb = itemIds.length && Math.hypot(cursor.x - HOLD.cx, cursor.y - HOLD.cy) < HOLD.r + 30;
+    if (nearWeb) { const was = webIsOpen(); webOpenUntil = now + 800; if (!was) updateHoldWeb(); }
+    else if (document.body.classList.contains('webClosed') !== !webIsOpen()) updateHoldWeb();
+    const nearAny = Math.hypot(cursor.x - spiderPos.x, cursor.y - spiderPos.y) < 220 || nearWeb;
+    if (nearAny || trick || busy || dragging) lastNear = now;
+    const fade = now - lastNear > 30000;
+    if (fade !== document.body.classList.contains('faded')) document.body.classList.toggle('faded', fade);
+    const inside = dragging || down !== null || d < (noZoneHelper ? 52 : 42) || onThread || (webIsOpen() && itemRects.some(inRect)) || inRect(zoneRect()) || onWeb(cursor);
     if (inside !== wasInside) {
       wasInside = inside;
       window.spider.rigHover(inside);
@@ -477,9 +495,16 @@
 
   let itemRects = [], itemIds = [], knownIds = new Set(), dropZone = false;
   let noZoneHelper = false; // Windows-Helfer nicht verfügbar → größere Fangfläche um die Spinne
+  let webOpenUntil = 0;
+  function webIsOpen() { return dropZone || performance.now() < webOpenUntil; }
   function updateHoldWeb() {
     const g = document.getElementById('holdWeb');
-    g.setAttribute('opacity', itemIds.length || dropZone ? '1' : '0');
+    const open = webIsOpen();
+    g.setAttribute('opacity', (itemIds.length && open) || dropZone ? '1' : '0');
+    document.body.classList.toggle('webClosed', !open);
+    document.body.classList.toggle('hasItems', itemIds.length > 0);
+    $('count').textContent = itemIds.length;
+    $('count').style.left = `${HOLD.cx + 16}px`;
     g.classList.toggle('zone', dropZone);
     $('zoneGlow').style.display = dropZone ? 'block' : 'none';
     $('zoneHint').style.display = dropZone ? 'block' : 'none';
@@ -509,6 +534,7 @@
       box.appendChild(c);
       itemRects.push({ x: x - 19, y: y - 19, w: 38, h: 46 });
     });
+    if (itemIds.some((id) => !knownIds.has(id))) webOpenUntil = performance.now() + 2500; // Neues kurz zeigen
     knownIds = new Set(itemIds);
     updateHoldWeb();
   }
@@ -525,7 +551,7 @@
     dropZone = on; catching = on; if (on) wake(); updateHoldWeb();
   });
   const zoneRect = () => (dropZone ? { x: 0, y: 0, w: W, h: H } : null);
-  const onWeb = (p) => itemIds.length > 0 && Math.hypot(p.x - HOLD.cx, (p.y - HOLD.cy) / 0.92) < HOLD.r + 6;
+  const onWeb = (p) => itemIds.length > 0 && webIsOpen() && Math.hypot(p.x - HOLD.cx, (p.y - HOLD.cy) / 0.92) < HOLD.r + 6;
 
 
   // ---------- Bedienung ----------

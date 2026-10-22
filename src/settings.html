@@ -27,7 +27,7 @@
   .inline { display: flex; gap: 8px; } .inline select { flex: 1; }
   button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); padding: 8px 16px; }
   button.primary { background: var(--pink); border-color: var(--pink); color: #fff; font-weight: 600; }
-  .ok { color: #30a46c; }
+  .ok { color: #ff2d8a; }
   label.check { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; margin-top: 18px; }
   label.check input { width: auto; margin-top: 3px; accent-color: var(--pink); }
   .keys div { display: flex; gap: 10px; align-items: baseline; font-size: 12px; margin: 4px 0; color: var(--muted); }
@@ -91,6 +91,7 @@
 </select>
 <label class="check"><input type="checkbox" id="hatch"> Spinnen-Animation: Eine große Spinne kriecht herein und liest den markierten Text (die kleine versteckt sich so lange)</label>
 
+<label class="check"><input type="checkbox" id="pinCopied"> Kopierte Dateien (Strg+C im Explorer) automatisch ins Spinnennetz hängen</label>
 <label class="check"><input type="checkbox" id="lowPower"> Sparmodus: ohne Grafikbeschleunigung – braucht weniger Arbeitsspeicher (wirkt nach einem Neustart von Silkreader)</label>
 
 <label>Tastenkürzel <span class="hint" style="font-weight:400">– zum Ändern anklicken und neue Tasten drücken</span></label>
@@ -189,6 +190,7 @@
     $('lang').value = s.language;
     $('hatch').checked = s.hatchAnimation;
     $('lowPower').checked = s.lowPower;
+    $('pinCopied').checked = s.pinCopied;
     wantedOllama = s.ollamaModel;
     if (s.hasKey) $('key').placeholder = '•••••••• (gespeichert – leer lassen, um ihn zu behalten)';
     setProvider(s.provider);
@@ -235,7 +237,7 @@
   $('save').addEventListener('click', async () => {
     await window.spider.saveSettings({
       provider, apiKey: $('key').value, model: $('model').value,
-      ollamaModel: $('ollamaModel').value, language: $('lang').value, builtinModel, hatchAnimation: $('hatch').checked, lowPower: $('lowPower').checked,
+      ollamaModel: $('ollamaModel').value, language: $('lang').value, builtinModel, hatchAnimation: $('hatch').checked, lowPower: $('lowPower').checked, pinCopied: $('pinCopied').checked,
     });
     $('key').value = '';
     $('msg').textContent = 'Gespeichert ✓';

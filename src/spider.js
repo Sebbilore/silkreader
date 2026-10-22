@@ -120,6 +120,7 @@ export class Spider {
 
     // Körper bewegen
     const d = dist(this.x, this.y, this.tx, this.ty);
+    const ox = this.x, oy = this.y;
     if (d > 1) {
       const step = Math.min(d, this.speed * dt * Math.min(1, d / 60 + 0.35));
       this.x += ((this.tx - this.x) / d) * step;
@@ -130,28 +131,43 @@ export class Spider {
       cb();
     }
     const vx = this.tx - this.x, vy = this.ty - this.y, vl = Math.hypot(vx, vy) || 1;
+    // tatsächliche Geschwindigkeit (für vorausschauende Schritte)
+    const moving = d > 1 ? Math.min(this.speed, d / Math.max(dt, 0.001)) : 0;
 
     // Beine: ein Fuß macht einen Schritt, wenn er zu weit von seiner Ruheposition ist
     const stepping = this.feet.filter((f) => f.t < 1).length;
     this.feet.forEach((f, i) => {
       if (f.t < 1) {
-        f.t = Math.min(1, f.t + dt * 11); // schnellere, kleinere Schritte = flüssigerer Gang
+        // Schrittziel wandert mit dem Körper mit – sonst landet der Fuß hinter der Spinne
+        f.tx += this.x - ox; f.ty += this.y - oy;
+        f.t = Math.min(1, f.t + dt * (11 + moving / 90)); // schneller laufen = schnellere Schritte
         const e = 1 - (1 - f.t) ** 2;
         f.x = lerp(f.fx, f.tx, e);
         f.y = lerp(f.fy, f.ty, e) - Math.sin(f.t * Math.PI) * 10;
-        if (f.t === 1 && f.word) this.touch(f.word);
+        if (f.t === 1 && f.word && dist(f.x, f.y, f.word.x, f.word.y) < 30) this.touch(f.word);
         return;
       }
       const [ix, iy] = this.ideal(LEG_ANGLES[i]);
       const groupBusy = this.feet.some((g, j) => g.t < 1 && GAIT_A.has(j) !== GAIT_A.has(i));
-      if (dist(f.x, f.y, ix, iy) > this.reach * 0.38 && stepping < 4 && !groupBusy) {
-        const lead = Math.min(this.reach * 0.35, vl); // weiter vorausgreifen, damit die Füße nicht hinterherhinken
+      // Zu weit gedehnt? Dann sofort umsetzen – egal, ob die Gangart gerade passt
+      const overstretched = dist(f.x, f.y, this.x, this.y) > this.reach * 1.1;
+      if (overstretched || (dist(f.x, f.y, ix, iy) > this.reach * 0.38 && stepping < 4 && !groupBusy)) {
+        // dorthin greifen, wo der Körper am Ende des Schritts sein wird
+        const lead = Math.min(this.reach * 0.6, moving / 11 + 8, vl);
         const w = this.nearestWord(ix + (vx / vl) * lead, iy + (vy / vl) * lead);
         f.fx = f.x; f.fy = f.y;
         f.tx = w ? w.x : ix; f.ty = w ? w.y : iy;
         f.word = w;
         f.t = 0;
       }
+    });
+
+    // Ein Bein kann nie länger werden als Ober- plus Unterschenkel: Fuß notfalls nachziehen
+    const maxLeg = this.reach * 0.62 * this.bodyScale * 2 * 0.96;
+    this.feet.forEach((f, i) => {
+      const hx = this.x + (i < 4 ? 5 : -5), hy = this.y - 9 + (i % 4) * 3.5;
+      const fd = dist(f.x, f.y, hx, hy);
+      if (fd > maxLeg) { f.x = hx + ((f.x - hx) / fd) * maxLeg; f.y = hy + ((f.y - hy) / fd) * maxLeg; }
     });
 
     this.draw();
@@ -174,10 +190,17 @@ export class Spider {
       const right = i < 4;
       const hx = this.x + (right ? 5 : -5);
       const hy = this.y - 9 + (i % 4) * 3.5;
-      const dx = f.x - hx, dy = f.y - hy;
-      const lift = f.t < 1 ? 0.34 : 0.24;
-      const kx = hx + dx / 2 + (right ? dy : -dy) * lift;
-      const ky = hy + dy / 2 + (right ? -dx : dx) * lift;
+      // Zwei feste Beinsegmente (Ober-/Unterschenkel): Knie liegt dort, wo beide passen,
+      // immer nach außen/oben geknickt – so kann es nicht mehr umklappen.
+      const L = this.reach * 0.62 * this.bodyScale;
+      const dx = f.x - hx, dy = f.y - hy, dd = Math.hypot(dx, dy) || 1;
+      const half = Math.min(dd / 2, L);
+      const bend = Math.sqrt(Math.max(0, L * L - half * half)) + (f.t < 1 ? 6 : 0);
+      let px = -dy / dd, py = dx / dd; // eine Senkrechte zur Beinlinie
+      const side = right ? 1 : -1;
+      if (-py + 0.6 * side * px < py - 0.6 * side * px) { px = -px; py = -py; } // die nach außen/oben zeigende nehmen
+      const kx = hx + (dx / dd) * half + px * bend;
+      const ky = hy + (dy / dd) * half + py * bend;
       this.legEls[i].setAttribute('points', `${hx},${hy} ${kx},${ky} ${f.x},${f.y}`);
       this.footEls[i].setAttribute('cx', f.x);
       this.footEls[i].setAttribute('cy', f.y);

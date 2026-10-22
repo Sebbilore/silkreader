@@ -26,6 +26,8 @@ using System.Runtime.InteropServices;
 public static class SilkKeys {
   [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
   [DllImport("user32.dll")] static extern short GetAsyncKeyState(int vKey);
+  [DllImport("user32.dll")] static extern uint GetClipboardSequenceNumber();
+  public static uint Seq() { return GetClipboardSequenceNumber(); }
   public static bool LeftDown() { return (GetAsyncKeyState(0x01) & 0x8000) != 0; }
   static bool Down(int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; }
   // Verhindert, dass das Loslassen von Alt die Menüleiste des Programms öffnet (unbelegte Taste 0xE8)
@@ -103,6 +105,7 @@ while ($true) {
   try {
     if ($line -eq 'copy') { [SilkKeys]::Copy(); [Console]::Out.WriteLine('ok') }
     elseif ($line -eq 'hotcopy') { [SilkKeys]::MaskMenu(); [SilkKeys]::WaitModifiersUp(2000); Start-Sleep -Milliseconds 40; [SilkKeys]::Copy(); [Console]::Out.WriteLine('ok') }
+    elseif ($line -eq 'seq') { [Console]::Out.WriteLine([SilkKeys]::Seq()) }
     elseif ($line -eq 'files') { $l = [System.Windows.Forms.Clipboard]::GetFileDropList(); [Console]::Out.WriteLine((@($l) -join '|')) }
     elseif ($line -eq 'rects') { if ($uia) { [Console]::Out.WriteLine([SilkText]::Selection(160)) } else { [Console]::Out.WriteLine('{}') } }
     elseif ($line -eq 'btn') { if ([SilkKeys]::LeftDown()) { [Console]::Out.WriteLine('down') } else { [Console]::Out.WriteLine('up') } }
@@ -214,7 +217,19 @@ async function restoreClipboard(snap) {
  * @param {{ waitForKeys?: number }} opts  waitForKeys: kurz warten, bis Tastenkürzel losgelassen sind
  * @returns {Promise<{ text: string|null, files: string[] }>}
  */
+// Eigene Zwischenablage-Aktionen sollen den "Strg+C → ins Netz"-Wächter nicht auslösen
+let ownClipboardUntil = 0;
+const ownClipboardActive = () => Date.now() < ownClipboardUntil;
+
+/** Zähler, den Windows bei jeder Änderung der Zwischenablage erhöht (sehr billig abzufragen). */
+async function clipboardSeq() {
+  if (process.platform !== 'win32' || !helper?.ready) return null;
+  const r = await helperCommand('seq', 500);
+  return r && /^\d+$/.test(r) ? Number(r) : null;
+}
+
 async function grabSelection({ hotkey = false } = {}) {
+  ownClipboardUntil = Date.now() + 6000;
   // Per Tastenkürzel ausgelöst: Auf Windows wartet der Helfer selbst, bis die Tasten losgelassen sind
   if (hotkey && process.platform !== 'win32') await sleep(350);
   const before = await snapshotClipboard();
@@ -232,6 +247,7 @@ async function grabSelection({ hotkey = false } = {}) {
   let files = [];
   if (!text || !text.trim()) files = await readClipboardFiles();
   await restoreClipboard(before);
+  ownClipboardUntil = Date.now() + 1500;
   return { text: text && text.trim() ? text.trim() : null, files };
 }
 
@@ -249,6 +265,7 @@ async function readClipboardFiles() {
 
 /** Legt eine Datei in die Zwischenablage, sodass man sie im Explorer/Mail mit Strg+V einfügen kann. */
 async function copyFileToClipboard(filePath) {
+  ownClipboardUntil = Date.now() + 3000;
   if (process.platform === 'win32') {
     const escaped = filePath.replace(/'/g, "''");
     return (await run('powershell', ['-NoProfile', '-NonInteractive', '-Command', `Set-Clipboard -Path '${escaped}'`])) !== null;
@@ -260,4 +277,4 @@ async function copyFileToClipboard(filePath) {
   return true;
 }
 
-module.exports = { grabSelection, copyFileToClipboard, warmUp, isMouseDown, selectionRects, helperAvailable: () => process.platform === 'win32' && !!helper?.ready };
+module.exports = { grabSelection, copyFileToClipboard, warmUp, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable: () => process.platform === 'win32' && !!helper?.ready };

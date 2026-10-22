@@ -53,6 +53,13 @@ Ist das große Fenster offen, tollt die kleine Spinne darin herum (hüpft, schl�
 | **Spinne seitwärts ziehen** | Sie wandert am oberen Rand entlang (und schaukelt dabei ordentlich) |
 | **Spinne hoch/runter ziehen** | Faden kürzer oder länger machen |
 | **Rechtsklick** auf die Spinne | Menü mit Kokon-Ablage, Datei öffnen, Einstellungen … |
+| **Datei im Explorer mit Strg+C kopieren** | Landet automatisch im Netz (abschaltbar in den Einstellungen) |
+| **„Mehr ▾“ in der Sprechblase** | Kernaussagen, Erkenntnisse und Zahlen – die Sprechblase zeigt sonst nur das Wichtigste |
+| **„Frag den Text …“ in der Sprechblase** | Frage eintippen, Enter – die Spinne antwortet und zeigt auf Wunsch die Stelle im Text |
+| **📅 Frist in der Sprechblase** | Erkannte Termine mit einem Klick als Kalendereintrag (mit Erinnerung einen Tag vorher) |
+| **Rechtsklick auf ein Dokument im Netz → Vergleichen mit …** | Zwei Dokumente vergleichen: Unterschiede und Gemeinsamkeiten |
+
+Die Spinne wird nach 30 Sekunden halb durchsichtig und kommt zurück, sobald die Maus in die Nähe kommt. Das Netz ist zusammengeklappt (nur ein kleiner Zähler) und öffnet sich, wenn die Maus darüber fährt.
 
 ### Tastenkürzel
 
@@ -65,12 +72,21 @@ Alle globalen Kürzel lassen sich in den Einstellungen ändern (anklicken, neue 
 | **Strg+Alt+K** | Markierten Text oder markierte Datei (z. B. im Explorer) in einen Kokon packen |
 | **Strg+Alt+V** | Kokon-Ablage öffnen |
 | **Strg+Alt+H** | Spinne verstecken / zeigen |
+| **Strg+Alt+T** | Markierten Text übersetzen |
+| **Strg+Alt+L** | Markierten Text in einfache Sprache umschreiben |
+| **Strg+Alt+R** | Antwort-Entwurf auf eine markierte E-Mail |
+| **Strg+Alt+B** | Bildschirmbereich aufziehen und lesen lassen (Windows-Texterkennung) |
+| **Strg+Alt+N** | Notizbuch: die letzten 20 Analysen mit Suche |
+
+Hinweis: Kürzel mit Strg+Umschalt werden oft schon von Word oder Chrome belegt, und auf deutschen Tastaturen ist Strg+Alt gleich AltGr – deshalb meiden die Standardkürzel Buchstaben wie E, Q, M und Ziffern.
 
 | Im Analysefenster | |
 |---|---|
 | **Enter** | Analyse starten (nur im großen Fenster nötig) |
 | **Esc** | Fenster schließen |
+| **Rechtsklick** | Menü (das Fenster hat keine Kopfleiste mehr) |
 | **Strg+O** | Datei öffnen |
+| **Strg+H** | Notizbuch |
 | **Strg+N** | Neuer Text |
 | **Strg+K** | Aktuellen Text in einen Kokon packen |
 | **Strg+Umschalt+C** | Ergebnis kopieren |
@@ -112,3 +128,4 @@ Aufbau:
 - `src/grab.js`: markierten Text aus anderen Programmen holen
 - `src/selectionScan.js`: markierte Wörter auf dem Bildschirm finden (über die Markierungsfarbe)
 - `src/cocoons.js`: Kokon-Ablage
+- `src/ocr.js` und `src/region.html`: Bildschirmbereich auswählen und mit der Windows-Texterkennung lesen

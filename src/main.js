@@ -4,7 +4,7 @@
 
 const {
   app, BrowserWindow, ipcMain, clipboard, globalShortcut, Menu, Tray,
-  dialog, screen, safeStorage, nativeImage, shell,
+  dialog, screen, safeStorage, nativeImage, shell, desktopCapturer,
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -14,9 +14,10 @@ const loadAnthropic = () => (Anthropic ??= require('@anthropic-ai/sdk').default)
 let autoUpdaterInstance = null;
 const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoUpdater);
 
-const { grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, helperAvailable } = require('./grab');
+const { grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
 const { CocoonStore } = require('./cocoons');
 const { scanSelection } = require('./selectionScan');
+const { recognizeText } = require('./ocr');
 
 // Globale Tastenkürzel. Strg+Alt statt Strg+Umschalt, weil viele Programme Strg+Umschalt
 // selbst benutzen (z. B. Strg+Umschalt+Leertaste in Word, Strg+Umschalt+B in Chrome).
@@ -26,7 +27,13 @@ const SHORTCUTS = [
   { id: 'cocoon', keys: 'CommandOrControl+Alt+K', label: 'Strg+Alt+K', desc: 'Markierten Text oder Datei in einen Kokon packen' },
   { id: 'cocoons', keys: 'CommandOrControl+Alt+V', label: 'Strg+Alt+V', desc: 'Kokon-Ablage öffnen (Kopieren/Einfügen)' },
   { id: 'toggle', keys: 'CommandOrControl+Alt+H', label: 'Strg+Alt+H', desc: 'Spinne verstecken / zeigen' },
+  { id: 'translate', keys: 'CommandOrControl+Alt+T', label: 'Strg+Alt+T', desc: 'Markierten Text übersetzen' },
+  { id: 'simplify', keys: 'CommandOrControl+Alt+L', label: 'Strg+Alt+L', desc: 'Markierten Text in leichter Sprache' },
+  { id: 'reply', keys: 'CommandOrControl+Alt+R', label: 'Strg+Alt+R', desc: 'Antwort auf markierte E-Mail entwerfen' },
+  { id: 'region', keys: 'CommandOrControl+Alt+B', label: 'Strg+Alt+B', desc: 'Bildschirmbereich lesen lassen' },
+  { id: 'notebook', keys: 'CommandOrControl+Alt+N', label: 'Strg+Alt+N', desc: 'Notizbuch (letzte Analysen)' },
 ];
+// Hinweis: Strg+Alt+E/Q/M/2/3/7–0 sind auf deutschen Tastaturen AltGr-Zeichen (€, @, µ …) und daher tabu.
 const HOTKEY = SHORTCUTS[0].keys;
 const shortcutActions = {
   take: () => spiderTake({ fromHotkey: true }),
@@ -34,6 +41,11 @@ const shortcutActions = {
   cocoon: () => cocoonFromSelection(),
   cocoons: () => { bubbleWin.show(); Menu.buildFromTemplate(cocoonsMenuTemplate()).popup({ window: bubbleWin }); },
   toggle: () => (bubbleWin.isVisible() ? bubbleWin.hide() : bubbleWin.show()),
+  translate: () => transformSelection('translate'),
+  simplify: () => transformSelection('simplify'),
+  reply: () => transformSelection('reply'),
+  region: () => regionCapture(),
+  notebook: () => showNotebook(),
 };
 // Eigene Tastenkürzel aus den Einstellungen übernehmen und alle (neu) anmelden
 function registerShortcuts() {
@@ -281,6 +293,11 @@ function createPopup() {
 
 function showPopup(doc, { autoStart = false } = {}) {
   preloadBuiltinModel();
+  showPopupPayload({ kind: 'analyze', doc, autoStart });
+}
+
+// Sprechblase mit beliebigem Inhalt: analyze | transform | compare | message
+function showPopupPayload(payload) {
   const win = createPopup();
   // Unter der Spinne platzieren, die Spitze zeigt auf sie
   const sp = spiderScreenPos();
@@ -290,12 +307,70 @@ function showPopup(doc, { autoStart = false } = {}) {
   win.setPosition(x, y);
   const arrow = Math.round(Math.min(Math.max(sp.x - x, 34), POPUP.width - 34));
   const send = () => {
-    win.webContents.send('popup-doc', { doc, autoStart, arrow });
+    win.webContents.send('popup-doc', { ...payload, arrow });
     win.show();
     win.focus();
   };
   if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send);
   else send();
+}
+
+// ---------- Übersetzen, leichte Sprache, Antwort-Entwurf (per Tastenkürzel) ----------
+async function transformSelection(mode) {
+  const grabbed = await grabSelection({ hotkey: true });
+  if (!grabbed.text) { bubbleWin?.webContents.send('rig-trick', 'shrug'); return; }
+  preloadBuiltinModel();
+  showPopupPayload({ kind: 'transform', mode, title: TRANSFORMS[mode].title, text: grabbed.text });
+}
+
+function showNotebook() {
+  const w = showMain();
+  const send = () => w.webContents.send('show-notebook');
+  if (w.webContents.isLoading()) w.webContents.once('did-finish-load', send); else send();
+}
+
+// ---------- Bildschirmbereich lesen (Texterkennung) ----------
+async function regionCapture() {
+  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const sf = display.scaleFactor || 1;
+  // Erst das Bildschirmfoto (noch ohne Abdunklung), dann den Bereich wählen lassen
+  let shot = null;
+  try {
+    const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: Math.round(display.size.width * sf), height: Math.round(display.size.height * sf) } });
+    shot = (sources.find((x) => String(x.display_id) === String(display.id)) || sources[0])?.thumbnail;
+  } catch { shot = null; }
+  if (!shot || shot.isEmpty()) return;
+  const b = display.bounds;
+  const win = new BrowserWindow({
+    x: b.x, y: b.y, width: b.width, height: b.height, frame: false, transparent: true, resizable: false, movable: false,
+    alwaysOnTop: true, skipTaskbar: true, hasShadow: false, show: false,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+  });
+  win.setAlwaysOnTop(true, 'screen-saver');
+  const rect = await new Promise((resolve) => {
+    const onDone = (e, r) => { if (e.sender === win.webContents) { ipcMain.removeListener('region-done', onDone); resolve(r); } };
+    ipcMain.on('region-done', onDone);
+    win.on('closed', () => { ipcMain.removeListener('region-done', onDone); resolve(null); });
+    win.once('ready-to-show', () => { win.show(); win.focus(); });
+    win.loadFile(path.join(__dirname, 'region.html'));
+  });
+  if (!win.isDestroyed()) win.destroy();
+  if (!rect) return;
+  const k = shot.getSize().width / b.width;
+  const crop = shot.crop({ x: Math.round(rect.x * k), y: Math.round(rect.y * k), width: Math.round(rect.w * k), height: Math.round(rect.h * k) });
+  const file = path.join(app.getPath('temp'), `silkreader-bereich-${Date.now()}.png`);
+  fs.writeFileSync(file, crop.toPNG());
+  bubbleWin?.webContents.send('rig-trick', 'dance');
+  const text = await recognizeText(file);
+  if (text) {
+    showPopup({ title: 'Bildschirmausschnitt', source: 'region', pages: [text] }, { autoStart: true });
+  } else if (loadSettings().provider === 'claude') {
+    // Ohne Texterkennung: Claude kann das Bild direkt ansehen
+    showPopup({ title: 'Bildschirmausschnitt', source: 'region', pages: ['(Bild)'], image: crop.toPNG().toString('base64') }, { autoStart: true });
+  } else {
+    showPopupPayload({ kind: 'message', title: 'Kein Text erkannt', text: 'In diesem Bereich hat die Windows-Texterkennung keinen Text gefunden. Tipp: einen größeren Bereich wählen oder in den Einstellungen Claude nutzen – Claude kann auch Bilder lesen.' });
+  }
+  fs.unlink(file, () => {});
 }
 
 // ---------- Markieren & Spinne klicken ----------
@@ -417,6 +492,28 @@ function runCrawlOverlay(anchorAbs, rects) {
 // Alte Bezeichnung, wird noch von Menüs benutzt
 const analyzeClipboard = () => spiderTake();
 
+// Strg+C auf Dateien/Ordner (z. B. im Explorer) → automatisch auch ins Spinnennetz
+function watchCopiedFiles() {
+  let lastSeq = null, checking = false;
+  setInterval(async () => {
+    if (checking || loadSettings().pinCopied === false) return;
+    checking = true;
+    try {
+      const seq = await clipboardSeq();
+      if (seq === null) return;
+      if (lastSeq !== null && seq !== lastSeq && !ownClipboardActive()) {
+        const files = await readClipboardFiles();
+        if (files.length) {
+          files.slice(0, 6).forEach((f) => cocoons.addFile(f));
+          bubbleWin?.webContents.send('rig-trick', 'wrap');
+          sendCocoons();
+        }
+      }
+      lastSeq = seq;
+    } finally { checking = false; }
+  }, 900);
+}
+
 // ---------- Kokon-Ablage ----------
 
 const iconCache = new Map();
@@ -464,9 +561,25 @@ function cocoonMenu(id) {
       else openFile(it.path);
     } }]),
     ...(it.type === 'file' ? [{ label: 'Im Ordner zeigen', click: () => shell.showItemInFolder(it.path) }] : []),
+    ...(cocoons.list().length > 1 && !(it.type === 'file' && isFolder(it.path)) ? [{ label: 'Vergleichen mit …', submenu: cocoons.list()
+      .filter((o) => o.id !== id && !(o.type === 'file' && isFolder(o.path)))
+      .map((o) => ({ label: o.name, click: () => compareCocoons(id, o.id) })) }] : []),
     { type: 'separator' },
-    { label: 'Kokon entfernen', click: () => { cocoons.remove(id); sendCocoons(); } },
+    { label: 'Aus dem Netz nehmen', click: () => { cocoons.remove(id); sendCocoons(); } },
   ];
+}
+
+async function cocoonDoc(it) {
+  return it.type === 'text' ? { title: it.name, source: 'cocoon', pages: [it.text] } : readDocument(it.path);
+}
+async function compareCocoons(idA, idB) {
+  try {
+    const [a, b] = await Promise.all([cocoonDoc(cocoons.get(idA)), cocoonDoc(cocoons.get(idB))]);
+    preloadBuiltinModel();
+    showPopupPayload({ kind: 'compare', title: `${a.title} ↔ ${b.title}`, a, b });
+  } catch (e) {
+    dialog.showErrorBox('Vergleich nicht möglich', String(e.message || e));
+  }
 }
 
 function cocoonsMenuTemplate() {
@@ -615,7 +728,9 @@ async function analyzeClaude(doc, s, onProgress) {
     model: s.model,
     max_tokens: 32000,
     output_config: { effort: 'medium', format: { type: 'json_schema', schema: ANALYSIS_SCHEMA } },
-    messages: [{ role: 'user', content: buildPrompt(doc, s.language) }],
+    messages: [{ role: 'user', content: doc.image
+      ? [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: doc.image } }, { type: 'text', text: buildPrompt({ ...doc, pages: ['(Text siehe Bild oben)'] }, s.language) }]
+      : buildPrompt(doc, s.language) }],
   };
   // Haiku hat keinen serverseitigen Fallback – für Opus/Sonnet springt bei einer
   // Ablehnung automatisch ein passendes Ersatzmodell ein.
@@ -979,6 +1094,207 @@ function friendlyError(e) {
   return String(e.message || e);
 }
 
+// ---------- Weitere KI-Aufgaben: Fragen, Übersetzen, Vereinfachen, Antworten, Vergleichen ----------
+
+// Eine Anfrage an die eingestellte KI. "material" ist der (lange) Text; beim eingebauten Modell
+// wird er bei Bedarf gekürzt. Mit schema kommt JSON zurück, sonst Text (gestreamt über onChunk).
+async function llmGenerate({ instruction, material = '', schema = null, maxTokens = 1200, onChunk = () => {}, budget = null }) {
+  const s = loadSettings();
+  if (process.env.SPIDER_MOCK) return mockGenerate(instruction, schema, onChunk);
+  const lang = `Antworte auf ${s.language}, in einfacher, klarer Sprache.`;
+
+  if (s.provider === 'builtin') {
+    const key = builtinKey(s);
+    if (!modelReady(key)) throw Object.assign(new Error('Das eingebaute KI-Modell ist noch nicht heruntergeladen (Einstellungen → Herunterladen).'), { code: 'NO_MODEL' });
+    const { LlamaChatSession } = await import('node-llama-cpp');
+    lastModelUse = Date.now();
+    const { llama, model } = await loadBuiltinModel(key);
+    const limit = budget || Math.round(BUILTIN_MODELS[key].chunkTokens * 1.4);
+    let text = material;
+    let truncated = false;
+    if (model.tokenize(text).length > limit) {
+      text = model.detokenize(model.tokenize(text).slice(0, limit));
+      truncated = true;
+    }
+    const prompt = `${instruction}\n${lang}${text ? `\n\n<text>\n${text}\n</text>` : ''}`;
+    const ctx = await model.createContext({ contextSize: model.tokenize(prompt).length + maxTokens + 300, flashAttention: 'auto' });
+    try {
+      const session = new LlamaChatSession({ contextSequence: ctx.getSequence(), systemPrompt: 'Du bist ein hilfreicher, präziser Assistent.' });
+      const grammar = schema ? await llama.createGrammarForJsonSchema(schema) : undefined;
+      const out = await session.prompt(prompt, { grammar, maxTokens, temperature: 0.3, onTextChunk: onChunk });
+      return { value: schema ? grammar.parse(out) : out.trim(), truncated };
+    } finally {
+      await ctx.dispose();
+      lastModelUse = Date.now();
+    }
+  }
+
+  const prompt = `${instruction}\n${lang}${material ? `\n\n<text>\n${material}\n</text>` : ''}`;
+  if (s.provider === 'ollama') {
+    const res = await fetch(`${OLLAMA_URL}/api/chat`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: s.ollamaModel, stream: true, ...(schema ? { format: schema } : {}), options: { num_ctx: Math.min(65536, Math.max(8192, Math.ceil(prompt.length / 3) + maxTokens + 500)) }, messages: [{ role: 'user', content: prompt }] }),
+    }).catch(() => { throw Object.assign(new Error('Ollama läuft nicht.'), { code: 'NO_OLLAMA' }); });
+    let out = '', buf = '';
+    const dec = new TextDecoder();
+    for await (const chunk of res.body) {
+      buf += dec.decode(chunk, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+        if (!line) continue;
+        const piece = JSON.parse(line).message?.content || '';
+        out += piece; onChunk(piece);
+      }
+    }
+    return { value: schema ? JSON.parse(out) : out.trim(), truncated: false };
+  }
+
+  // Claude
+  const apiKey = getApiKey();
+  if (!apiKey) throw Object.assign(new Error('Kein API-Schlüssel hinterlegt.'), { code: 'NO_KEY' });
+  const client = new (loadAnthropic())({ apiKey });
+  const params = {
+    model: s.model, max_tokens: Math.max(2000, maxTokens * 3),
+    output_config: { effort: 'low', ...(schema ? { format: { type: 'json_schema', schema: toClaudeSchema(schema) } } : {}) },
+    messages: [{ role: 'user', content: prompt }],
+  };
+  if (s.model !== 'claude-haiku-5-5') { params.betas = ['server-side-fallback-2026-07-01']; params.fallbacks = 'default'; }
+  const stream = client.beta.messages.stream(params);
+  stream.on('text', (d) => onChunk(d));
+  const msg = await stream.finalMessage();
+  if (msg.stop_reason === 'refusal') throw new Error('Claude hat diese Anfrage abgelehnt.');
+  const out = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
+  return { value: schema ? JSON.parse(out) : out.trim(), truncated: false };
+}
+
+// Claude-Schemas mögen keine Längen-/Anzahlgrenzen → für Claude entfernen
+function toClaudeSchema(schema) {
+  return JSON.parse(JSON.stringify(schema, (k, v) => (['maxLength', 'maxItems', 'minItems', 'description'].includes(k) ? undefined : v)));
+}
+
+// Testantworten (nur mit SPIDER_MOCK)
+async function mockGenerate(instruction, schema, onChunk) {
+  const reply = schema?.properties?.answer ? { answer: 'Die Dividende steigt auf 1,10 Euro je Aktie.', quote: 'Dividende von 1,10 Euro je Aktie' }
+    : schema?.properties?.diff ? { title: 'Vergleich', same: ['Beide nennen 412 Millionen Euro Umsatz.'], diff: ['A erwähnt die Anleihe, B nicht.'], tip: 'A ist ausführlicher.' }
+    : 'Dies ist ein Testtext der Spinne. Er wurde vereinfacht.';
+  const text = typeof reply === 'string' ? reply : JSON.stringify(reply);
+  for (let i = 0; i < text.length; i += 12) { await new Promise((r) => setTimeout(r, 15)); onChunk(text.slice(i, i + 12)); }
+  return { value: reply, truncated: false };
+}
+
+// Für Fragen beim eingebauten Modell: die passendsten Abschnitte heraussuchen
+function relevantMaterial(doc, question, maxChars) {
+  const full = doc.pages.join('\n\n');
+  if (full.length <= maxChars) return full;
+  const words = new Set(question.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 3));
+  const parts = full.split(/\n\s*\n/).map((t, i) => ({ t, i, score: [...words].filter((w) => t.toLowerCase().includes(w)).length }));
+  const chosen = [];
+  let len = 0;
+  for (const p of [...parts].sort((a, b) => b.score - a.score)) {
+    if (len + p.t.length > maxChars) continue;
+    chosen.push(p); len += p.t.length;
+  }
+  return chosen.sort((a, b) => a.i - b.i).map((p) => p.t).join('\n\n');
+}
+
+const ASK_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['answer', 'quote'],
+  properties: { answer: { type: 'string', maxLength: 500 }, quote: { type: 'string', maxLength: 140, description: 'wörtliche Stelle aus dem Text, die die Antwort belegt (oder leer)' } },
+};
+const COMPARE_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['title', 'same', 'diff', 'tip'],
+  properties: {
+    title: { type: 'string', maxLength: 80 },
+    same: { type: 'array', items: { type: 'string', maxLength: 180 }, maxItems: 4 },
+    diff: { type: 'array', items: { type: 'string', maxLength: 220 }, maxItems: 6 },
+    tip: { type: 'string', maxLength: 240, description: 'kurzes Fazit: was ist besser/wichtiger' },
+  },
+};
+const TRANSFORMS = {
+  translate: { title: 'Übersetzung', instruction: 'Übersetze den folgenden Text ins Deutsche. Ist er schon auf Deutsch, übersetze ihn ins Englische. Gib nur die Übersetzung aus, ohne Kommentar.' },
+  simplify: { title: 'Einfach erklärt', instruction: 'Schreibe den folgenden Text in einfacher Sprache neu: kurze Sätze, bekannte Wörter, Fachbegriffe kurz erklären. Gib nur den neuen Text aus.' },
+  reply: { title: 'Antwort-Entwurf', instruction: 'Der folgende Text ist eine E-Mail oder Nachricht. Schreibe einen kurzen, freundlichen Antwortentwurf in derselben Sprache und im passenden Ton (Du oder Sie wie in der Nachricht). Gib nur den Entwurf aus, ohne Betreffzeile.' },
+};
+
+const friendlyErr = (e) => ({ ok: false, error: friendlyError(e), needsKey: ['NO_KEY', 'NO_OLLAMA', 'NO_MODEL'].includes(e.code) });
+
+ipcMain.handle('ask', async (event, doc, question) => {
+  try {
+    setBusy(true);
+    const s = loadSettings();
+    const material = s.provider === 'builtin' ? relevantMaterial(doc, question, 9000) : doc.pages.join('\n\n');
+    const { value } = await llmGenerate({
+      instruction: `Beantworte diese Frage zum Text kurz und genau: „${question}“\nWenn der Text keine Antwort enthält, sag das ehrlich. Gib in "quote" die wörtliche Stelle an, die die Antwort belegt.`,
+      material, schema: ASK_SCHEMA, maxTokens: 400,
+    });
+    return { ok: true, ...value };
+  } catch (e) { return friendlyErr(e); } finally { setBusy(false); }
+});
+
+ipcMain.handle('transform', async (event, mode, text) => {
+  try {
+    setBusy(true);
+    let out = '';
+    const { value, truncated } = await llmGenerate({
+      instruction: TRANSFORMS[mode].instruction, material: text, maxTokens: 1500,
+      onChunk: (c) => { out += c; event.sender.send('transform-progress', out); },
+    });
+    return { ok: true, text: value, truncated };
+  } catch (e) { return friendlyErr(e); } finally { setBusy(false); }
+});
+
+ipcMain.handle('compare', async (event, a, b) => {
+  try {
+    setBusy(true);
+    const s = loadSettings();
+    const cut = (d) => d.pages.join('\n\n').slice(0, s.provider === 'builtin' ? 7000 : 120000);
+    const { value } = await llmGenerate({
+      instruction: `Vergleiche die beiden Dokumente „${a.title}“ (A) und „${b.title}“ (B). Nenne Gemeinsamkeiten, die wichtigsten Unterschiede (mit konkreten Zahlen, wenn vorhanden) und ein kurzes Fazit.`,
+      material: `--- Dokument A: ${a.title} ---\n${cut(a)}\n\n--- Dokument B: ${b.title} ---\n${cut(b)}`,
+      schema: COMPARE_SCHEMA, maxTokens: 900, budget: 6000,
+    });
+    return { ok: true, result: value };
+  } catch (e) { return friendlyErr(e); } finally { setBusy(false); }
+});
+
+// Termin als Kalenderdatei öffnen (Outlook/Windows-Kalender übernehmen ihn mit einem Klick)
+ipcMain.handle('add-calendar', async (_e, { title, date, note }) => {
+  const d = date.replace(/-/g, '');
+  const next = new Date(`${date}T00:00:00`); next.setDate(next.getDate() + 1);
+  const d2 = next.toISOString().slice(0, 10).replace(/-/g, '');
+  const esc = (t) => String(t || '').replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Silkreader//DE', 'BEGIN:VEVENT',
+    `UID:${Date.now()}@silkreader`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
+    `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${d2}`, `SUMMARY:${esc(title)}`, `DESCRIPTION:${esc(note)}`,
+    'BEGIN:VALARM', 'TRIGGER:-P1D', 'ACTION:DISPLAY', `DESCRIPTION:${esc(title)}`, 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  const file = path.join(app.getPath('temp'), `Silkreader-Frist-${d}.ics`);
+  fs.writeFileSync(file, ics);
+  const err = await shell.openPath(file);
+  return !err;
+});
+
+// ---------- Notizbuch: die letzten 20 Analysen ----------
+const historyFile = () => path.join(app.getPath('userData'), 'history.json');
+function loadHistory() { try { return JSON.parse(fs.readFileSync(historyFile(), 'utf8')); } catch { return []; } }
+function addHistory(doc, result) {
+  const list = loadHistory().filter((h) => h.text !== doc.pages.join('\n\n').slice(0, 200000));
+  list.unshift({ id: `${Date.now()}`, date: Date.now(), title: result.title || doc.title, docTitle: doc.title, pages: doc.pages.map((p) => p.slice(0, 100000)), text: doc.pages.join('\n\n').slice(0, 200000), result });
+  fs.writeFileSync(historyFile(), JSON.stringify(list.slice(0, 20)));
+}
+ipcMain.handle('history-list', (_e, q = '') => {
+  const needle = q.trim().toLowerCase();
+  return loadHistory()
+    .filter((h) => !needle || `${h.title} ${h.docTitle} ${h.result.summary} ${h.text.slice(0, 20000)}`.toLowerCase().includes(needle))
+    .map((h) => ({ id: h.id, date: h.date, title: h.title, docTitle: h.docTitle, summary: h.result.summary }));
+});
+ipcMain.handle('history-open', (_e, id) => {
+  const h = loadHistory().find((x) => x.id === id);
+  if (h) showDocument({ title: h.docTitle, source: 'history', pages: h.pages }, { result: h.result });
+});
+ipcMain.handle('history-delete', (_e, id) => { fs.writeFileSync(historyFile(), JSON.stringify(loadHistory().filter((h) => h.id !== id))); });
+
 // ---------- IPC ----------
 
 ipcMain.handle('analyze', async (event, doc) => {
@@ -1002,6 +1318,7 @@ ipcMain.handle('analyze', async (event, doc) => {
       lastSent = now;
       event.sender.send('progress', { chars: text.length, summary: partialField(text, 'summary'), stage });
     });
+    try { addHistory(doc, result); } catch (e) { console.error('Notizbuch:', e); }
     return { ok: true, result };
   } catch (e) {
     return { ok: false, error: friendlyError(e), needsKey: e.code === 'NO_KEY' || e.code === 'NO_OLLAMA' || e.code === 'NO_MODEL' || Anthropic && e instanceof Anthropic.AuthenticationError };
@@ -1016,6 +1333,17 @@ ipcMain.handle('open-file', (_e, p) => openFile(p));
 ipcMain.handle('pick-file', () => pickFile());
 ipcMain.handle('analyze-clipboard', () => spiderTake());
 ipcMain.handle('spider-take', () => spiderTake());
+ipcMain.on('main-menu', (e) => {
+  Menu.buildFromTemplate([
+    { label: 'Neuer Text', accelerator: 'CommandOrControl+N', click: () => e.sender.send('menu', 'new') },
+    { label: 'Aus Zwischenablage', accelerator: 'CommandOrControl+V', click: () => e.sender.send('menu', 'paste') },
+    { label: 'Datei öffnen …', accelerator: 'CommandOrControl+O', click: () => pickFile() },
+    { label: 'Notizbuch', accelerator: 'CommandOrControl+H', click: () => e.sender.send('show-notebook') },
+    { type: 'separator' },
+    { label: 'Ergebnis kopieren', accelerator: 'CommandOrControl+Shift+C', click: () => e.sender.send('menu', 'copy') },
+    { label: 'Einstellungen …', accelerator: 'CommandOrControl+,', click: () => openSettings() },
+  ]).popup({ window: BrowserWindow.fromWebContents(e.sender) });
+});
 ipcMain.handle('pin-selection', () => cocoonFromSelection({ hotkey: false }));
 ipcMain.handle('hide-main', () => mainWin?.hide());
 ipcMain.handle('popup-close', () => popupWin?.hide());
@@ -1064,6 +1392,7 @@ ipcMain.handle('get-settings', () => {
     provider: s.provider, model: s.model, ollamaModel: s.ollamaModel, language: s.language,
     hatchAnimation: s.hatchAnimation !== false,
     lowPower: !!s.lowPower,
+    pinCopied: s.pinCopied !== false,
     hasKey: !!getApiKey(), models: MODELS, hotkey: SHORTCUTS[0].label,
   };
 });
@@ -1077,7 +1406,7 @@ ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await
 ipcMain.handle('ollama-models', async () => {
   try { return { ok: true, models: await ollamaModels() }; } catch { return { ok: false, models: [] }; }
 });
-ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower }) => {
+ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied }) => {
   if (apiKey) setApiKey(apiKey.trim());
   const s = loadSettings();
   if (['builtin', 'claude', 'ollama'].includes(provider)) s.provider = provider;
@@ -1085,6 +1414,7 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   if (BUILTIN_MODELS[builtinModel]) s.builtinModel = builtinModel;
   if (typeof hatchAnimation === 'boolean') s.hatchAnimation = hatchAnimation;
   if (typeof lowPower === 'boolean') s.lowPower = lowPower;
+  if (typeof pinCopied === 'boolean') s.pinCopied = pinCopied;
   if (model && MODELS[model]) s.model = model;
   if (language) s.language = language;
   saveSettings(s);
@@ -1098,7 +1428,9 @@ ipcMain.handle('open-external', (_e, url) => {
 ipcMain.on('bubble-menu', () => {
   Menu.buildFromTemplate([
     { label: 'Markierten Text nehmen', accelerator: HOTKEY, click: () => spiderTake() },
-    { label: '🕸 Kokon-Ablage', submenu: cocoonsMenuTemplate() },
+    { label: 'Spinnennetz', submenu: cocoonsMenuTemplate() },
+    { label: 'Bildschirmbereich lesen', click: () => regionCapture() },
+    { label: 'Notizbuch', click: () => showNotebook() },
     { label: 'Datei öffnen …', click: pickFile },
     { label: 'Analysefenster öffnen', click: () => showMain() },
     { type: 'separator' },
@@ -1229,6 +1561,7 @@ if (!app.requestSingleInstanceLock()) {
     setTimeout(warmUpGrab, 2000); // Tastatur-Helfer vorab starten, damit der erste Klick sofort klappt
     // Ohne Helfer (nicht Windows oder blockiert) gibt es keine Ablagezone → Spinne bekommt größere Fangfläche
     setTimeout(() => { if (!helperAvailable()) bubbleWin?.webContents.send('drop-zone', 'unavailable'); }, 15000);
+    watchCopiedFiles();
     createBubble();
 
     const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png'));
@@ -1266,3 +1599,6 @@ if (!app.requestSingleInstanceLock()) {
   // Die App läuft im Hintergrund weiter, solange die Spinne da ist.
   app.on('window-all-closed', (e) => e?.preventDefault?.());
 }
+
+// Nur für automatische Tests: ein paar Funktionen erreichbar machen
+if (process.env.SPIDER_MOCK) global.__silk = { showPopupPayload, showNotebook, addHistory, compareCocoons, get cocoons() { return cocoons; } };

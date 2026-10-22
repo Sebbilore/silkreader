@@ -5,182 +5,247 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
 <title>Silkreader</title>
 <style>
-  :root { --bg: #111118; --card: #1a1a24; --line: #2a2a3e; --text: #ececf3; --muted: #9a9ab3; --pink: #ff2d8a; }
+  :root { --bg: #111116; --card: #18181f; --line: #26262f; --text: #ececf1; --muted: #8d8d9c; --pink: #ff2d8a; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font: 13px/1.5 "Segoe UI", system-ui, sans-serif; color: var(--text); }
-  #bubble { position: absolute; left: 10px; right: 10px; top: 14px; bottom: 10px; background: var(--bg); border: 1.5px solid var(--pink);
-    border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.45), 0 0 18px rgba(255,45,138,.25); display: flex; flex-direction: column;
-    transform-origin: var(--arrow, 50%) 0; animation: popIn .35s cubic-bezier(.2,1.4,.4,1); }
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font: 13.5px/1.6 "Segoe UI", system-ui, sans-serif; color: var(--text); }
+  #bubble { position: absolute; left: 10px; right: 10px; top: 14px; max-height: calc(100% - 24px); background: var(--bg); border: 1px solid var(--pink);
+    border-radius: 16px; box-shadow: 0 12px 32px rgba(0,0,0,.45); display: flex; flex-direction: column;
+    transform-origin: var(--arrow, 50%) 0; animation: popIn .32s cubic-bezier(.2,1.4,.4,1); }
   @keyframes popIn { from { transform: scale(.2); opacity: 0; } to { transform: none; opacity: 1; } }
-  #bubble.closing { animation: popOut .2s ease-in forwards; }
+  #bubble.closing { animation: popOut .18s ease-in forwards; }
   @keyframes popOut { to { transform: scale(.2); opacity: 0; } }
-  /* Spitze der Sprechblase zeigt zur Spinne */
-  #arrow { position: absolute; top: -9px; left: calc(var(--arrow, 50%) - 9px); width: 16px; height: 16px; background: var(--bg);
-    border-left: 1.5px solid var(--pink); border-top: 1.5px solid var(--pink); transform: rotate(45deg); }
-  header { display: flex; align-items: center; gap: 8px; padding: 12px 14px 8px; -webkit-app-region: drag; }
-  header .t { font-weight: 700; font-size: 14px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  header .m { color: var(--muted); font-size: 11px; }
-  header button, footer button { -webkit-app-region: no-drag; }
-  .x { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 0 2px; }
+  #arrow { position: absolute; top: -8px; left: calc(var(--arrow, 50%) - 8px); width: 14px; height: 14px; background: var(--bg);
+    border-left: 1px solid var(--pink); border-top: 1px solid var(--pink); transform: rotate(45deg); }
+  header { display: flex; align-items: baseline; gap: 8px; padding: 14px 18px 4px; -webkit-app-region: drag; }
+  header .t { font-weight: 600; font-size: 12px; color: var(--muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .x { -webkit-app-region: no-drag; background: none; border: none; color: var(--muted); font-size: 15px; cursor: pointer; padding: 0; line-height: 1; }
   .x:hover { color: var(--text); }
-  main { flex: 1; overflow: auto; padding: 0 14px 10px; }
-  main::-webkit-scrollbar { width: 8px; } main::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
-  .preview { color: var(--muted); background: var(--card); border-radius: 10px; padding: 10px 12px; font-size: 12px; max-height: 160px; overflow: hidden;
-    -webkit-mask-image: linear-gradient(#000 70%, transparent); }
-  .go { display: block; width: 100%; margin: 14px 0 6px; padding: 11px; font: 600 15px inherit; font-family: inherit; color: #fff; background: var(--pink);
-    border: none; border-radius: 10px; cursor: pointer; }
-  .go:hover { filter: brightness(1.1); }
-  kbd { font: 10px Consolas, monospace; border: 1px solid rgba(255,255,255,.4); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; margin-left: 6px; }
-  .hint { color: var(--muted); font-size: 11px; text-align: center; }
-  h4 { font: 700 10px Consolas, monospace; letter-spacing: 1.3px; text-transform: uppercase; color: var(--pink); margin: 12px 0 5px; }
-  .summary { line-height: 1.55; }
-  .summary .cur { color: var(--pink); animation: blink 1s steps(2) infinite; }
-  @keyframes blink { 50% { opacity: 0; } }
-  ul { margin: 0; padding-left: 17px; } li { margin-bottom: 3px; }
-  ul.sum { font-size: 13.5px; } ul.sum li { margin-bottom: 5px; } ul.sum li::marker, ul li::marker { color: var(--pink); }
-  .cur { color: var(--pink); animation: blink 1s steps(2) infinite; }
-  .finding { background: var(--card); border-left: 3px solid var(--pink); border-radius: 7px; padding: 6px 9px; margin-bottom: 6px; }
-  .finding .k { font: 700 9px Consolas, monospace; text-transform: uppercase; letter-spacing: .8px; color: #fff; background: var(--pink); border-radius: 3px; padding: 1px 5px; }
-  .finding .k.Risiko { background: #e5484d; } .finding .k.Chance { background: #30a46c; } .finding .k.Handlung { background: #d59a00; } .finding .k.Widerspruch { background: #8e4ec6; }
-  .finding .d { color: var(--muted); font-size: 12px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
-  .chip { background: var(--card); border: 1px solid var(--line); border-radius: 7px; padding: 3px 7px; font-size: 12px; }
-  .chip b { font-family: Consolas, monospace; }
-  .stage { color: var(--muted); margin: 10px 0 6px; }
-  .bar { height: 4px; background: var(--card); border-radius: 2px; overflow: hidden; }
+  main { overflow: auto; padding: 4px 18px 6px; min-height: 40px; }
+  main::-webkit-scrollbar { width: 6px; } main::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+  b { color: #fff; font-weight: 650; }
+  ul { margin: 0; padding-left: 16px; } li { margin: 0 0 8px; } li::marker { color: var(--pink); }
+  .lead li { font-size: 14px; }
+  .muted { color: var(--muted); font-size: 12px; }
+  .stage { color: var(--muted); padding: 6px 0 10px; }
+  .bar { height: 2px; background: var(--line); border-radius: 1px; overflow: hidden; margin-bottom: 10px; }
   .bar i { display: block; height: 100%; width: 8%; background: var(--pink); transition: width .4s; }
   .bar.indet i { width: 30%; animation: indet 1.2s ease-in-out infinite; }
   @keyframes indet { from { margin-left: -30%; } to { margin-left: 100%; } }
-  .note { color: var(--muted); font-size: 11px; margin-top: 6px; }
-  .error { background: #2a0f18; border: 1px solid #6b1d36; color: #ffd0de; padding: 10px; border-radius: 9px; margin-top: 8px; }
-  footer { display: flex; gap: 6px; padding: 10px 14px 12px; border-top: 1px solid var(--line); }
-  footer button { flex: 1; font: inherit; font-size: 12px; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 8px;
-    padding: 7px 6px; cursor: pointer; }
-  footer button:hover { border-color: var(--pink); }
+  .cur { color: var(--pink); animation: blink 1s steps(2) infinite; } @keyframes blink { 50% { opacity: 0; } }
+  /* "Mehr ▾": alles Weitere ausgeklappt */
+  .more { background: none; border: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; padding: 2px 0; }
+  .more:hover { color: var(--pink); }
+  #details { display: none; padding-top: 6px; } #details.open { display: block; }
+  .sec { margin: 10px 0 0; } .sec > .h { font-size: 11px; color: var(--muted); letter-spacing: .3px; margin-bottom: 4px; }
+  .jump { cursor: pointer; border-radius: 6px; } .jump:hover { color: #fff; text-decoration: underline; text-decoration-color: var(--pink); text-underline-offset: 3px; }
+  .find { padding-left: 10px; border-left: 1.5px solid var(--pink); margin-bottom: 8px; }
+  .find .k { font-size: 10.5px; color: var(--pink); text-transform: uppercase; letter-spacing: .6px; }
+  .find .d { color: var(--muted); font-size: 12px; }
+  .figs { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; font-size: 12.5px; }
+  .figs span:nth-child(odd) { color: var(--muted); } .figs span:nth-child(even) { text-align: right; }
+  .dl { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; margin: 6px 0; }
+  .dl .when { font-weight: 650; white-space: nowrap; } .dl .what { color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .link { background: none; border: none; color: var(--pink); font: inherit; font-size: 12px; cursor: pointer; padding: 0; white-space: nowrap; }
+  .link:hover { text-decoration: underline; }
+  .answer { margin: 10px 0 2px; padding: 10px 12px; background: var(--card); border-radius: 10px; }
+  .answer .q { color: var(--muted); font-size: 12px; margin-bottom: 2px; }
+  .out { white-space: pre-wrap; }
+  .error { color: #ffc2d8; }
+  footer { padding: 8px 18px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .ask { width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--line); color: var(--text); font: inherit; font-size: 13px;
+    padding: 6px 0; outline: none; } .ask:focus { border-bottom-color: var(--pink); } .ask::placeholder { color: #5f5f6e; }
+  .actions { display: flex; gap: 16px; } .actions .link { color: var(--muted); } .actions .link:hover { color: var(--pink); }
   .hidden { display: none !important; }
-  .jump { cursor: pointer; transition: background .15s, border-color .15s; }
-  li.jump { border-radius: 5px; padding: 1px 3px; margin-left: -3px; }
-  li.jump:hover, .finding.jump:hover { background: #24243a; }
-  .chip.jump:hover { border-color: var(--pink); }
 </style>
 </head>
 <body>
 <div id="bubble">
   <div id="arrow"></div>
-  <header><span>🕷</span><span class="t" id="title">Silkreader</span><span class="m" id="meta"></span><button class="x" id="close" title="Schließen (Esc)">✕</button></header>
+  <header><span class="t" id="title">Silkreader</span><button class="x" id="close" title="Schließen (Esc)">✕</button></header>
   <main id="main"></main>
-  <footer id="foot" class="hidden">
-    <button id="details" title="Im großen Fenster mit markierten Fundstellen">Details</button>
-    <button id="copy" title="Ergebnis kopieren (Strg+C)">Kopieren</button>
-    <button id="keep" title="Ergebnis in einen Kokon packen">🕸 Festhalten</button>
-  </footer>
+  <footer id="foot" class="hidden"></footer>
 </div>
 <script>
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  let doc = null, result = null, state = 'idle', run = 0;
-
-// Zusammenfassung in Stichpunkte zerlegen ("• …" je Zeile; Fließtext → nach Sätzen)
-function bullets(text) {
-  let parts = String(text || '').split(/\n+|\s*•\s*/).map((t) => t.replace(/^[-–*]\s+/, '').trim()).filter(Boolean);
-  if (parts.length === 1 && parts[0].length > 160) parts = parts[0].split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ0-9])/);
-  return parts;
-}
-  function words(d) { return d.pages.join(' ').split(/\s+/).filter(Boolean).length; }
-
-  function showReady() {
-    state = 'ready';
-    $('foot').classList.add('hidden');
-    const text = doc.pages.join('\n\n');
-    $('main').innerHTML = `<div class="preview">${esc(text.slice(0, 600))}</div>
-      <button class="go" id="go">Analysieren<kbd>Enter</kbd></button>
-      <div class="hint"><kbd>Esc</kbd> schließen · <button class="x" id="toDetails" style="font-size:11px;text-decoration:underline">im großen Fenster öffnen</button></div>`;
-    $('go').addEventListener('click', analyze);
-    $('toDetails').addEventListener('click', () => window.spider.popupDetails(doc, null));
-    $('go').focus();
+  // Zahlen, Beträge und Prozente fett
+  const emph = (s) => esc(s).replace(/(\d[\d.,]*\s?(?:%|€|Prozent|Euro|Mio\.?|Mrd\.?|Millionen|Milliarden|Tage|Monate|Jahre)?)/g, '<b>$1</b>');
+  function bullets(text) {
+    let parts = String(text || '').split(/\n+|\s*•\s*/).map((t) => t.replace(/^[-–*]\s+/, '').trim()).filter(Boolean);
+    if (parts.length === 1 && parts[0].length > 160) parts = parts[0].split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ0-9])/);
+    return parts;
   }
 
+  let P = null, result = null, state = 'idle', run = 0;
+
+  // ---------- Fristen im Text finden (für den Kalender) ----------
+  const MONTHS = { januar: 1, februar: 2, märz: 3, maerz: 3, april: 4, mai: 5, juni: 6, juli: 7, august: 8, september: 9, oktober: 10, november: 11, dezember: 12 };
+  function findDeadlines(text) {
+    const out = [];
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const re = /(\d{1,2})\.\s?(?:(\d{1,2})\.\s?|\s*(Januar|Februar|März|Maerz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+)(\d{4}|\d{2}\b)|(\d{4})-(\d{2})-(\d{2})/gi;
+    let m;
+    while ((m = re.exec(text)) && out.length < 12) {
+      let d, mo, y;
+      if (m[5]) { y = +m[5]; mo = +m[6]; d = +m[7]; }
+      else { d = +m[1]; mo = m[2] ? +m[2] : MONTHS[m[3].toLowerCase()]; y = +m[4]; if (y < 100) y += 2000; }
+      const date = new Date(y, mo - 1, d);
+      if (isNaN(date) || date.getDate() !== d || date < today || y > today.getFullYear() + 5) continue;
+      // Satz um das Datum herum als Beschreibung
+      const from = Math.max(text.lastIndexOf('.', m.index - 2) + 1, m.index - 120);
+      const to = Math.min(text.length, (text.indexOf('.', m.index + m[0].length) + 1) || text.length, m.index + 160);
+      const sentence = text.slice(from, to).replace(/\s+/g, ' ').trim();
+      const iso = `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      if (!out.some((o) => o.iso === iso)) out.push({ iso, date, sentence });
+    }
+    return out.sort((a, b) => a.date - b.date).slice(0, 3);
+  }
+
+  // ---------- Analyse ----------
   async function analyze() {
-    if (state === 'running') return;
     state = 'running';
     const myRun = ++run;
     $('foot').classList.add('hidden');
     $('main').innerHTML = `<div class="stage" id="stage">Die Spinne liest …</div><div class="bar indet" id="bar"><i></i></div><div id="live"></div>`;
-    const res = await window.spider.analyze(doc);
+    const res = await window.spider.analyze(P.doc);
     if (myRun !== run) return;
-    if (!res.ok) {
-      state = 'error';
-      $('main').innerHTML = `<div class="error">${esc(res.error)}</div><button class="go" id="retry">Erneut versuchen</button>
-        ${res.needsKey ? '<div class="hint"><button class="x" id="sett" style="font-size:12px;text-decoration:underline">Einstellungen öffnen</button></div>' : ''}`;
-      $('retry').addEventListener('click', () => { state = 'ready'; analyze(); });
-      $('sett')?.addEventListener('click', () => window.spider.openSettings());
-      return;
-    }
+    if (!res.ok) return showError(res, analyze);
     result = res.result;
     showResult();
   }
 
-  window.spider.onProgress(({ chars, summary, stage }) => {
-    if (state !== 'running') return;
+  window.spider.onProgress(({ summary, stage }) => {
+    if (state !== 'running' || !$('stage')) return;
     if (stage?.stage) $('stage').textContent = stage.stage;
-    if (stage?.steps) {
-      $('bar').classList.remove('indet');
-      $('bar').firstElementChild.style.width = `${Math.round((stage.step / stage.steps) * 100)}%`;
-    }
-    if (summary) $('live').innerHTML = `<h4>Das Wichtigste</h4><ul class="sum">${bullets(summary).map((b) => `<li>${esc(b)}</li>`).join('')}</ul><span class="cur">▍</span>`;
+    if (stage?.steps) { $('bar').classList.remove('indet'); $('bar').firstElementChild.style.width = `${Math.round((stage.step / stage.steps) * 100)}%`; }
+    if (summary) $('live').innerHTML = `<ul class="lead">${bullets(summary).map((b) => `<li>${emph(b)}</li>`).join('')}</ul><span class="cur">▍</span>`;
   });
 
   function showResult() {
     state = 'done';
     const r = result;
-    $('title').textContent = r.title || doc.title;
-    $('meta').textContent = r.doc_type || '';
-    const figs = r.figures.slice(0, 10);
+    $('title').textContent = r.title || P.doc.title;
+    const deadlines = findDeadlines(P.doc.pages.join('\n'));
+    const figs = r.figures.slice(0, 8);
     $('main').innerHTML = `
-      <h4>Das Wichtigste</h4><ul class="sum">${bullets(r.summary).map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
-      ${r.key_points.length ? `<h4>Kernaussagen</h4><ul>${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}">${esc(p)}</li>`).join('')}</ul>` : ''}
-      ${r.findings.length ? `<h4>Erkenntnisse</h4>${r.findings.map((f, i) => `<div class="finding jump" data-type="finding" data-index="${i}"><span class="k ${esc(f.kind)}">${esc(f.kind)}</span> ${esc(f.title)}${f.detail ? `<div class="d">${esc(f.detail)}</div>` : ''}</div>`).join('')}` : ''}
-      ${figs.length ? `<h4>Wichtige Angaben</h4><div class="chips">${figs.map((f, i) => `<span class="chip jump" data-type="figure" data-index="${i}" title="„${esc(f.quote)}“ · S. ${f.page}">${esc(f.label)}: <b>${esc(f.value)}</b></span>`).join('')}${r.figures.length > figs.length ? `<span class="chip">+${r.figures.length - figs.length} weitere</span>` : ''}</div>` : ''}
-      ${r.note ? `<div class="note">ℹ️ ${esc(r.note)}</div>` : ''}`;
-    $('main').scrollTop = 0;
-    $('foot').classList.remove('hidden');
-    // Klick auf eine Info: Leseansicht öffnen, die Spinne läuft zur Fundstelle
+      <ul class="lead">${bullets(r.summary).map((b) => `<li>${emph(b)}</li>`).join('')}</ul>
+      ${deadlines.map((d, i) => `<div class="dl"><span class="when">📅 ${d.date.toLocaleDateString('de-DE')}</span><span class="what" title="${esc(d.sentence)}">${esc(d.sentence)}</span><button class="link" data-dl="${i}">+ Kalender</button></div>`).join('')}
+      <button class="more" id="moreBtn">Mehr ▾</button>
+      <div id="details">
+        ${r.key_points.length ? `<div class="sec"><div class="h">Kernaussagen</div><ul>${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}">${emph(p)}</li>`).join('')}</ul></div>` : ''}
+        ${r.findings.length ? `<div class="sec"><div class="h">Erkenntnisse</div>${r.findings.map((f, i) => `<div class="find jump" data-type="finding" data-index="${i}"><span class="k">${esc(f.kind)}</span> ${emph(f.title)}${f.detail ? `<div class="d">${emph(f.detail)}</div>` : ''}</div>`).join('')}</div>` : ''}
+        ${figs.length ? `<div class="sec"><div class="h">Angaben</div><div class="figs">${figs.map((f, i) => `<span class="jump" data-type="figure" data-index="${i}">${esc(f.label)}</span><span><b>${esc(f.value)}</b></span>`).join('')}</div></div>` : ''}
+        ${r.note ? `<div class="sec muted">${esc(r.note)}</div>` : ''}
+      </div>
+      <div id="answers"></div>`;
+    $('moreBtn').addEventListener('click', () => {
+      const open = $('details').classList.toggle('open');
+      $('moreBtn').textContent = open ? 'Weniger ▴' : 'Mehr ▾';
+    });
     $('main').querySelectorAll('.jump').forEach((row) => row.addEventListener('click', () =>
-      window.spider.popupDetails(doc, result, { type: row.dataset.type, index: Number(row.dataset.index) })));
+      window.spider.popupDetails(P.doc, result, { type: row.dataset.type, index: Number(row.dataset.index) })));
+    $('main').querySelectorAll('[data-dl]').forEach((btn) => btn.addEventListener('click', async () => {
+      const d = deadlines[Number(btn.dataset.dl)];
+      const ok = await window.spider.addCalendar({ title: `Frist: ${r.title || P.doc.title}`, date: d.iso, note: d.sentence });
+      btn.textContent = ok ? '✓ geöffnet' : 'nicht möglich';
+    }));
+    $('main').scrollTop = 0;
+    footer({ ask: true, actions: [['Details', () => window.spider.popupDetails(P.doc, result, null)], ['Kopieren', copyResult], ['Festhalten', keepResult]] });
   }
 
+  // ---------- Frage an den Text ----------
+  async function ask(q) {
+    const box = document.createElement('div');
+    box.className = 'answer';
+    box.innerHTML = `<div class="q">${esc(q)}</div><div class="a muted">Die Spinne sucht …</div>`;
+    $('answers').appendChild(box);
+    box.scrollIntoView({ block: 'nearest' });
+    const res = await window.spider.ask(P.doc, q);
+    const a = box.querySelector('.a');
+    if (!res.ok) { a.className = 'a error'; a.textContent = res.error; return; }
+    a.className = 'a';
+    a.innerHTML = emph(res.answer) + (res.quote ? ` <button class="link">Stelle zeigen →</button>` : '');
+    a.querySelector('.link')?.addEventListener('click', () => window.spider.popupDetails(P.doc, result, { type: 'quote', quote: res.quote }));
+    box.scrollIntoView({ block: 'nearest' });
+  }
+
+  // ---------- Übersetzen / leichte Sprache / Antwort-Entwurf ----------
+  async function transform() {
+    state = 'running';
+    const myRun = ++run;
+    $('foot').classList.add('hidden');
+    $('main').innerHTML = `<div class="bar indet"><i></i></div><div class="out" id="out"></div>`;
+    const res = await window.spider.transform(P.mode, P.text);
+    if (myRun !== run) return;
+    if (!res.ok) return showError(res, transform);
+    state = 'done';
+    $('main').innerHTML = `<div class="out">${esc(res.text)}</div>${res.truncated ? '<div class="muted" style="margin-top:8px">Nur der Anfang wurde bearbeitet (eingebautes Modell).</div>' : ''}`;
+    footer({ actions: [['Kopieren', async () => { await navigator.clipboard.writeText(res.text); flash('Kopieren', '✓ Kopiert'); }]] });
+  }
+  window.spider.onTransformProgress((text) => { if (state === 'running' && $('out')) $('out').innerHTML = `${esc(text)}<span class="cur">▍</span>`; });
+
+  // ---------- Vergleichen ----------
+  async function compare() {
+    state = 'running';
+    const myRun = ++run;
+    $('main').innerHTML = `<div class="stage">Die Spinne vergleicht …</div><div class="bar indet"><i></i></div>`;
+    const res = await window.spider.compare(P.a, P.b);
+    if (myRun !== run) return;
+    if (!res.ok) return showError(res, compare);
+    state = 'done';
+    const r = res.result;
+    $('main').innerHTML = `
+      ${r.tip ? `<p style="margin:0 0 10px">${emph(r.tip)}</p>` : ''}
+      ${r.diff.length ? `<div class="sec"><div class="h">Unterschiede</div><ul>${r.diff.map((x) => `<li>${emph(x)}</li>`).join('')}</ul></div>` : ''}
+      ${r.same.length ? `<div class="sec"><div class="h">Gemeinsam</div><ul>${r.same.map((x) => `<li>${emph(x)}</li>`).join('')}</ul></div>` : ''}`;
+    const text = [`# ${P.title}`, r.tip, '', 'Unterschiede:', ...r.diff.map((x) => `- ${x}`), '', 'Gemeinsam:', ...r.same.map((x) => `- ${x}`)].join('\n');
+    footer({ actions: [['Kopieren', async () => { await navigator.clipboard.writeText(text); flash('Kopieren', '✓ Kopiert'); }]] });
+  }
+
+  // ---------- Hilfen ----------
+  function footer({ ask: withAsk = false, actions = [] }) {
+    const f = $('foot');
+    f.innerHTML = `${withAsk ? '<input class="ask" id="askIn" placeholder="Frag den Text … (Enter)">' : ''}<div class="actions">${actions.map(([l]) => `<button class="link" data-a="${l}">${l}</button>`).join('')}</div>`;
+    actions.forEach(([l, fn]) => f.querySelector(`[data-a="${l}"]`).addEventListener('click', fn));
+    $('askIn')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.value.trim()) { ask(e.target.value.trim()); e.target.value = ''; }
+    });
+    f.classList.remove('hidden');
+  }
+  function flash(label, text) { const b = $('foot').querySelector(`[data-a="${label}"]`); if (!b) return; b.textContent = text; setTimeout(() => (b.textContent = label), 1300); }
+  function showError(res, retry) {
+    state = 'error';
+    $('main').innerHTML = `<p class="error">${esc(res.error)}</p>`;
+    footer({ actions: [['Erneut versuchen', retry], ...(res.needsKey ? [['Einstellungen', () => window.spider.openSettings()]] : [])] });
+  }
   function markdown(r) {
     return [`# ${r.title}`, '', ...bullets(r.summary).map((b) => `- ${b}`), '', '## Kernaussagen', ...r.key_points.map((p) => `- ${p}`), '',
       '## Erkenntnisse', ...r.findings.map((f) => `- **[${f.kind}] ${f.title}** – ${f.detail}`), '',
       '## Angaben', ...r.figures.map((f) => `- ${f.label}: ${f.value} (S. ${f.page})`)].join('\n');
   }
-
-  function flash(btn, text) { const old = btn.textContent; btn.textContent = text; setTimeout(() => (btn.textContent = old), 1300); }
-  $('details').addEventListener('click', () => window.spider.popupDetails(doc, result));
-  $('copy').addEventListener('click', async () => { await navigator.clipboard.writeText(markdown(result)); flash($('copy'), '✓ Kopiert'); });
-  $('keep').addEventListener('click', async () => { await window.spider.cocoonAddText(markdown(result)); flash($('keep'), '✓ Festgehalten'); });
+  async function copyResult() { await navigator.clipboard.writeText(markdown(result)); flash('Kopieren', '✓ Kopiert'); }
+  async function keepResult() { await window.spider.cocoonAddText(markdown(result)); flash('Festhalten', '✓ Im Netz'); }
   function close() {
-    run++;
-    state = 'idle';
+    run++; state = 'idle';
     $('bubble').classList.add('closing');
-    setTimeout(() => window.spider.popupClose(), 180);
+    setTimeout(() => window.spider.popupClose(), 160);
   }
   $('close').addEventListener('click', close);
-
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { e.preventDefault(); close(); }
-    else if (e.key === 'Enter' && state === 'ready') { e.preventDefault(); analyze(); }
-    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && state === 'done' && !getSelection().toString()) { e.preventDefault(); $('copy').click(); }
+    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && state === 'done' && P.kind === 'analyze' && !getSelection().toString() && document.activeElement?.id !== 'askIn') { e.preventDefault(); copyResult(); }
   });
 
-  window.spider.onPopupDoc(({ doc: d, autoStart, arrow }) => {
-    doc = d; result = null; run++;
-    document.documentElement.style.setProperty('--arrow', `${arrow}px`);
+  window.spider.onPopupDoc((payload) => {
+    P = payload; result = null; run++;
+    document.documentElement.style.setProperty('--arrow', `${payload.arrow}px`);
     $('bubble').classList.remove('closing');
     $('bubble').style.animation = 'none'; void $('bubble').offsetWidth; $('bubble').style.animation = '';
-    $('title').textContent = d.title;
-    $('meta').textContent = `${words(d).toLocaleString('de-DE')} Wörter`;
-    if (autoStart) { state = 'ready'; analyze(); } else showReady();
+    $('foot').classList.add('hidden');
+    if (P.kind === 'analyze') { $('title').textContent = P.doc.title; analyze(); }
+    else if (P.kind === 'transform') { $('title').textContent = P.title; transform(); }
+    else if (P.kind === 'compare') { $('title').textContent = P.title; compare(); }
+    else { state = 'done'; $('title').textContent = P.title; $('main').innerHTML = `<p>${esc(P.text)}</p>`; footer({ actions: [['OK', close]] }); }
   });
 </script>
 </body>
