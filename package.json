@@ -1,7 +1,7 @@
 {
   "name": "silkreader",
   "productName": "Silkreader",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Silkreader – eine schwebende Spinne, die Texte und Dokumente mit KI liest, zusammenfasst und analysiert",
   "main": "src/main.js",
   "author": "Silkreader",

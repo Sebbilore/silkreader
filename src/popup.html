@@ -37,6 +37,8 @@
   .summary .cur { color: var(--pink); animation: blink 1s steps(2) infinite; }
   @keyframes blink { 50% { opacity: 0; } }
   ul { margin: 0; padding-left: 17px; } li { margin-bottom: 3px; }
+  ul.sum { font-size: 13.5px; } ul.sum li { margin-bottom: 5px; } ul.sum li::marker, ul li::marker { color: var(--pink); }
+  .cur { color: var(--pink); animation: blink 1s steps(2) infinite; }
   .finding { background: var(--card); border-left: 3px solid var(--pink); border-radius: 7px; padding: 6px 9px; margin-bottom: 6px; }
   .finding .k { font: 700 9px Consolas, monospace; text-transform: uppercase; letter-spacing: .8px; color: #fff; background: var(--pink); border-radius: 3px; padding: 1px 5px; }
   .finding .k.Risiko { background: #e5484d; } .finding .k.Chance { background: #30a46c; } .finding .k.Handlung { background: #d59a00; } .finding .k.Widerspruch { background: #8e4ec6; }
@@ -78,6 +80,12 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   let doc = null, result = null, state = 'idle', run = 0;
 
+// Zusammenfassung in Stichpunkte zerlegen ("• …" je Zeile; Fließtext → nach Sätzen)
+function bullets(text) {
+  let parts = String(text || '').split(/\n+|\s*•\s*/).map((t) => t.replace(/^[-–*]\s+/, '').trim()).filter(Boolean);
+  if (parts.length === 1 && parts[0].length > 160) parts = parts[0].split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ0-9])/);
+  return parts;
+}
   function words(d) { return d.pages.join(' ').split(/\s+/).filter(Boolean).length; }
 
   function showReady() {
@@ -119,7 +127,7 @@
       $('bar').classList.remove('indet');
       $('bar').firstElementChild.style.width = `${Math.round((stage.step / stage.steps) * 100)}%`;
     }
-    if (summary) $('live').innerHTML = `<h4>Zusammenfassung</h4><div class="summary">${esc(summary)}<span class="cur">▍</span></div>`;
+    if (summary) $('live').innerHTML = `<h4>Das Wichtigste</h4><ul class="sum">${bullets(summary).map((b) => `<li>${esc(b)}</li>`).join('')}</ul><span class="cur">▍</span>`;
   });
 
   function showResult() {
@@ -129,7 +137,7 @@
     $('meta').textContent = r.doc_type || '';
     const figs = r.figures.slice(0, 10);
     $('main').innerHTML = `
-      <h4>Zusammenfassung</h4><div class="summary">${esc(r.summary)}</div>
+      <h4>Das Wichtigste</h4><ul class="sum">${bullets(r.summary).map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
       ${r.key_points.length ? `<h4>Kernaussagen</h4><ul>${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}">${esc(p)}</li>`).join('')}</ul>` : ''}
       ${r.findings.length ? `<h4>Erkenntnisse</h4>${r.findings.map((f, i) => `<div class="finding jump" data-type="finding" data-index="${i}"><span class="k ${esc(f.kind)}">${esc(f.kind)}</span> ${esc(f.title)}${f.detail ? `<div class="d">${esc(f.detail)}</div>` : ''}</div>`).join('')}` : ''}
       ${figs.length ? `<h4>Wichtige Angaben</h4><div class="chips">${figs.map((f, i) => `<span class="chip jump" data-type="figure" data-index="${i}" title="„${esc(f.quote)}“ · S. ${f.page}">${esc(f.label)}: <b>${esc(f.value)}</b></span>`).join('')}${r.figures.length > figs.length ? `<span class="chip">+${r.figures.length - figs.length} weitere</span>` : ''}</div>` : ''}
@@ -142,7 +150,7 @@
   }
 
   function markdown(r) {
-    return [`# ${r.title}`, '', r.summary, '', '## Kernaussagen', ...r.key_points.map((p) => `- ${p}`), '',
+    return [`# ${r.title}`, '', ...bullets(r.summary).map((b) => `- ${b}`), '', '## Kernaussagen', ...r.key_points.map((p) => `- ${p}`), '',
       '## Erkenntnisse', ...r.findings.map((f) => `- **[${f.kind}] ${f.title}** – ${f.detail}`), '',
       '## Angaben', ...r.figures.map((f) => `- ${f.label}: ${f.value} (S. ${f.page})`)].join('\n');
   }

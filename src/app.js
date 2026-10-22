@@ -13,6 +13,12 @@ let wanderTimer = null;
 
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const norm = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+// Zusammenfassung in Stichpunkte zerlegen ("• …" je Zeile; Fließtext → nach Sätzen)
+function bullets(text) {
+  let parts = String(text || '').split(/\n+|\s*•\s*/).map((t) => t.replace(/^[-–*]\s+/, '').trim()).filter(Boolean);
+  if (parts.length === 1 && parts[0].length > 160) parts = parts[0].split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ0-9])/);
+  return parts;
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, skip ? 0 : ms));
 
 // ---------- Ansichten ----------
@@ -210,7 +216,7 @@ async function presentResult(r, myRun) {
   // Zusammenfassung & Erkenntnisse sofort zeigen – die Angaben folgen animiert darunter.
   const body = $('panelBody');
   body.innerHTML = `${r.note ? `<div class="status">ℹ️ ${esc(r.note)}</div>` : ''}
-    <h3>Zusammenfassung</h3><div class="summary">${esc(r.summary)}</div>
+    <h3>Das Wichtigste</h3><ul class="summary-list">${bullets(r.summary).map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
     <h3>Kernaussagen</h3><ul class="points">${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}" style="animation-delay:${i * 60}ms">${esc(p)}</li>`).join('')}</ul>
     <h3>Erkenntnisse</h3>${r.findings.map((f, i) => `
       <div class="finding jump" data-type="finding" data-index="${i}" style="animation-delay:${i * 80}ms">
@@ -353,7 +359,7 @@ function figureRow(f, loc) {
 function resultMarkdown(r) {
   return [
     `# ${r.title}`, `_${r.doc_type} · ${current.title}_`, '',
-    '## Zusammenfassung', r.summary, '',
+    '## Das Wichtigste', ...bullets(r.summary).map((b) => `- ${b}`), '',
     '## Kernaussagen', ...r.key_points.map((p) => `- ${p}`), '',
     '## Angaben', ...r.figures.map((f) => `- **${f.label}:** ${f.value} (S. ${f.page})`), '',
     '## Erkenntnisse', ...r.findings.map((f) => `- **[${f.kind}] ${f.title}** – ${f.detail}`),
@@ -463,7 +469,7 @@ window.spider.onProgress(({ chars, summary }) => {
   if (!s) return;
   if (summary) {
     // Zusammenfassung schon live anzeigen, während die KI noch weiterschreibt
-    s.innerHTML = `<h3>Zusammenfassung</h3><div class="summary">${esc(summary)}<span class="cursor">▍</span></div>
+    s.innerHTML = `<h3>Das Wichtigste</h3><ul class="summary-list">${bullets(summary).map((b) => `<li>${esc(b)}</li>`).join('')}</ul><span class="cursor">▍</span>
       <div class="status">KI schreibt weiter … ${chars.toLocaleString('de-DE')} Zeichen</div>`;
   } else {
     s.textContent = `KI analysiert … ${chars.toLocaleString('de-DE')} Zeichen Ergebnis empfangen`;

@@ -21,8 +21,8 @@
     100% { box-shadow: 0 0 0 1px rgba(255,45,138,0); }
   }
   .spider-layer { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; transition: opacity .3s; z-index: 5; }
-  .spider-leg { fill: none; stroke: var(--pink); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round;
-    filter: drop-shadow(0 0 2px rgba(255,45,138,.7)); }
+  .spider-leg { fill: none; stroke: var(--pink); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round;
+    filter: drop-shadow(0 0 1.5px rgba(255,45,138,.6)); }
   .spider-foot { fill: var(--yellow); stroke: #c79a00; stroke-width: .6; }
   .spider-abdomen, .spider-thorax { fill: #111; stroke: var(--pink); stroke-width: 1.4; }
   .spider-mark { fill: var(--pink); }
@@ -75,8 +75,22 @@
     spider.follow = false;
     spider.speed = 760;
     spider.index();
-    spider.teleport(land.x, land.y);
+    spider.teleport(land.x, land.y - 4);
+    // Schlüpfen: klein im Ei anfangen, dann mit einem Hüpfer auf volle Größe wachsen
+    spider.bodyScale = 0.25;
+    spider.reach = 20;
     spider.show();
+    const g0 = performance.now();
+    await new Promise((resolve) => {
+      (function grow(now) {
+        const p = Math.min(1, (now - g0) / 550);
+        const pop = 1 + Math.sin(p * Math.PI) * 0.25;
+        spider.bodyScale = (0.25 + 0.75 * ease(p)) * pop;
+        spider.reach = 20 + 75 * ease(p);
+        spider.y = land.y - 4 - Math.sin(p * Math.PI) * 26; spider.ty = spider.y;
+        if (p < 1) requestAnimationFrame(grow); else { spider.bodyScale = 1; resolve(); }
+      })(g0);
+    });
     $('egg').style.transition = 'opacity .5s';
     $('egg').style.opacity = '0';
 

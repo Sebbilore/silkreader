@@ -8,7 +8,7 @@ Eine kleine schwebende Spinne auf deinem Desktop. Klick sie an, und sie liest je
 
 ## Installation (Windows)
 
-1. `Silkreader-Setup-1.6.0.exe` herunterladen.
+1. `Silkreader-Setup-1.7.0.exe` herunterladen.
 2. Falls Windows blockiert: Rechtsklick auf die Datei → **Eigenschaften** → unten den Haken bei **„Zulassen“** setzen → OK.
 3. Setup starten und durchklicken. Beim ersten Mal fragt Windows, ob du dem Zertifikat „Silkreader“ vertraust: **Ja**. Ab dann steht bei Windows „Herausgeber: Silkreader“, und Updates können ihre Echtheit prüfen.
 4. Die Spinne erscheint oben am Bildschirmrand. Beim ersten Start öffnen sich die Einstellungen (siehe unten).
@@ -43,7 +43,7 @@ Die Spinne hängt an einem Faden vom oberen Bildschirmrand, schaukelt, schaut mi
 
 | Aktion | Ergebnis |
 |---|---|
-| **Text markieren, dann auf die Spinne klicken** | Die Spinne legt ein Ei, eine große Spinne schlüpft und läuft über den markierten Text. Danach erscheint unter der Spinne eine kleine Sprechblase, **Enter** startet die Analyse, und das Ergebnis erscheint direkt in der Sprechblase („Details“ öffnet das große Fenster mit markierten Fundstellen). Strg+C ist nicht nötig, deine Zwischenablage bleibt erhalten. Ist nichts markiert, öffnet ein Klick einfach die App. |
+| **Text markieren, dann auf die Spinne klicken** | Die Spinne legt ein Ei, eine große Spinne schlüpft und läuft über den markierten Text. Danach erscheint unter der Spinne eine kleine Sprechblase, die Analyse startet sofort, und das Ergebnis erscheint direkt dort – das Wichtigste in einfachen Stichpunkten („Details“ öffnet das große Fenster mit markierten Fundstellen). Strg+C ist nicht nötig, deine Zwischenablage bleibt erhalten. Ist nichts markiert, öffnet ein Klick einfach die App. |
 | **Auf eine Info im Ergebnis klicken** | Die Leseansicht öffnet sich und die Spinne läuft zu der Stelle im Text, wo die Info steht |
 | **Datei oder Text zur Spinne ziehen** | Sobald man mit gedrückter Maustaste in die Nähe kommt, spannt sie ihr Netz auf („Hier ablegen“) – man muss die Spinne nicht treffen. Das Dokument klebt danach mit Vorschaubild im Netz. |
 | **Dateien im Explorer markieren, dann auf die Spinne klicken** | Werden ebenfalls im Netz festgehalten |
@@ -66,7 +66,7 @@ Die Spinne hängt an einem Faden vom oberen Bildschirmrand, schaukelt, schaut mi
 
 | Im Analysefenster | |
 |---|---|
-| **Enter** | Analyse starten |
+| **Enter** | Analyse starten (nur im großen Fenster nötig) |
 | **Esc** | Fenster schließen |
 | **Strg+O** | Datei öffnen |
 | **Strg+N** | Neuer Text |

@@ -316,7 +316,7 @@ async function spiderTake({ autoStart = false, fromHotkey = false } = {}) {
       bubbleWin.webContents.send('rig-trick', 'lay');
       await runHatchOverlay(spiderScreenPos(), anchor);
     }
-    showPopup(doc, { autoStart });
+    showPopup(doc, { autoStart: true }); // In der Sprechblase geht's direkt los – Enter nur im großen Fenster
   } finally {
     taking = false;
   }
@@ -479,7 +479,7 @@ const ANALYSIS_SCHEMA = {
   properties: {
     title: { type: 'string', description: 'Kurzer, treffender Titel für das Dokument' },
     doc_type: { type: 'string', description: 'Art des Textes, z. B. Geschäftsbericht, Vertrag, Artikel, E-Mail' },
-    summary: { type: 'string', description: 'Zusammenfassung in 3–6 Sätzen' },
+    summary: { type: 'string', description: 'Das Wichtigste in 3 bis 5 kurzen Stichpunkten in einfacher Sprache, jeder Stichpunkt in einer eigenen Zeile und mit "• " am Anfang' },
     key_points: { type: 'array', items: { type: 'string' }, description: 'Die wichtigsten Kernaussagen' },
     figures: {
       type: 'array',
@@ -525,15 +525,16 @@ function buildPrompt(doc, language, compact = false) {
     'Liefere:',
     ...(compact ? [
       // Kurze Antwort für das eingebaute Modell: weniger Text = viel schneller
-      '- eine Zusammenfassung in 2 bis 4 Sätzen und höchstens 5 kurze Kernaussagen,',
+      '- "summary": das Wichtigste in 3 bis 5 kurzen Stichpunkten (jeder in eigener Zeile, mit "• " am Anfang) und höchstens 5 kurze Kernaussagen,',
       '- 4 bis 12 wichtige Angaben (Zahlen, Beträge, Daten, Fristen, Personen). Das Feld "quote" muss eine kurze wörtliche Stelle aus dem Dokument sein (3 bis 8 Wörter),',
       '- 3 bis 5 Erkenntnisse mit je einem kurzen Satz als Begründung.',
       'Fasse dich kurz.',
     ] : [
-      '- eine prägnante Zusammenfassung und die Kernaussagen,',
+      '- "summary": das Wichtigste in 3 bis 5 kurzen Stichpunkten (jeder in eigener Zeile, mit "• " am Anfang), dazu die Kernaussagen,',
       '- 6 bis 30 wichtige Angaben (Zahlen, Beträge, Daten, Fristen, Personen, Begriffe) – je nach Länge und Dichte des Textes. Das Feld "quote" muss eine wörtliche, zusammenhängende Stelle aus dem Dokument sein (Zeichen für Zeichen kopiert), damit sie im Text markiert werden kann,',
       '- 3 bis 8 echte Erkenntnisse, die über bloßes Nacherzählen hinausgehen: Kennzahlen/Verhältnisse selbst ausrechnen, wo es sinnvoll ist, Risiken, Fristen, Widersprüche oder nötige Handlungen benennen.',
     ]),
+    'Schreib in einfacher, verständlicher Sprache: kurze Sätze, Fachbegriffe kurz erklären.',
     'Erfinde nichts, was nicht im Text steht oder sich daraus ableiten lässt.',
     '',
     '<document>',
@@ -662,7 +663,7 @@ const NOTES_SCHEMA = {
 const FINAL_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['title', 'doc_type', 'summary', 'key_points', 'findings'],
   properties: {
-    title: str(80), doc_type: str(40), summary: str(700),
+    title: str(80), doc_type: str(40), summary: str(600, 'Das Wichtigste in 3 bis 5 kurzen Stichpunkten, jeder in eigener Zeile mit "• " am Anfang'),
     key_points: { type: 'array', items: str(170), maxItems: 6 },
     findings: { type: 'array', items: FINDING_SCHEMA, maxItems: 5 },
   },
@@ -716,7 +717,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
   const { llama, model } = await loadBuiltinModel(key);
 
   const chunks = splitIntoChunks(model, doc, info.chunkTokens);
-  const systemPrompt = `Du bist ein sorgfältiger Analyst. Antworte auf ${s.language}, kurz und präzise, ausschließlich mit JSON nach dem Schema.`;
+  const systemPrompt = `Du bist ein sorgfältiger Analyst. Antworte auf ${s.language} in einfacher, verständlicher Sprache, kurz und präzise, ausschließlich mit JSON nach dem Schema.`;
   let context = await model.createContext({ contextSize: info.chunkTokens + 2600, flashAttention: 'auto' });
   let session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt });
   try {
@@ -742,7 +743,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
       onProgress({ stage: 'Analysiere …', step: 1, steps: 1 });
       const r = await ask([
         `Analysiere das folgende Dokument („${doc.title}“).`,
-        'Liefere Titel, Art, eine Zusammenfassung (2–4 Sätze), bis zu 6 Kernaussagen, bis zu 8 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "quote" = wörtliche Stelle aus dem Text) und bis zu 5 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
+        'Liefere Titel, Art, als "summary" das Wichtigste in 3 bis 5 kurzen Stichpunkten (jeder in eigener Zeile, mit "• " am Anfang), bis zu 6 Kernaussagen, bis zu 8 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "quote" = wörtliche Stelle aus dem Text) und bis zu 5 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
         '', '<document>', chunks[0]?.text || '', '</document>',
       ].join('\n'), SHORT_SCHEMA, 2200, true);
       return normalizeResult(r);
@@ -768,7 +769,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
     onProgress({ stage: 'Schreibt die Zusammenfassung …', step: chunks.length + 1, steps: chunks.length + 1 });
     const final = await ask([
       `Hier sind Notizen zu allen ${chunks.length} Abschnitten des Dokuments „${doc.title}“.`,
-      'Erstelle daraus Titel, Art des Dokuments, eine Zusammenfassung des GANZEN Dokuments (3–5 Sätze), bis zu 6 Kernaussagen und bis zu 5 echte Erkenntnisse (Risiken, Chancen, Widersprüche, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
+      'Erstelle daraus Titel, Art des Dokuments, als "summary" das Wichtigste aus dem GANZEN Dokument in 3 bis 5 kurzen Stichpunkten (jeder in eigener Zeile, mit "• " am Anfang), bis zu 6 Kernaussagen und bis zu 5 echte Erkenntnisse (Risiken, Chancen, Widersprüche, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
       '', '<notizen>', notes.join('\n\n'), '</notizen>',
     ].join('\n'), FINAL_SCHEMA, 1300, true);
 
@@ -899,7 +900,7 @@ function normalizeResult(r) {
   return {
     title: r.title || 'Analyse',
     doc_type: r.doc_type || 'Text',
-    summary: r.summary || '',
+    summary: Array.isArray(r.summary) ? r.summary.map((x) => `• ${x}`).join('\n') : r.summary || '',
     key_points: Array.isArray(r.key_points) ? r.key_points : [],
     figures: (Array.isArray(r.figures) ? r.figures : []).map((f) => ({
       label: String(f.label ?? ''), value: String(f.value ?? ''), quote: String(f.quote ?? ''), page: Number(f.page) || 1,

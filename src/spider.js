@@ -12,7 +12,8 @@ export class Spider {
   constructor(scroller, content) {
     this.scroller = scroller;
     this.content = content;
-    this.reach = 120;
+    this.reach = 95;
+    this.bodyScale = 1; // zum Schlüpfen aus dem Ei kleiner anfangen
     this.x = 200; this.y = 120;
     this.tx = this.x; this.ty = this.y;
     this.speed = 340; // px/s
@@ -33,19 +34,24 @@ export class Spider {
     });
     this.footEls = LEG_ANGLES.map(() => {
       const c = document.createElementNS(SVG_NS, 'circle');
-      c.setAttribute('r', '2.6');
-      c.setAttribute('class', 'spider-foot');
+      c.setAttribute('r', '2.2');
+      c.setAttribute('fill', '#ff2d8a');
       this.svg.appendChild(c);
       return c;
     });
     this.body = document.createElementNS(SVG_NS, 'g');
+    // Gleiches Aussehen wie die Spinne am Bildschirmrand: runder Körper, Kulleraugen, Bäckchen
     this.body.innerHTML = `
-      <ellipse class="spider-glow" cx="0" cy="6" rx="22" ry="36"/>
-      <ellipse class="spider-abdomen" cx="0" cy="16" rx="10" ry="21"/>
-      <rect class="spider-mark" x="-2" y="6" width="4" height="16" rx="2"/>
-      <ellipse class="spider-thorax" cx="0" cy="-9" rx="7.5" ry="9"/>
-      <circle class="spider-eye" cx="-2.6" cy="-15" r="1.4"/>
-      <circle class="spider-eye" cx="2.6" cy="-15" r="1.4"/>`;
+      <circle cx="0" cy="0" r="17" fill="rgba(255,45,138,.12)"/>
+      <circle cx="0" cy="0" r="11" fill="#16161d" stroke="#ff2d8a" stroke-width="1.6"/>
+      <circle cx="-7.2" cy="4.2" r="1.8" fill="rgba(255,45,138,.45)"/>
+      <circle cx="7.2" cy="4.2" r="1.8" fill="rgba(255,45,138,.45)"/>
+      <ellipse cx="-4.4" cy="-1.6" rx="3.9" ry="4.4" fill="#fff" stroke="#16161d" stroke-width=".5"/>
+      <ellipse cx="4.4" cy="-1.6" rx="3.9" ry="4.4" fill="#fff" stroke="#16161d" stroke-width=".5"/>
+      <circle class="pl" cx="-4.4" cy="-1.6" r="1.9" fill="#111"/>
+      <circle class="pr" cx="4.4" cy="-1.6" r="1.9" fill="#111"/>
+      <path d="M-2.4 5.6 Q0 7.6 2.4 5.6" stroke="#ff2d8a" stroke-width="1.3" fill="none" stroke-linecap="round"/>`;
+    this.pupils = [...this.body.querySelectorAll('.pl, .pr')];
     this.svg.appendChild(this.body);
 
     this.feet = LEG_ANGLES.map((a) => {
@@ -168,11 +174,19 @@ export class Spider {
 
   draw() {
     const bob = Math.sin(performance.now() / 160) * 1.2;
-    this.body.setAttribute('transform', `translate(${this.x.toFixed(1)} ${(this.y + bob).toFixed(1)})`);
+    const sc = this.bodyScale;
+    this.body.setAttribute('transform', `translate(${this.x.toFixed(1)} ${(this.y + bob).toFixed(1)}) scale(${sc.toFixed(2)})`);
+    // Augen schauen in Laufrichtung
+    const vx = this.tx - this.x, vy = this.ty - this.y, vl = Math.hypot(vx, vy);
+    const lx = vl > 2 ? (vx / vl) * 1.6 : 0, ly = vl > 2 ? (vy / vl) * 1.6 : 0;
+    this.pupils[0].setAttribute('cx', -4.4 + lx); this.pupils[0].setAttribute('cy', -1.6 + ly);
+    this.pupils[1].setAttribute('cx', 4.4 + lx); this.pupils[1].setAttribute('cy', -1.6 + ly);
     this.feet.forEach((f, i) => {
       const right = i < 4;
-      const hx = this.x + (right ? 5 : -5);
-      const hy = this.y - 9 + (i % 4) * 3.5;
+      // Hüften rund um den Körper verteilt
+      const ha = ((-50 + (i % 4) * 30) * Math.PI) / 180;
+      const hx = this.x + (right ? 1 : -1) * Math.cos(ha) * 9 * sc;
+      const hy = this.y + Math.sin(ha) * 9 * sc;
       const dx = f.x - hx, dy = f.y - hy;
       const lift = f.t < 1 ? 0.34 : 0.24;
       const kx = hx + dx / 2 + (right ? dy : -dy) * lift;
