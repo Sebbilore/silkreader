@@ -8,7 +8,7 @@ Eine kleine schwebende Spinne auf deinem Desktop. Klick sie an, und sie liest je
 
 ## Installation (Windows)
 
-1. `Silkreader-Setup-1.4.0.exe` herunterladen.
+1. `Silkreader-Setup-1.4.1.exe` herunterladen.
 2. Falls Windows blockiert: Rechtsklick auf die Datei → **Eigenschaften** → unten den Haken bei **„Zulassen“** setzen → OK.
 3. Setup starten und durchklicken. Beim ersten Mal fragt Windows, ob du dem Zertifikat „Silkreader“ vertraust: **Ja**. Ab dann steht bei Windows „Herausgeber: Silkreader“, und Updates können ihre Echtheit prüfen.
 4. Die Spinne erscheint oben am Bildschirmrand. Beim ersten Start öffnen sich die Einstellungen (siehe unten).
@@ -43,8 +43,9 @@ Die Spinne hängt an einem Faden vom oberen Bildschirmrand, schaukelt, schaut mi
 
 | Aktion | Ergebnis |
 |---|---|
-| **Text markieren, dann auf die Spinne klicken** | Die Spinne legt ein Ei, eine große Spinne schlüpft und läuft über den markierten Text. Danach zeigt das Fenster den Text, **Enter** startet die Analyse. Strg+C ist nicht nötig, deine Zwischenablage bleibt erhalten. |
-| **Datei oder Text auf die Spinne ziehen** | Kleine Auswahl: 🔍 analysieren oder 🕸 im Kokon festhalten |
+| **Text markieren, dann auf die Spinne klicken** | Die Spinne legt ein Ei, eine große Spinne schlüpft und läuft über den markierten Text. Danach zeigt das Fenster den Text, **Enter** startet die Analyse. Strg+C ist nicht nötig, deine Zwischenablage bleibt erhalten. Ist nichts markiert, zuckt die Spinne nur mit den Schultern ❓. |
+| **Datei oder Text auf die Spinne ziehen** | Wird immer in einem Kokon festgehalten (zum späteren Kopieren). Analysieren geht per Rechtsklick auf den Kokon. |
+| **Dateien im Explorer markieren, dann auf die Spinne klicken** | Werden ebenfalls festgehalten |
 | **Kokon anklicken** | Inhalt in die Zwischenablage kopieren (Dateien lassen sich im Explorer mit Strg+V einfügen) |
 | **Kokon herausziehen** | Datei direkt auf den Desktop, in einen Ordner oder in eine Mail ziehen |
 | **Rechtsklick auf einen Kokon** | Kopieren, Analysieren, Im Ordner zeigen, Entfernen |

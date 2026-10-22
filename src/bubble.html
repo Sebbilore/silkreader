@@ -36,11 +36,6 @@
   .cocoon b { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); font: 700 9px "Segoe UI", sans-serif; color: #30a46c;
     background: #fff; padding: 1px 4px; border-radius: 4px; white-space: nowrap; animation: pop 1.2s forwards; }
   @keyframes pop { 0% { opacity: 0; transform: translate(-50%, 4px); } 20%, 70% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
-  #choice { position: absolute; display: none; gap: 6px; transform: translate(-50%, 0); }
-  #choice button { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #ff2d8a; background: #16161d; color: #fff; font-size: 14px;
-    cursor: pointer; padding: 0; box-shadow: 0 2px 6px rgba(0,0,0,.4); animation: pop2 .25s ease-out; }
-  #choice button:hover { background: #ff2d8a; }
-  @keyframes pop2 { from { transform: scale(.3); } to { transform: scale(1); } }
 </style>
 </head>
 <body>
@@ -67,7 +62,7 @@
   <text id="zzz" x="0" y="0" opacity="0">z</text>
 </svg>
 <div id="cocoons"></div>
-<div id="choice"><button id="chAnalyze" title="Analysieren">🔍</button><button id="chKeep" title="Im Kokon festhalten (zum Kopieren)">🕸</button></div>
+
 <script>
   const NS = 'http://www.w3.org/2000/svg';
   const $ = (id) => document.getElementById(id);
@@ -259,7 +254,7 @@
 
     let sx = AX + Math.sin(theta) * Math.max(len, 0);
     let sy = Math.cos(theta) * len + 11;
-    let rot = -theta * 57.3 + spin + (busy ? Math.sin(t * 14) * 8 : 0);
+    let rot = -theta * 57.3 + spin + (busy ? Math.sin(t * 14) * 8 : 0) + (trick === 'shrug' ? Math.sin(t * 22) * 14 : 0);
 
     if (trick === 'web') {
       const p = (now - trickStart) / (trickUntil - trickStart);
@@ -290,6 +285,13 @@
     el.spider.setAttribute('transform', `translate(${sx.toFixed(1)} ${sy.toFixed(1)}) rotate(${rot.toFixed(1)})`);
     el.svg.classList.toggle('catch', catching);
 
+    if (trick === 'shrug') {
+      el.zzz.textContent = '?';
+      el.zzz.setAttribute('x', sx + 13); el.zzz.setAttribute('y', sy - 13);
+      el.zzz.setAttribute('opacity', '1');
+    } else if (!sleeping && el.zzz.textContent === '?') {
+      el.zzz.setAttribute('opacity', '0');
+    }
     if (sleeping) {
       const zp = (t * 0.5) % 1;
       el.zzz.textContent = zp < 0.33 ? 'z' : zp < 0.66 ? 'z z' : 'z z Z';
@@ -380,7 +382,7 @@
     const onThread = cursor.y > 0 && cursor.y < spiderPos.y - 10 &&
       Math.abs(cursor.x - (AX + (spiderPos.x - AX) * (cursor.y / Math.max(spiderPos.y, 1)))) < 6;
     const inRect = (r) => r && cursor.x >= r.x && cursor.x <= r.x + r.w && cursor.y >= r.y && cursor.y <= r.y + r.h;
-    const inside = dragging || down !== null || d < 30 || onThread || cocoonRects.some(inRect) || inRect(choiceRect());
+    const inside = dragging || down !== null || d < 30 || onThread || cocoonRects.some(inRect);
     if (inside !== wasInside) {
       wasInside = inside;
       window.spider.rigHover(inside);
@@ -398,6 +400,8 @@
   TRICKS.lay = { w: 0, run: () => { lenOverride = baseLen + 45; setTimeout(() => (lenOverride = minLen + 10), 450); setTimeout(() => (lenOverride = null), 1300); return 1600; } };
   // Etwas einspinnen: Salto + tanzen
   TRICKS.wrap = { w: 0, run: () => { spinTarget += 720; return 1200; } };
+  // Nichts markiert: Kopf schütteln mit Fragezeichen
+  TRICKS.shrug = { w: 0, run: () => 1300 };
 
   // ---------- Kokons ----------
   const SLOTS = [16, 36, 56, 92, 112, 132]; // x-Positionen links/rechts vom Hauptfaden
@@ -434,40 +438,6 @@
   let cocoonRectsIds = [];
   window.spider.onCocoons((list) => { cocoonRectsIds = list.slice(0, SLOTS.length).map((it) => it.id); });
 
-  // ---------- Auswahl nach dem Fallenlassen: analysieren oder festhalten ----------
-  let pendingDrop = null, choiceTimer = null;
-  function showChoice(drop) {
-    pendingDrop = drop;
-    const ch = $('choice');
-    ch.style.left = `${Math.max(36, Math.min(W - 36, spiderPos.x))}px`;
-    ch.style.top = `${Math.min(H - 36, spiderPos.y + 26)}px`;
-    ch.style.display = 'flex';
-    clearTimeout(choiceTimer);
-    choiceTimer = setTimeout(() => decide('keep'), 6000); // ohne Wahl: festhalten
-  }
-  function decide(what) {
-    clearTimeout(choiceTimer);
-    $('choice').style.display = 'none';
-    const d = pendingDrop;
-    pendingDrop = null;
-    if (!d) return;
-    if (what === 'analyze') {
-      doTrick('yoyo');
-      if (d.files.length) window.spider.openFile(d.files[0]);
-      else window.spider.analyzeText(d.text);
-    } else {
-      doTrick('wrap');
-      if (d.files.length) window.spider.cocoonAddFiles(d.files);
-      else window.spider.cocoonAddText(d.text);
-    }
-  }
-  $('chAnalyze').addEventListener('click', () => decide('analyze'));
-  $('chKeep').addEventListener('click', () => decide('keep'));
-  function choiceRect() {
-    if (!pendingDrop) return null;
-    const ch = $('choice').getBoundingClientRect();
-    return { x: ch.left - 4, y: ch.top - 4, w: ch.width + 8, h: ch.height + 8 };
-  }
 
   // ---------- Bedienung ----------
   let down = null;
@@ -493,13 +463,17 @@
 
   window.addEventListener('dragover', (e) => { e.preventDefault(); catching = true; wake(); });
   window.addEventListener('dragleave', () => { catching = false; });
+  // Fallen gelassene Dokumente und Texte werden immer im Kokon festgehalten.
   window.addEventListener('drop', (e) => {
     e.preventDefault();
     catching = false;
     if (trick) endTrick();
     const files = [...e.dataTransfer.files];
     const text = e.dataTransfer.getData('text/plain');
-    if (files.length || text) showChoice({ files, text });
+    if (!files.length && !text) return;
+    doTrick('wrap');
+    if (files.length) window.spider.cocoonAddFiles(files);
+    else window.spider.cocoonAddText(text);
   });
 
   window.spider.onRigInit((d) => { minLen = d.minLen; maxLen = d.maxLen; baseLen = d.length; });

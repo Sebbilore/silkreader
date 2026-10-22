@@ -241,20 +241,18 @@ async function spiderTake({ autoStart = false, fromHotkey = false } = {}) {
     createMain(); // schon mal vorbereiten
     const anchor = selectionAnchor(fromHotkey);
     const grabbed = await grabSelection({ waitForKeys: fromHotkey ? 350 : 0 });
-    let doc = null;
-    if (grabbed.text) {
-      doc = { title: 'Markierter Text', source: 'selection', pages: [grabbed.text] };
-    } else if (grabbed.files.length) {
-      try { doc = await readDocument(grabbed.files[0]); } catch (e) {
-        dialog.showErrorBox('Datei konnte nicht gelesen werden', String(e.message || e));
-        return;
-      }
-    } else {
-      // Nichts markiert → Zwischenablage nehmen, sonst Eingabefeld zeigen
-      const text = String((await clipboard.readText()) || '').trim();
-      if (text) doc = { title: 'Text aus der Zwischenablage', source: 'clipboard', pages: [text] };
+    // Analysiert wird nur markierter Text. Markierte Dateien werden festgehalten.
+    if (!grabbed.text && grabbed.files.length) {
+      grabbed.files.slice(0, 6).forEach((f) => cocoons.addFile(f));
+      bubbleWin?.webContents.send('rig-trick', 'wrap');
+      sendCocoons();
+      return;
     }
-    if (!doc) { showMain(); return; }
+    if (!grabbed.text) {
+      bubbleWin?.webContents.send('rig-trick', 'shrug'); // nichts markiert
+      return;
+    }
+    const doc = { title: 'Markierter Text', source: 'selection', pages: [grabbed.text] };
 
     if (loadSettings().hatchAnimation !== false && bubbleWin?.isVisible()) {
       bubbleWin.webContents.send('rig-trick', 'lay');

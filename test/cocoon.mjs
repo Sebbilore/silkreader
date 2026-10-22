@@ -8,11 +8,8 @@ const rig = app.windows().find((w) => w.url().includes('bubble'));
 rig.on('pageerror', (e) => errs.push(String(e)));
 await rig.evaluate(() => { nextTrick = Infinity; });
 // Drop simulieren: Auswahl erscheint
-await rig.evaluate(() => showChoice({ files: [], text: 'Kündigungsfrist: 3 Monate zum Quartalsende' }));
-await new Promise((r) => setTimeout(r, 400));
-console.log('choice visible:', await rig.evaluate(() => getComputedStyle(document.getElementById('choice')).display));
-await rig.screenshot({ path: `${out}/choice.png`, omitBackground: true });
-await rig.evaluate(() => decide('keep'));
+// Text auf die Spinne fallen lassen → wird sofort festgehalten
+await rig.evaluate(() => { const dt = new DataTransfer(); dt.setData('text/plain', 'Kündigungsfrist: 3 Monate zum Quartalsende'); window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, cancelable: true })); });
 await new Promise((r) => setTimeout(r, 600));
 await rig.evaluate(() => window.spider.cocoonAddFiles([]));
 await app.evaluate(() => {}); 
