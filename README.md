@@ -8,7 +8,7 @@ Eine kleine schwebende Spinne auf deinem Desktop. Klick sie an, und sie liest je
 
 ## Installation (Windows)
 
-1. `Silkreader-Setup-1.4.2.exe` herunterladen.
+1. `Silkreader-Setup-1.5.0.exe` herunterladen.
 2. Falls Windows blockiert: Rechtsklick auf die Datei → **Eigenschaften** → unten den Haken bei **„Zulassen“** setzen → OK.
 3. Setup starten und durchklicken. Beim ersten Mal fragt Windows, ob du dem Zertifikat „Silkreader“ vertraust: **Ja**. Ab dann steht bei Windows „Herausgeber: Silkreader“, und Updates können ihre Echtheit prüfen.
 4. Die Spinne erscheint oben am Bildschirmrand. Beim ersten Start öffnen sich die Einstellungen (siehe unten).
@@ -28,7 +28,7 @@ Updates werden nur installiert, wenn sie mit dem Silkreader-Zertifikat signiert 
 |---|---|---|
 | Kosten | 0 € | ein paar Cent pro Analyse (API-Schlüssel) |
 | Internet | nur einmal zum Herunterladen des Modells | nötig |
-| Qualität | gut für Zusammenfassungen; sehr lange Dokumente werden gekürzt | deutlich gründlicher, ganze Dokumente |
+| Qualität | gut; liest lange Dokumente abschnittsweise komplett bis zum Ende | deutlich gründlicher |
 | Tempo | „Schnell“: meist unter 1 Minute, „Gründlich“: länger (mit Grafikkarte deutlich schneller) | schnell |
 
 **Eingebautes Modell einrichten (einmalig):** In den Einstellungen „Eingebaut“ wählen, dann **Schnell** (1 GB) oder **Gründlich** (2,5 GB) auswählen und auf **Herunterladen** klicken. Danach läuft alles offline auf deinem PC.
@@ -43,7 +43,7 @@ Die Spinne hängt an einem Faden vom oberen Bildschirmrand, schaukelt, schaut mi
 
 | Aktion | Ergebnis |
 |---|---|
-| **Text markieren, dann auf die Spinne klicken** | Die Spinne legt ein Ei, eine große Spinne schlüpft und läuft über den markierten Text. Danach zeigt das Fenster den Text, **Enter** startet die Analyse. Strg+C ist nicht nötig, deine Zwischenablage bleibt erhalten. Ist nichts markiert, zuckt die Spinne nur mit den Schultern ❓. |
+| **Text markieren, dann auf die Spinne klicken** | Die Spinne legt ein Ei, eine große Spinne schlüpft und läuft über den markierten Text. Danach erscheint unter der Spinne eine kleine Sprechblase, **Enter** startet die Analyse, und das Ergebnis erscheint direkt in der Sprechblase („Details“ öffnet das große Fenster mit markierten Fundstellen). Strg+C ist nicht nötig, deine Zwischenablage bleibt erhalten. Ist nichts markiert, zuckt die Spinne nur mit den Schultern ❓. |
 | **Datei oder Text auf die Spinne ziehen** | Wird immer in einem Kokon festgehalten (zum späteren Kopieren). Analysieren geht per Rechtsklick auf den Kokon. |
 | **Dateien im Explorer markieren, dann auf die Spinne klicken** | Werden ebenfalls festgehalten |
 | **Kokon anklicken** | Inhalt in die Zwischenablage kopieren (Dateien lassen sich im Explorer mit Strg+V einfügen) |
@@ -104,5 +104,6 @@ Aufbau:
 - `src/bubble.html`: die Spinne am Bildschirmrand mit allen Kunststücken
 - `src/settings.html`: Einstellungen
 - `src/overlay.html`: Ei, Schlüpfen und die große Spinne, die über den Bildschirm läuft
+- `src/popup.html`: Ergebnis-Sprechblase unter der Spinne
 - `src/grab.js`: markierten Text aus anderen Programmen holen
 - `src/cocoons.js`: Kokon-Ablage

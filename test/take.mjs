@@ -30,13 +30,18 @@ execSync(`xdotool mousemove ${Math.round(b.x + sp2.x)} ${Math.round(b.y + sp2.y)
 console.log('editor still focused after click:', await app.evaluate(() => globalThis.editor.isFocused()));
 for (let i = 0; i < 30; i++) { execSync(`import -window root ${out}/s${String(i).padStart(2, '0')}.png`); await new Promise((r) => setTimeout(r, 120)); }
 await new Promise((r) => setTimeout(r, 3000));
-const main = app.windows().find((w) => w.url().includes('index.html'));
-console.log('main visible:', await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().includes('index.html') && w.isVisible())));
-console.log('preview label:', await main.textContent('#scanLabel'), '| doc starts:', (await main.textContent('#doc')).trim().slice(0, 50));
+const pop = app.windows().find((w) => w.url().includes('popup'));
+console.log('popup visible:', await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().includes('popup') && w.isVisible())));
+console.log('big window opened:', await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().includes('index.html') && w.isVisible())));
+console.log('popup:', (await pop.textContent('#title')), '|', await pop.textContent('#meta'), '| ready button:', !!(await pop.$('#go')));
 console.log('clipboard restored:', JSON.stringify(await app.evaluate(async ({ clipboard }) => clipboard.readText())));
-await main.screenshot({ path: `${out}/preview.png` });
-await main.keyboard.press('Enter');
-for (let i = 0; i < 40; i++) { if ((await main.textContent('#scanLabel')) === 'FERTIG') break; await new Promise((r) => setTimeout(r, 300)); }
-console.log('after Enter:', await main.textContent('#scanLabel'), '|', await main.textContent('#counter'));
+await pop.keyboard.press('Enter');
+await pop.waitForSelector('#foot:not(.hidden)', { timeout: 30000 });
+console.log('after Enter →', await pop.textContent('#title'), '| findings:', await pop.evaluate(() => document.querySelectorAll('.finding').length), '| chips:', await pop.evaluate(() => document.querySelectorAll('.chip').length));
+execSync(`import -window root ${out}/popup.png`);
+await pop.click('#details');
+await new Promise((r) => setTimeout(r, 5000));
+const main = app.windows().find((w) => w.url().includes('index.html'));
+console.log('details →', await main.textContent('#scanLabel'), '|', await main.textContent('#counter'), '| popup hidden:', !(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().includes('popup') && w.isVisible()))));
 console.log('errors:', errs);
 await app.close();

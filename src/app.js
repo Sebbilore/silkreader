@@ -343,7 +343,26 @@ window.addEventListener('drop', (e) => {
 });
 
 window.addEventListener('resize', () => spider?.index());
-window.spider.onDocument(({ doc, autoStart }) => (autoStart ? startAnalysis(doc) : showPreview(doc)));
+window.spider.onDocument(({ doc, autoStart, result: r }) => {
+  if (r) showWithResult(doc, r); // aus der Sprechblase: Ergebnis gibt es schon
+  else if (autoStart) startAnalysis(doc);
+  else showPreview(doc);
+});
+
+function showWithResult(doc, r) {
+  const myRun = ++run;
+  pending = null;
+  stopWander();
+  current = doc;
+  result = r;
+  skip = false;
+  showAnalysis();
+  renderDocument(doc);
+  spider.show();
+  const first = spider.words[0];
+  if (first) spider.teleport(first.x + 60, first.y + 40);
+  presentResult(r, myRun);
+}
 
 // Tastenkürzel im Analysefenster
 window.addEventListener('keydown', async (e) => {

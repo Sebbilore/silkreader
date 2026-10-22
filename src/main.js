@@ -39,16 +39,14 @@ const BUILTIN_MODELS = {
     uri: 'hf:bartowski/Qwen2.5-1.5B-Instruct-GGUF:Q4_K_M',
     file: 'Qwen2.5-1.5B-Instruct-Q4_K_M.gguf',
     sizeLabel: '1 GB',
-    maxDocTokens: 6000,
-    answerTokens: 1300,
+    chunkTokens: 2200,
   },
   quality: {
     name: 'Gründlich (Qwen3 4B)',
     uri: 'hf:unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M',
     file: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
     sizeLabel: '2,5 GB',
-    maxDocTokens: 12000,
-    answerTokens: 1800,
+    chunkTokens: 3000,
   },
 };
 const MODELS = {
@@ -196,9 +194,45 @@ function openSettings() {
 
 // Öffnet das Analysefenster und übergibt ihm ein Dokument. Analysiert wird erst nach Enter
 // (oder sofort, wenn autoStart gesetzt ist).
-function showDocument(doc, { autoStart = false } = {}) {
+function showDocument(doc, { autoStart = false, result = null } = {}) {
   const win = showMain();
-  const send = () => win.webContents.send('document', { doc, autoStart });
+  const send = () => win.webContents.send('document', { doc, autoStart, result });
+  if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send);
+  else send();
+}
+
+// ---------- Ergebnis-Sprechblase unter der Spinne ----------
+
+const POPUP = { width: 420, height: 560 };
+let popupWin = null;
+function createPopup() {
+  if (popupWin && !popupWin.isDestroyed()) return popupWin;
+  popupWin = new BrowserWindow({
+    width: POPUP.width, height: POPUP.height, show: false, frame: false, transparent: true, resizable: false,
+    alwaysOnTop: true, skipTaskbar: true, hasShadow: false, maximizable: false, minimizable: false,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+  });
+  popupWin.setAlwaysOnTop(true, 'floating');
+  popupWin.loadFile(path.join(__dirname, 'popup.html'));
+  popupWin.on('closed', () => { popupWin = null; });
+  return popupWin;
+}
+
+function showPopup(doc, { autoStart = false } = {}) {
+  preloadBuiltinModel();
+  const win = createPopup();
+  // Unter der Spinne platzieren, die Spitze zeigt auf sie
+  const sp = spiderScreenPos();
+  const area = screen.getDisplayNearestPoint(sp).workArea;
+  const x = Math.round(Math.min(Math.max(sp.x - POPUP.width / 2, area.x + 6), area.x + area.width - POPUP.width - 6));
+  const y = Math.round(Math.min(sp.y + 24, area.y + area.height - POPUP.height));
+  win.setPosition(x, y);
+  const arrow = Math.round(Math.min(Math.max(sp.x - x, 34), POPUP.width - 34));
+  const send = () => {
+    win.webContents.send('popup-doc', { doc, autoStart, arrow });
+    win.show();
+    win.focus();
+  };
   if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send);
   else send();
 }
@@ -258,7 +292,7 @@ async function spiderTake({ autoStart = false, fromHotkey = false } = {}) {
       bubbleWin.webContents.send('rig-trick', 'lay');
       await runHatchOverlay(spiderScreenPos(), anchor);
     }
-    showDocument(doc, { autoStart });
+    showPopup(doc, { autoStart });
   } finally {
     taking = false;
   }
@@ -559,6 +593,72 @@ setInterval(() => {
   }
 }, 60 * 1000);
 
+// ---- Eingebautes Modell: Dokument abschnittsweise lesen (bis zum Ende), dann zusammenfassen ----
+// Alle Felder haben feste Höchstlängen – so wird jede Antwort garantiert fertig.
+const str = (maxLength, description) => ({ type: 'string', maxLength, ...(description ? { description } : {}) });
+const FIGURE_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['label', 'value', 'quote', 'page'],
+  properties: { label: str(60), value: str(40), quote: str(90, 'wörtliche Stelle aus dem Text, 3 bis 8 Wörter'), page: { type: 'integer' } },
+};
+const FINDING_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['kind', 'title', 'detail', 'pages'],
+  properties: {
+    kind: { type: 'string', enum: ['Beobachtung', 'Risiko', 'Chance', 'Handlung', 'Widerspruch'] },
+    title: str(140), detail: str(220), pages: { type: 'array', items: { type: 'integer' }, maxItems: 4 },
+  },
+};
+const NOTES_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['points', 'figures'],
+  properties: {
+    points: { type: 'array', items: str(200), maxItems: 4 },
+    figures: { type: 'array', items: FIGURE_SCHEMA, maxItems: 5 },
+  },
+};
+const FINAL_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['title', 'doc_type', 'summary', 'key_points', 'findings'],
+  properties: {
+    title: str(80), doc_type: str(40), summary: str(700),
+    key_points: { type: 'array', items: str(170), maxItems: 6 },
+    findings: { type: 'array', items: FINDING_SCHEMA, maxItems: 5 },
+  },
+};
+const SHORT_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['title', 'doc_type', 'summary', 'key_points', 'figures', 'findings'],
+  properties: { ...FINAL_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, maxItems: 8 } },
+};
+
+// Text in Abschnitte von höchstens maxTokens teilen (an Absatzgrenzen, mit Seitenangabe).
+function splitIntoChunks(model, doc, maxTokens) {
+  const chunks = [];
+  let cur = [], curTokens = 0, firstPage = 1, lastPage = 1;
+  const flush = () => {
+    if (!cur.length) return;
+    chunks.push({ text: cur.join('\n\n'), firstPage, lastPage });
+    cur = []; curTokens = 0;
+  };
+  doc.pages.forEach((pageText, pi) => {
+    const page = pi + 1;
+    for (let para of pageText.split(/\n\s*\n/)) {
+      para = para.trim();
+      if (!para) continue;
+      // Riesige Absätze in Stücke schneiden
+      const pieces = [];
+      const approxChars = maxTokens * 3;
+      for (let k = 0; k < para.length; k += approxChars) pieces.push(para.slice(k, k + approxChars));
+      for (const piece of pieces) {
+        const t = model.tokenize(piece).length;
+        if (curTokens + t > maxTokens) flush();
+        if (!cur.length) firstPage = page;
+        cur.push(doc.pages.length > 1 ? `[Seite ${page}] ${piece}` : piece);
+        curTokens += t;
+        lastPage = page;
+      }
+    }
+  });
+  flush();
+  return chunks;
+}
+
 async function analyzeBuiltin(doc, s, onProgress) {
   const key = builtinKey(s);
   const info = BUILTIN_MODELS[key];
@@ -567,49 +667,78 @@ async function analyzeBuiltin(doc, s, onProgress) {
   }
   const { LlamaChatSession } = await import('node-llama-cpp');
   lastModelUse = Date.now();
+  onProgress({ stage: 'Modell wird geladen …' });
   const { llama, model } = await loadBuiltinModel(key);
 
-  // Lange Dokumente kürzen: Auf dem Prozessor kostet jedes Token Lesezeit.
-  let note = null;
-  let usedDoc = doc;
-  const fullTokens = model.tokenize(doc.pages.join('\n')).length;
-  if (fullTokens > info.maxDocTokens) {
-    const ratio = info.maxDocTokens / fullTokens;
-    let budget = Math.floor(doc.pages.join('\n').length * ratio);
-    const pages = [];
-    for (const p of doc.pages) {
-      if (budget <= 0) break;
-      pages.push(p.slice(0, budget));
-      budget -= p.length;
-    }
-    usedDoc = { ...doc, pages };
-    note = `Das eingebaute Modell hat aus Tempogründen nur etwa die ersten ${Math.max(1, Math.round(ratio * 100))} % des Dokuments gelesen. Für das ganze Dokument in den Einstellungen Claude wählen.`;
-  }
-
-  const prompt = buildPrompt(usedDoc, s.language, true);
-  const promptTokens = model.tokenize(prompt).length;
-  const answerTokens = info.answerTokens;
-  const context = await model.createContext({ contextSize: promptTokens + answerTokens + 400, flashAttention: 'auto' });
+  const chunks = splitIntoChunks(model, doc, info.chunkTokens);
+  const systemPrompt = `Du bist ein sorgfältiger Analyst. Antworte auf ${s.language}, kurz und präzise, ausschließlich mit JSON nach dem Schema.`;
+  let context = await model.createContext({ contextSize: info.chunkTokens + 2600, flashAttention: 'auto' });
+  let session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt });
   try {
-    const session = new LlamaChatSession({
-      contextSequence: context.getSequence(),
-      systemPrompt: 'Du bist ein sorgfältiger Analyst. Antworte ausschließlich mit JSON nach dem vorgegebenen Schema. Fasse dich kurz.',
-    });
-    const grammar = await llama.createGrammarForJsonSchema(ANALYSIS_SCHEMA);
-    const text = await session.prompt(prompt, {
-      grammar,
-      maxTokens: answerTokens,
-      temperature: 0.2,
-      onTextChunk: (chunk) => onProgress(chunk),
-    });
-    let result;
-    try {
-      result = normalizeResult(grammar.parse(text));
-    } catch {
-      throw new Error('Das eingebaute Modell hat keine vollständige Antwort geliefert. Bitte erneut versuchen.');
+    const ask = async (prompt, schema, maxTokens, stream) => {
+      // Reicht der Platz nicht (z. B. viele Notizen am Schluss), größeren Kontext anlegen
+      const need = model.tokenize(prompt).length + maxTokens + 400;
+      if (need > context.contextSize) {
+        await context.dispose();
+        context = await model.createContext({ contextSize: Math.min(need, model.trainContextSize || need), flashAttention: 'auto' });
+        session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt });
+      }
+      session.resetChatHistory();
+      const grammar = await llama.createGrammarForJsonSchema(schema);
+      const text = await session.prompt(prompt, {
+        grammar, maxTokens, temperature: 0.2,
+        onTextChunk: stream ? (c) => onProgress(c) : undefined,
+      });
+      return grammar.parse(text);
+    };
+
+    // Kurzes Dokument: ein Durchgang reicht
+    if (chunks.length <= 1) {
+      onProgress({ stage: 'Analysiere …', step: 1, steps: 1 });
+      const r = await ask([
+        `Analysiere das folgende Dokument („${doc.title}“).`,
+        'Liefere Titel, Art, eine Zusammenfassung (2–4 Sätze), bis zu 6 Kernaussagen, bis zu 8 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "quote" = wörtliche Stelle aus dem Text) und bis zu 5 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
+        '', '<document>', chunks[0]?.text || '', '</document>',
+      ].join('\n'), SHORT_SCHEMA, 2200, true);
+      return normalizeResult(r);
     }
-    if (note) result.note = note;
-    return result;
+
+    // Langes Dokument: jeden Abschnitt lesen und Notizen machen …
+    const notes = [];
+    const figures = [];
+    for (let i = 0; i < chunks.length; i++) {
+      const c = chunks[i];
+      onProgress({ stage: `Liest Abschnitt ${i + 1} von ${chunks.length} …`, step: i + 1, steps: chunks.length + 1 });
+      const n = await ask([
+        `Abschnitt ${i + 1} von ${chunks.length} des Dokuments „${doc.title}“ (Seite ${c.firstPage}${c.lastPage !== c.firstPage ? `–${c.lastPage}` : ''}).`,
+        'Notiere die bis zu 4 wichtigsten Aussagen als kurze Sätze und bis zu 5 wichtige Angaben (Zahlen, Beträge, Fristen, Namen) mit wörtlicher Fundstelle ("quote").',
+        '', '<abschnitt>', c.text, '</abschnitt>',
+      ].join('\n'), NOTES_SCHEMA, 700, false);
+      notes.push(`Abschnitt ${i + 1} (S. ${c.firstPage}${c.lastPage !== c.firstPage ? `–${c.lastPage}` : ''}):\n- ${n.points.join('\n- ')}`
+        + (n.figures.length ? `\n  Angaben: ${n.figures.map((f) => `${f.label}: ${f.value}`).join('; ')}` : ''));
+      for (const f of n.figures) figures.push({ ...f, page: Math.min(c.lastPage, Math.max(c.firstPage, f.page || c.firstPage)) });
+    }
+
+    // … dann aus allen Notizen die Gesamtanalyse schreiben
+    onProgress({ stage: 'Schreibt die Zusammenfassung …', step: chunks.length + 1, steps: chunks.length + 1 });
+    const final = await ask([
+      `Hier sind Notizen zu allen ${chunks.length} Abschnitten des Dokuments „${doc.title}“.`,
+      'Erstelle daraus Titel, Art des Dokuments, eine Zusammenfassung des GANZEN Dokuments (3–5 Sätze), bis zu 6 Kernaussagen und bis zu 5 echte Erkenntnisse (Risiken, Chancen, Widersprüche, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
+      '', '<notizen>', notes.join('\n\n'), '</notizen>',
+    ].join('\n'), FINAL_SCHEMA, 1300, true);
+
+    // Angaben aus allen Abschnitten übernehmen (doppelte entfernen)
+    const seen = new Set();
+    const uniqueFigures = figures.filter((f) => {
+      const k = `${f.label}|${f.value}`.toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    }).slice(0, 20);
+    return normalizeResult({ ...final, figures: uniqueFigures });
+  } catch (e) {
+    if (e.code) throw e;
+    throw new Error(`Das eingebaute Modell ist bei der Analyse gestolpert: ${e.message || e}. Bitte erneut versuchen.`);
   } finally {
     await context.dispose();
   }
@@ -762,12 +891,19 @@ ipcMain.handle('analyze', async (event, doc) => {
     // Fortschritt: Zeichenzahl und – sobald die KI sie geschrieben hat – schon die Zusammenfassung,
     // damit man nicht bis zum Ende warten muss.
     let text = '', lastSent = 0;
+    let stage = null;
     const result = await analyze(doc, (chunk) => {
+      if (typeof chunk === 'object') { // Statusmeldung (z. B. „Liest Abschnitt 2 von 5“)
+        stage = chunk;
+        text = '';
+        event.sender.send('progress', { chars: 0, stage });
+        return;
+      }
       text += chunk;
       const now = Date.now();
       if (now - lastSent < 150) return;
       lastSent = now;
-      event.sender.send('progress', { chars: text.length, summary: partialField(text, 'summary') });
+      event.sender.send('progress', { chars: text.length, summary: partialField(text, 'summary'), stage });
     });
     return { ok: true, result };
   } catch (e) {
@@ -783,6 +919,8 @@ ipcMain.handle('open-file', (_e, p) => openFile(p));
 ipcMain.handle('pick-file', () => pickFile());
 ipcMain.handle('analyze-clipboard', () => spiderTake());
 ipcMain.handle('spider-take', () => spiderTake());
+ipcMain.handle('popup-close', () => popupWin?.hide());
+ipcMain.handle('popup-details', (_e, doc, result) => { popupWin?.hide(); showDocument(doc, { result }); });
 ipcMain.handle('clipboard-preview', async () => {
   const text = String((await clipboard.readText()) || '').trim();
   if (text) showDocument({ title: 'Text aus der Zwischenablage', source: 'clipboard', pages: [text] });
@@ -1004,7 +1142,7 @@ if (!app.requestSingleInstanceLock()) {
       if (!shortcutStatus[sc.id]) console.warn('Tastenkürzel belegt:', sc.label);
     }
     // Analysefenster unsichtbar vorbereiten, damit es später sofort da ist
-    setTimeout(() => createMain(), 4000);
+    setTimeout(() => { createMain(); createPopup(); }, 4000);
     setupUpdates();
 
     const s = loadSettings();

@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<title>Silkreader</title>
+<style>
+  :root { --bg: #111118; --card: #1a1a24; --line: #2a2a3e; --text: #ececf3; --muted: #9a9ab3; --pink: #ff2d8a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font: 13px/1.5 "Segoe UI", system-ui, sans-serif; color: var(--text); }
+  #bubble { position: absolute; left: 10px; right: 10px; top: 14px; bottom: 10px; background: var(--bg); border: 1.5px solid var(--pink);
+    border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.45), 0 0 18px rgba(255,45,138,.25); display: flex; flex-direction: column;
+    transform-origin: var(--arrow, 50%) 0; animation: popIn .35s cubic-bezier(.2,1.4,.4,1); }
+  @keyframes popIn { from { transform: scale(.2); opacity: 0; } to { transform: none; opacity: 1; } }
+  #bubble.closing { animation: popOut .2s ease-in forwards; }
+  @keyframes popOut { to { transform: scale(.2); opacity: 0; } }
+  /* Spitze der Sprechblase zeigt zur Spinne */
+  #arrow { position: absolute; top: -9px; left: calc(var(--arrow, 50%) - 9px); width: 16px; height: 16px; background: var(--bg);
+    border-left: 1.5px solid var(--pink); border-top: 1.5px solid var(--pink); transform: rotate(45deg); }
+  header { display: flex; align-items: center; gap: 8px; padding: 12px 14px 8px; -webkit-app-region: drag; }
+  header .t { font-weight: 700; font-size: 14px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header .m { color: var(--muted); font-size: 11px; }
+  header button, footer button { -webkit-app-region: no-drag; }
+  .x { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 0 2px; }
+  .x:hover { color: var(--text); }
+  main { flex: 1; overflow: auto; padding: 0 14px 10px; }
+  main::-webkit-scrollbar { width: 8px; } main::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+  .preview { color: var(--muted); background: var(--card); border-radius: 10px; padding: 10px 12px; font-size: 12px; max-height: 160px; overflow: hidden;
+    -webkit-mask-image: linear-gradient(#000 70%, transparent); }
+  .go { display: block; width: 100%; margin: 14px 0 6px; padding: 11px; font: 600 15px inherit; font-family: inherit; color: #fff; background: var(--pink);
+    border: none; border-radius: 10px; cursor: pointer; }
+  .go:hover { filter: brightness(1.1); }
+  kbd { font: 10px Consolas, monospace; border: 1px solid rgba(255,255,255,.4); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; margin-left: 6px; }
+  .hint { color: var(--muted); font-size: 11px; text-align: center; }
+  h4 { font: 700 10px Consolas, monospace; letter-spacing: 1.3px; text-transform: uppercase; color: var(--pink); margin: 12px 0 5px; }
+  .summary { line-height: 1.55; }
+  .summary .cur { color: var(--pink); animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  ul { margin: 0; padding-left: 17px; } li { margin-bottom: 3px; }
+  .finding { background: var(--card); border-left: 3px solid var(--pink); border-radius: 7px; padding: 6px 9px; margin-bottom: 6px; }
+  .finding .k { font: 700 9px Consolas, monospace; text-transform: uppercase; letter-spacing: .8px; color: #fff; background: var(--pink); border-radius: 3px; padding: 1px 5px; }
+  .finding .k.Risiko { background: #e5484d; } .finding .k.Chance { background: #30a46c; } .finding .k.Handlung { background: #d59a00; } .finding .k.Widerspruch { background: #8e4ec6; }
+  .finding .d { color: var(--muted); font-size: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip { background: var(--card); border: 1px solid var(--line); border-radius: 7px; padding: 3px 7px; font-size: 12px; }
+  .chip b { font-family: Consolas, monospace; }
+  .stage { color: var(--muted); margin: 10px 0 6px; }
+  .bar { height: 4px; background: var(--card); border-radius: 2px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 8%; background: var(--pink); transition: width .4s; }
+  .bar.indet i { width: 30%; animation: indet 1.2s ease-in-out infinite; }
+  @keyframes indet { from { margin-left: -30%; } to { margin-left: 100%; } }
+  .note { color: var(--muted); font-size: 11px; margin-top: 6px; }
+  .error { background: #2a0f18; border: 1px solid #6b1d36; color: #ffd0de; padding: 10px; border-radius: 9px; margin-top: 8px; }
+  footer { display: flex; gap: 6px; padding: 10px 14px 12px; border-top: 1px solid var(--line); }
+  footer button { flex: 1; font: inherit; font-size: 12px; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    padding: 7px 6px; cursor: pointer; }
+  footer button:hover { border-color: var(--pink); }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="bubble">
+  <div id="arrow"></div>
+  <header><span>🕷</span><span class="t" id="title">Silkreader</span><span class="m" id="meta"></span><button class="x" id="close" title="Schließen (Esc)">✕</button></header>
+  <main id="main"></main>
+  <footer id="foot" class="hidden">
+    <button id="details" title="Im großen Fenster mit markierten Fundstellen">Details</button>
+    <button id="copy" title="Ergebnis kopieren (Strg+C)">Kopieren</button>
+    <button id="keep" title="Ergebnis in einen Kokon packen">🕸 Festhalten</button>
+  </footer>
+</div>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  let doc = null, result = null, state = 'idle', run = 0;
+
+  function words(d) { return d.pages.join(' ').split(/\s+/).filter(Boolean).length; }
+
+  function showReady() {
+    state = 'ready';
+    $('foot').classList.add('hidden');
+    const text = doc.pages.join('\n\n');
+    $('main').innerHTML = `<div class="preview">${esc(text.slice(0, 600))}</div>
+      <button class="go" id="go">Analysieren<kbd>Enter</kbd></button>
+      <div class="hint"><kbd>Esc</kbd> schließen · <button class="x" id="toDetails" style="font-size:11px;text-decoration:underline">im großen Fenster öffnen</button></div>`;
+    $('go').addEventListener('click', analyze);
+    $('toDetails').addEventListener('click', () => window.spider.popupDetails(doc, null));
+    $('go').focus();
+  }
+
+  async function analyze() {
+    if (state === 'running') return;
+    state = 'running';
+    const myRun = ++run;
+    $('foot').classList.add('hidden');
+    $('main').innerHTML = `<div class="stage" id="stage">Die Spinne liest …</div><div class="bar indet" id="bar"><i></i></div><div id="live"></div>`;
+    const res = await window.spider.analyze(doc);
+    if (myRun !== run) return;
+    if (!res.ok) {
+      state = 'error';
+      $('main').innerHTML = `<div class="error">${esc(res.error)}</div><button class="go" id="retry">Erneut versuchen</button>
+        ${res.needsKey ? '<div class="hint"><button class="x" id="sett" style="font-size:12px;text-decoration:underline">Einstellungen öffnen</button></div>' : ''}`;
+      $('retry').addEventListener('click', () => { state = 'ready'; analyze(); });
+      $('sett')?.addEventListener('click', () => window.spider.openSettings());
+      return;
+    }
+    result = res.result;
+    showResult();
+  }
+
+  window.spider.onProgress(({ chars, summary, stage }) => {
+    if (state !== 'running') return;
+    if (stage?.stage) $('stage').textContent = stage.stage;
+    if (stage?.steps) {
+      $('bar').classList.remove('indet');
+      $('bar').firstElementChild.style.width = `${Math.round((stage.step / stage.steps) * 100)}%`;
+    }
+    if (summary) $('live').innerHTML = `<h4>Zusammenfassung</h4><div class="summary">${esc(summary)}<span class="cur">▍</span></div>`;
+  });
+
+  function showResult() {
+    state = 'done';
+    const r = result;
+    $('title').textContent = r.title || doc.title;
+    $('meta').textContent = r.doc_type || '';
+    const figs = r.figures.slice(0, 10);
+    $('main').innerHTML = `
+      <h4>Zusammenfassung</h4><div class="summary">${esc(r.summary)}</div>
+      ${r.key_points.length ? `<h4>Kernaussagen</h4><ul>${r.key_points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
+      ${r.findings.length ? `<h4>Erkenntnisse</h4>${r.findings.map((f) => `<div class="finding"><span class="k ${esc(f.kind)}">${esc(f.kind)}</span> ${esc(f.title)}${f.detail ? `<div class="d">${esc(f.detail)}</div>` : ''}</div>`).join('')}` : ''}
+      ${figs.length ? `<h4>Wichtige Angaben</h4><div class="chips">${figs.map((f) => `<span class="chip" title="„${esc(f.quote)}“ · S. ${f.page}">${esc(f.label)}: <b>${esc(f.value)}</b></span>`).join('')}${r.figures.length > figs.length ? `<span class="chip">+${r.figures.length - figs.length} weitere</span>` : ''}</div>` : ''}
+      ${r.note ? `<div class="note">ℹ️ ${esc(r.note)}</div>` : ''}`;
+    $('main').scrollTop = 0;
+    $('foot').classList.remove('hidden');
+  }
+
+  function markdown(r) {
+    return [`# ${r.title}`, '', r.summary, '', '## Kernaussagen', ...r.key_points.map((p) => `- ${p}`), '',
+      '## Erkenntnisse', ...r.findings.map((f) => `- **[${f.kind}] ${f.title}** – ${f.detail}`), '',
+      '## Angaben', ...r.figures.map((f) => `- ${f.label}: ${f.value} (S. ${f.page})`)].join('\n');
+  }
+
+  function flash(btn, text) { const old = btn.textContent; btn.textContent = text; setTimeout(() => (btn.textContent = old), 1300); }
+  $('details').addEventListener('click', () => window.spider.popupDetails(doc, result));
+  $('copy').addEventListener('click', async () => { await navigator.clipboard.writeText(markdown(result)); flash($('copy'), '✓ Kopiert'); });
+  $('keep').addEventListener('click', async () => { await window.spider.cocoonAddText(markdown(result)); flash($('keep'), '✓ Festgehalten'); });
+  function close() {
+    run++;
+    state = 'idle';
+    $('bubble').classList.add('closing');
+    setTimeout(() => window.spider.popupClose(), 180);
+  }
+  $('close').addEventListener('click', close);
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+    else if (e.key === 'Enter' && state === 'ready') { e.preventDefault(); analyze(); }
+    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && state === 'done' && !getSelection().toString()) { e.preventDefault(); $('copy').click(); }
+  });
+
+  window.spider.onPopupDoc(({ doc: d, autoStart, arrow }) => {
+    doc = d; result = null; run++;
+    document.documentElement.style.setProperty('--arrow', `${arrow}px`);
+    $('bubble').classList.remove('closing');
+    $('bubble').style.animation = 'none'; void $('bubble').offsetWidth; $('bubble').style.animation = '';
+    $('title').textContent = d.title;
+    $('meta').textContent = `${words(d).toLocaleString('de-DE')} Wörter`;
+    if (autoStart) { state = 'ready'; analyze(); } else showReady();
+  });
+</script>
+</body>
+</html>
