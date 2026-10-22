@@ -32,7 +32,9 @@ function showAnalysis() {
 
 // ---------- Dokument darstellen ----------
 
+let renderedDoc = null;
 function renderDocument(doc) {
+  renderedDoc = doc;
   const container = $('doc');
   spider?.destroy();
   let count = 0;
@@ -124,13 +126,48 @@ function stopWander() {
 
 // ---------- Analyse ----------
 
+// Vorschau: Text anzeigen, analysiert wird erst nach Enter. So öffnet sich das Fenster ohne Ruckeln.
+let pending = null;
+function showPreview(doc) {
+  run++;
+  stopWander();
+  pending = doc;
+  current = doc;
+  result = null;
+  showAnalysis();
+  renderDocument(doc);
+  spider.hide();
+  $('docTitle').innerHTML = `${esc(doc.title)}`;
+  $('scanLabel').textContent = 'BEREIT';
+  $('counter').textContent = `${words.length.toLocaleString('de-DE')} Wörter${doc.pages.length > 1 ? ` · ${doc.pages.length} Seiten` : ''}`;
+  $('bar').classList.remove('indeterminate');
+  $('bar').firstElementChild.style.width = '0';
+  $('btnSkip').classList.add('hidden');
+  $('btnCopy').classList.add('hidden');
+  $('panelBody').innerHTML = `<div class="ready">
+      <div class="ready-icon">🕷</div>
+      <div class="ready-title">Bereit zum Analysieren</div>
+      <button class="primary big" id="btnGo">Analysieren <kbd>Enter</kbd></button>
+      <div class="ready-keys"><kbd>Esc</kbd> schließen · <kbd>Strg</kbd>+<kbd>K</kbd> in Kokon packen</div>
+    </div>`;
+  $('btnGo').addEventListener('click', startPending);
+  window.focus();
+}
+function startPending() {
+  if (!pending) return;
+  const doc = pending;
+  pending = null;
+  startAnalysis(doc);
+}
+
 async function startAnalysis(doc) {
   const myRun = ++run;
+  pending = null;
   current = doc;
   result = null;
   skip = false;
   showAnalysis();
-  renderDocument(doc);
+  if (renderedDoc !== doc) renderDocument(doc);
 
   $('docTitle').innerHTML = `${esc(doc.title)}`;
   $('scanLabel').textContent = 'SCANNING';
@@ -272,13 +309,13 @@ function resultMarkdown(r) {
 
 $('btnAnalyze').addEventListener('click', () => {
   const text = $('input').value.trim();
-  if (text) startAnalysis({ title: 'Eingefügter Text', source: 'text', pages: [text] });
+  if (text) showPreview({ title: 'Eingefügter Text', source: 'text', pages: [text] });
 });
 $('input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) $('btnAnalyze').click();
 });
 $('btnNew').addEventListener('click', showStart);
-$('btnClip').addEventListener('click', () => window.spider.analyzeClipboard());
+$('btnClip').addEventListener('click', () => window.spider.clipboardPreview());
 $('btnFile').addEventListener('click', () => window.spider.pickFile());
 $('btnFile2').addEventListener('click', () => window.spider.pickFile());
 $('btnSettings').addEventListener('click', () => window.spider.openSettings());
@@ -301,12 +338,42 @@ window.addEventListener('drop', (e) => {
   if (file) window.spider.openFile(file);
   else {
     const text = e.dataTransfer.getData('text/plain');
-    if (text) startAnalysis({ title: 'Gezogener Text', source: 'text', pages: [text] });
+    if (text) showPreview({ title: 'Gezogener Text', source: 'text', pages: [text] });
   }
 });
 
 window.addEventListener('resize', () => spider?.index());
-window.spider.onDocument((doc) => startAnalysis(doc));
+window.spider.onDocument(({ doc, autoStart }) => (autoStart ? startAnalysis(doc) : showPreview(doc)));
+
+// Tastenkürzel im Analysefenster
+window.addEventListener('keydown', async (e) => {
+  const typing = e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT';
+  const mod = e.ctrlKey || e.metaKey;
+  if (e.key === 'Enter' && !typing && pending) { e.preventDefault(); startPending(); return; }
+  if (e.key === 'Escape') { e.preventDefault(); if (pending || result) window.spider.closeWindow(); else showStart(); return; }
+  if (mod && e.key.toLowerCase() === 'o') { e.preventDefault(); window.spider.pickFile(); return; }
+  if (mod && e.key.toLowerCase() === 'n') { e.preventDefault(); showStart(); return; }
+  if (mod && e.key === ',') { e.preventDefault(); window.spider.openSettings(); return; }
+  if (mod && e.key.toLowerCase() === 'k' && current) {
+    e.preventDefault();
+    await window.spider.cocoonAddText(current.pages.join('\n\n'));
+    toast('In einen Kokon gepackt 🕸');
+    return;
+  }
+  if (mod && e.shiftKey && e.key.toLowerCase() === 'c' && result) { e.preventDefault(); $('btnCopy').click(); return; }
+  if (mod && e.key.toLowerCase() === 'v' && !typing && $('start').style.display !== 'none') {
+    // Strg+V auf der Startseite: Text direkt übernehmen
+    $('input').focus();
+  }
+});
+
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 1800);
+}
 window.spider.onProgress(({ chars, summary }) => {
   const s = $('status');
   if (!s) return;

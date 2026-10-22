@@ -8,7 +8,7 @@ Eine kleine schwebende Spinne auf deinem Desktop. Klick sie an, und sie liest je
 
 ## Installation (Windows)
 
-1. `Silkreader-Setup-1.3.0.exe` herunterladen.
+1. `Silkreader-Setup-1.4.0.exe` herunterladen.
 2. Falls Windows blockiert: Rechtsklick auf die Datei → **Eigenschaften** → unten den Haken bei **„Zulassen“** setzen → OK.
 3. Setup starten und durchklicken. Beim ersten Mal fragt Windows, ob du dem Zertifikat „Silkreader“ vertraust: **Ja**. Ab dann steht bei Windows „Herausgeber: Silkreader“, und Updates können ihre Echtheit prüfen.
 4. Die Spinne erscheint oben am Bildschirmrand. Beim ersten Start öffnen sich die Einstellungen (siehe unten).
@@ -43,12 +43,34 @@ Die Spinne hängt an einem Faden vom oberen Bildschirmrand, schaukelt, schaut mi
 
 | Aktion | Ergebnis |
 |---|---|
-| **Klick** auf die Spinne | Sie flitzt hoch und analysiert den Text in der Zwischenablage (vorher Text markieren und Strg+C drücken) |
-| **Strg + Umschalt + Leertaste** | Dasselbe, von überall aus |
-| **Datei auf die Spinne ziehen** | Sie breitet die Beine aus und fängt die Datei: PDF, Word (.docx), TXT, Markdown, CSV, HTML … |
+| **Text markieren, dann auf die Spinne klicken** | Die Spinne legt ein Ei, eine große Spinne schlüpft und läuft über den markierten Text. Danach zeigt das Fenster den Text, **Enter** startet die Analyse. Strg+C ist nicht nötig, deine Zwischenablage bleibt erhalten. |
+| **Datei oder Text auf die Spinne ziehen** | Kleine Auswahl: 🔍 analysieren oder 🕸 im Kokon festhalten |
+| **Kokon anklicken** | Inhalt in die Zwischenablage kopieren (Dateien lassen sich im Explorer mit Strg+V einfügen) |
+| **Kokon herausziehen** | Datei direkt auf den Desktop, in einen Ordner oder in eine Mail ziehen |
+| **Rechtsklick auf einen Kokon** | Kopieren, Analysieren, Im Ordner zeigen, Entfernen |
 | **Spinne seitwärts ziehen** | Sie wandert am oberen Rand entlang (und schaukelt dabei ordentlich) |
 | **Spinne hoch/runter ziehen** | Faden kürzer oder länger machen |
-| **Rechtsklick** auf die Spinne | Menü: Datei öffnen, Analysefenster, Einstellungen, ausblenden, beenden |
+| **Rechtsklick** auf die Spinne | Menü mit Kokon-Ablage, Datei öffnen, Einstellungen … |
+
+### Tastenkürzel
+
+| Überall | |
+|---|---|
+| **Strg+Alt+S** | Markierten Text an die Spinne geben (Vorschau) |
+| **Strg+Alt+A** | Markierten Text sofort analysieren |
+| **Strg+Alt+K** | Markierten Text oder markierte Datei (z. B. im Explorer) in einen Kokon packen |
+| **Strg+Alt+V** | Kokon-Ablage öffnen |
+| **Strg+Alt+H** | Spinne verstecken / zeigen |
+
+| Im Analysefenster | |
+|---|---|
+| **Enter** | Analyse starten |
+| **Esc** | Fenster schließen |
+| **Strg+O** | Datei öffnen |
+| **Strg+N** | Neuer Text |
+| **Strg+K** | Aktuellen Text in einen Kokon packen |
+| **Strg+Umschalt+C** | Ergebnis kopieren |
+| **Strg+,** | Einstellungen |
 
 Der durchsichtige Bereich um die Spinne herum lässt Klicks durch, du kannst also ganz normal weiterarbeiten.
 
@@ -80,3 +102,6 @@ Aufbau:
 - `src/app.js` und `src/index.html`: Analysefenster
 - `src/bubble.html`: die Spinne am Bildschirmrand mit allen Kunststücken
 - `src/settings.html`: Einstellungen
+- `src/overlay.html`: Ei, Schlüpfen und die große Spinne, die über den Bildschirm läuft
+- `src/grab.js`: markierten Text aus anderen Programmen holen
+- `src/cocoons.js`: Kokon-Ablage

@@ -14,7 +14,21 @@ const loadAnthropic = () => (Anthropic ??= require('@anthropic-ai/sdk').default)
 let autoUpdaterInstance = null;
 const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoUpdater);
 
-const HOTKEY = 'CommandOrControl+Shift+Space';
+const { grabSelection, copyFileToClipboard } = require('./grab');
+const { CocoonStore } = require('./cocoons');
+
+// Globale Tastenkürzel. Strg+Alt statt Strg+Umschalt, weil viele Programme Strg+Umschalt
+// selbst benutzen (z. B. Strg+Umschalt+Leertaste in Word, Strg+Umschalt+B in Chrome).
+const SHORTCUTS = [
+  { id: 'take', keys: 'CommandOrControl+Alt+S', label: 'Strg+Alt+S', desc: 'Markierten Text an die Spinne geben (Vorschau)' },
+  { id: 'analyze', keys: 'CommandOrControl+Alt+A', label: 'Strg+Alt+A', desc: 'Markierten Text sofort analysieren' },
+  { id: 'cocoon', keys: 'CommandOrControl+Alt+K', label: 'Strg+Alt+K', desc: 'Markierten Text oder Datei in einen Kokon packen' },
+  { id: 'cocoons', keys: 'CommandOrControl+Alt+V', label: 'Strg+Alt+V', desc: 'Kokon-Ablage öffnen (Kopieren/Einfügen)' },
+  { id: 'toggle', keys: 'CommandOrControl+Alt+H', label: 'Strg+Alt+H', desc: 'Spinne verstecken / zeigen' },
+];
+const HOTKEY = SHORTCUTS[0].keys;
+const shortcutStatus = {};
+let cocoons = null;
 const OLLAMA_URL = 'http://127.0.0.1:11434';
 
 // Eingebautes KI-Modell (läuft mit llama.cpp direkt in der App, kostenlos und offline).
@@ -104,7 +118,7 @@ function createBubble() {
   bubbleWin = new BrowserWindow({
     width: RIG.width, height: RIG.height, x: Math.round(x), y: area.y,
     frame: false, transparent: true, resizable: false, alwaysOnTop: true,
-    skipTaskbar: true, hasShadow: false, focusable: true, maximizable: false,
+    skipTaskbar: true, hasShadow: false, focusable: false, maximizable: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
   });
   bubbleWin.setAlwaysOnTop(true, 'floating');
@@ -113,6 +127,7 @@ function createBubble() {
   bubbleWin.loadFile(path.join(__dirname, 'bubble.html'));
   bubbleWin.webContents.on('did-finish-load', () => {
     bubbleWin.webContents.send('rig-init', { length: s.rig?.length ?? 90, minLen: RIG.minLen, maxLen: RIG.maxLen });
+    sendCocoons();
   });
 
   // Mausposition regelmäßig an die Spinne schicken (Augen folgen dem Zeiger, Treffer-Test).
@@ -122,6 +137,7 @@ function createBubble() {
     if (!bubbleWin || bubbleWin.isDestroyed()) return clearInterval(timer);
     if (!bubbleWin.isVisible()) return;
     const c = screen.getCursorScreenPoint();
+    recordCursor(c);
     const [wx, wy] = bubbleWin.getPosition();
     const x = c.x - wx, y = c.y - wy;
     const far = x < -300 || x > RIG.width + 300 || y > RIG.height + 300;
@@ -138,23 +154,39 @@ function setBusy(busy) {
   if (bubbleWin && !bubbleWin.isDestroyed()) bubbleWin.webContents.send('busy', busy);
 }
 
+// Das Analysefenster wird beim Start unsichtbar vorbereitet und beim Schließen nur versteckt –
+// so öffnet es sich danach ohne Verzögerung.
+let quitting = false;
 function createMain() {
-  preloadBuiltinModel();
   if (mainWin && !mainWin.isDestroyed()) return mainWin;
   mainWin = new BrowserWindow({
+    show: false,
     width: 1280, height: 860, minWidth: 820, minHeight: 560,
     title: 'Silkreader', backgroundColor: '#0b0b10', autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
   });
   mainWin.loadFile(path.join(__dirname, 'index.html'));
+  mainWin.on('close', (e) => {
+    if (quitting) return;
+    e.preventDefault();
+    mainWin.hide();
+  });
   mainWin.on('closed', () => { mainWin = null; });
   return mainWin;
+}
+
+function showMain() {
+  preloadBuiltinModel();
+  const w = createMain();
+  w.show();
+  w.focus();
+  return w;
 }
 
 function openSettings() {
   if (settingsWin && !settingsWin.isDestroyed()) return settingsWin.focus();
   settingsWin = new BrowserWindow({
-    width: 560, height: 680, resizable: true, title: 'Einstellungen',
+    width: 580, height: 820, resizable: true, title: 'Einstellungen',
     backgroundColor: '#0b0b10', autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
   });
@@ -162,25 +194,161 @@ function openSettings() {
   settingsWin.on('closed', () => { settingsWin = null; });
 }
 
-// Öffnet das Analysefenster und übergibt ihm ein Dokument.
-function showDocument(doc) {
-  const win = createMain();
-  const send = () => { win.show(); win.focus(); win.webContents.send('document', doc); };
+// Öffnet das Analysefenster und übergibt ihm ein Dokument. Analysiert wird erst nach Enter
+// (oder sofort, wenn autoStart gesetzt ist).
+function showDocument(doc, { autoStart = false } = {}) {
+  const win = showMain();
+  const send = () => win.webContents.send('document', { doc, autoStart });
   if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send);
   else send();
 }
 
-async function analyzeClipboard() {
-  // readText() liefert in dieser Electron-Version ein Promise
-  const text = String((await clipboard.readText()) || '').trim();
-  if (!text) {
-    // Nichts kopiert → Analysefenster mit Eingabefeld zeigen.
-    const w = createMain();
-    w.show();
-    w.focus();
-    return;
+// ---------- Markieren & Spinne klicken ----------
+
+// Verlauf der Mausposition: daraus lässt sich schätzen, wo der markierte Text auf dem
+// Bildschirm steht (dort, wo die Maus zuletzt ruhig war, bevor sie zur Spinne kam).
+const cursorHistory = [];
+function recordCursor(c) {
+  const now = Date.now();
+  cursorHistory.push({ x: c.x, y: c.y, t: now });
+  while (cursorHistory.length && now - cursorHistory[0].t > 8000) cursorHistory.shift();
+}
+function selectionAnchor(fromHotkey) {
+  const c = screen.getCursorScreenPoint();
+  if (fromHotkey) return c; // Tastenkürzel: Die Maus steht meist noch beim Text
+  const [wx, wy] = bubbleWin.getPosition();
+  const nearSpider = (p) => p.x > wx - 120 && p.x < wx + RIG.width + 120 && p.y < wy + RIG.height + 60;
+  for (let i = cursorHistory.length - 1; i > 0; i--) {
+    const a = cursorHistory[i], b = cursorHistory[i - 1];
+    if (nearSpider(a)) continue;
+    if (Math.hypot(a.x - b.x, a.y - b.y) < 4 && a.t - b.t >= 30) return a; // hier lag die Maus still
   }
-  showDocument({ title: 'Text aus der Zwischenablage', source: 'clipboard', pages: [text] });
+  const area = screen.getPrimaryDisplay().workArea;
+  return { x: area.x + area.width / 2, y: area.y + area.height / 2 };
+}
+
+function spiderScreenPos() {
+  const [wx, wy] = bubbleWin.getPosition();
+  return { x: wx + RIG.width / 2, y: wy + (loadSettings().rig?.length ?? 90) + 20 };
+}
+
+let taking = false;
+async function spiderTake({ autoStart = false, fromHotkey = false } = {}) {
+  if (taking) return;
+  taking = true;
+  try {
+    preloadBuiltinModel();
+    createMain(); // schon mal vorbereiten
+    const anchor = selectionAnchor(fromHotkey);
+    const grabbed = await grabSelection({ waitForKeys: fromHotkey ? 350 : 0 });
+    let doc = null;
+    if (grabbed.text) {
+      doc = { title: 'Markierter Text', source: 'selection', pages: [grabbed.text] };
+    } else if (grabbed.files.length) {
+      try { doc = await readDocument(grabbed.files[0]); } catch (e) {
+        dialog.showErrorBox('Datei konnte nicht gelesen werden', String(e.message || e));
+        return;
+      }
+    } else {
+      // Nichts markiert → Zwischenablage nehmen, sonst Eingabefeld zeigen
+      const text = String((await clipboard.readText()) || '').trim();
+      if (text) doc = { title: 'Text aus der Zwischenablage', source: 'clipboard', pages: [text] };
+    }
+    if (!doc) { showMain(); return; }
+
+    if (loadSettings().hatchAnimation !== false && bubbleWin?.isVisible()) {
+      bubbleWin.webContents.send('rig-trick', 'lay');
+      await runHatchOverlay(spiderScreenPos(), anchor);
+    }
+    showDocument(doc, { autoStart });
+  } finally {
+    taking = false;
+  }
+}
+
+// Ei legen, schlüpfen lassen und die große Spinne über den Bildschirm laufen lassen.
+function runHatchOverlay(fromAbs, anchorAbs) {
+  return new Promise((resolve) => {
+    const b = screen.getDisplayNearestPoint(anchorAbs).bounds;
+    const win = new BrowserWindow({
+      x: b.x, y: b.y, width: b.width, height: b.height, show: false,
+      frame: false, transparent: true, resizable: false, movable: false, alwaysOnTop: true,
+      skipTaskbar: true, focusable: false, hasShadow: false,
+      webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+    });
+    win.setAlwaysOnTop(true, 'screen-saver');
+    win.setIgnoreMouseEvents(true);
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      ipcMain.removeListener('overlay-done', onDone);
+      if (!win.isDestroyed()) win.destroy();
+      resolve();
+    };
+    const onDone = (e) => { if (e.sender === win.webContents) finish(); };
+    ipcMain.on('overlay-done', onDone);
+    setTimeout(finish, 9000);
+    win.webContents.once('did-finish-load', () => {
+      win.showInactive();
+      win.webContents.send('overlay-start', {
+        from: { x: fromAbs.x - b.x, y: fromAbs.y - b.y },
+        anchor: { x: anchorAbs.x - b.x, y: anchorAbs.y - b.y },
+        width: b.width, height: b.height,
+      });
+    });
+    win.loadFile(path.join(__dirname, 'overlay.html'));
+  });
+}
+
+// Alte Bezeichnung, wird noch von Menüs benutzt
+const analyzeClipboard = () => spiderTake();
+
+// ---------- Kokon-Ablage ----------
+
+function sendCocoons() {
+  bubbleWin?.webContents.send('cocoons', cocoons.list());
+}
+
+async function cocoonFromSelection() {
+  const grabbed = await grabSelection({ waitForKeys: 350 });
+  if (grabbed.files.length) grabbed.files.slice(0, 6).forEach((f) => cocoons.addFile(f));
+  else if (grabbed.text) cocoons.addText(grabbed.text);
+  else return;
+  bubbleWin?.webContents.send('rig-trick', 'wrap');
+  sendCocoons();
+}
+
+async function copyCocoon(id) {
+  const it = cocoons.get(id);
+  if (!it) return false;
+  if (it.type === 'text') { await clipboard.writeText(it.text); return true; }
+  return copyFileToClipboard(it.path);
+}
+
+function cocoonMenu(id) {
+  const it = cocoons.get(id);
+  if (!it) return [];
+  return [
+    { label: 'Kopieren', click: async () => { if (await copyCocoon(id)) bubbleWin?.webContents.send('cocoon-copied', id); } },
+    { label: 'Analysieren', click: async () => {
+      if (it.type === 'text') showDocument({ title: 'Text aus dem Kokon', source: 'cocoon', pages: [it.text] });
+      else openFile(it.path);
+    } },
+    ...(it.type === 'file' ? [{ label: 'Im Ordner zeigen', click: () => shell.showItemInFolder(it.path) }] : []),
+    { type: 'separator' },
+    { label: 'Kokon entfernen', click: () => { cocoons.remove(id); sendCocoons(); } },
+  ];
+}
+
+function cocoonsMenuTemplate() {
+  const items = cocoons.list();
+  if (!items.length) return [{ label: 'Noch leer – Datei oder Text auf die Spinne ziehen', enabled: false }];
+  return [
+    ...items.map((it) => ({ label: `${it.type === 'file' ? '📄' : '📝'} ${it.name}${it.missing ? ' (fehlt)' : ''}`, submenu: cocoonMenu(it.id) })),
+    { type: 'separator' },
+    { label: 'Alle Kokons entfernen', click: () => { cocoons.clear(); sendCocoons(); } },
+  ];
 }
 
 async function pickFile() {
@@ -192,9 +360,9 @@ async function pickFile() {
   if (!r.canceled && r.filePaths[0]) await openFile(r.filePaths[0]);
 }
 
-async function openFile(filePath) {
+async function openFile(filePath, opts) {
   try {
-    showDocument(await readDocument(filePath));
+    showDocument(await readDocument(filePath), opts);
   } catch (e) {
     dialog.showErrorBox('Datei konnte nicht gelesen werden', String(e.message || e));
   }
@@ -615,8 +783,36 @@ ipcMain.handle('analyze', async (event, doc) => {
 
 ipcMain.handle('open-file', (_e, p) => openFile(p));
 ipcMain.handle('pick-file', () => pickFile());
-ipcMain.handle('analyze-clipboard', () => analyzeClipboard());
+ipcMain.handle('analyze-clipboard', () => spiderTake());
+ipcMain.handle('spider-take', () => spiderTake());
+ipcMain.handle('clipboard-preview', async () => {
+  const text = String((await clipboard.readText()) || '').trim();
+  if (text) showDocument({ title: 'Text aus der Zwischenablage', source: 'clipboard', pages: [text] });
+});
 ipcMain.handle('analyze-text', (_e, text) => showDocument({ title: 'Eingefügter Text', source: 'text', pages: [text] }));
+ipcMain.on('overlay-done', () => {}); // eigentliche Behandlung in runHatchOverlay
+
+ipcMain.handle('cocoon-list', () => cocoons.list());
+ipcMain.handle('cocoon-add-files', (_e, paths) => {
+  paths.filter((p) => p && fs.existsSync(p)).slice(0, 6).forEach((p) => cocoons.addFile(p));
+  sendCocoons();
+});
+ipcMain.handle('cocoon-add-text', (_e, text) => { if (text?.trim()) cocoons.addText(text); sendCocoons(); });
+ipcMain.handle('cocoon-copy', (_e, id) => copyCocoon(id));
+ipcMain.on('cocoon-menu', (_e, id) => Menu.buildFromTemplate(cocoonMenu(id)).popup({ window: bubbleWin }));
+// Kokon aus der Spinne herausziehen → echte Datei, die man überall ablegen kann
+ipcMain.on('cocoon-drag', (e, id) => {
+  const it = cocoons.get(id);
+  if (!it) return;
+  let file = it.path;
+  if (it.type === 'text') {
+    file = path.join(app.getPath('temp'), `Silkreader-Text-${id.slice(0, 8)}.txt`);
+    fs.writeFileSync(file, it.text);
+  }
+  if (!file || !fs.existsSync(file)) return;
+  e.sender.startDrag({ file, icon: nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png')) });
+});
+ipcMain.handle('shortcuts', () => SHORTCUTS.map((s) => ({ label: s.label, desc: s.desc, ok: shortcutStatus[s.id] !== false })));
 ipcMain.handle('open-settings', () => openSettings());
 ipcMain.handle('open-main', () => { const w = createMain(); w.show(); w.focus(); });
 
@@ -624,7 +820,8 @@ ipcMain.handle('get-settings', () => {
   const s = loadSettings();
   return {
     provider: s.provider, model: s.model, ollamaModel: s.ollamaModel, language: s.language,
-    hasKey: !!getApiKey(), models: MODELS, hotkey: 'Strg+Umschalt+Leertaste',
+    hatchAnimation: s.hatchAnimation !== false,
+    hasKey: !!getApiKey(), models: MODELS, hotkey: SHORTCUTS[0].label,
   };
 });
 ipcMain.handle('model-status', () => ({
@@ -637,12 +834,13 @@ ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await
 ipcMain.handle('ollama-models', async () => {
   try { return { ok: true, models: await ollamaModels() }; } catch { return { ok: false, models: [] }; }
 });
-ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel }) => {
+ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation }) => {
   if (apiKey) setApiKey(apiKey.trim());
   const s = loadSettings();
   if (['builtin', 'claude', 'ollama'].includes(provider)) s.provider = provider;
   if (ollamaModel) s.ollamaModel = ollamaModel.trim();
   if (BUILTIN_MODELS[builtinModel]) s.builtinModel = builtinModel;
+  if (typeof hatchAnimation === 'boolean') s.hatchAnimation = hatchAnimation;
   if (model && MODELS[model]) s.model = model;
   if (language) s.language = language;
   saveSettings(s);
@@ -655,9 +853,10 @@ ipcMain.handle('open-external', (_e, url) => {
 
 ipcMain.on('bubble-menu', () => {
   Menu.buildFromTemplate([
-    { label: 'Zwischenablage analysieren', accelerator: HOTKEY, click: analyzeClipboard },
+    { label: 'Markierten Text nehmen', accelerator: HOTKEY, click: () => spiderTake() },
+    { label: '🕸 Kokon-Ablage', submenu: cocoonsMenuTemplate() },
     { label: 'Datei öffnen …', click: pickFile },
-    { label: 'Analysefenster öffnen', click: () => createMain().show() },
+    { label: 'Analysefenster öffnen', click: () => showMain() },
     { type: 'separator' },
     { label: 'Einstellungen …', click: openSettings },
     { label: 'Spinne ausblenden', click: () => bubbleWin.hide() },
@@ -769,9 +968,10 @@ function checkUpdatesNow() {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => { bubbleWin?.show(); createMain().show(); });
+  app.on('second-instance', () => { bubbleWin?.show(); showMain(); });
 
   app.whenReady().then(() => {
+    cocoons = new CocoonStore(path.join(app.getPath('userData'), 'cocoons.json'));
     createBubble();
 
     const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png'));
@@ -779,7 +979,7 @@ if (!app.requestSingleInstanceLock()) {
     tray.setToolTip(`Silkreader ${app.getVersion()}`);
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: 'Spinne anzeigen', click: () => bubbleWin.show() },
-      { label: 'Zwischenablage analysieren', click: analyzeClipboard },
+      { label: 'Markierten Text nehmen', click: () => spiderTake() },
       { label: 'Datei öffnen …', click: pickFile },
       { label: 'Einstellungen …', click: openSettings },
       { label: `Nach Updates suchen (v${app.getVersion()})`, click: checkUpdatesNow },
@@ -793,7 +993,19 @@ if (!app.requestSingleInstanceLock()) {
     ]));
     tray.on('click', () => bubbleWin.show());
 
-    globalShortcut.register(HOTKEY, analyzeClipboard);
+    const actions = {
+      take: () => spiderTake({ fromHotkey: true }),
+      analyze: () => spiderTake({ fromHotkey: true, autoStart: true }),
+      cocoon: () => cocoonFromSelection(),
+      cocoons: () => { bubbleWin.show(); Menu.buildFromTemplate(cocoonsMenuTemplate()).popup({ window: bubbleWin }); },
+      toggle: () => (bubbleWin.isVisible() ? bubbleWin.hide() : bubbleWin.show()),
+    };
+    for (const sc of SHORTCUTS) {
+      try { shortcutStatus[sc.id] = globalShortcut.register(sc.keys, actions[sc.id]); } catch { shortcutStatus[sc.id] = false; }
+      if (!shortcutStatus[sc.id]) console.warn('Tastenkürzel belegt:', sc.label);
+    }
+    // Analysefenster unsichtbar vorbereiten, damit es später sofort da ist
+    setTimeout(() => createMain(), 4000);
     setupUpdates();
 
     const s = loadSettings();
@@ -802,6 +1014,7 @@ if (!app.requestSingleInstanceLock()) {
     if (s.provider === 'ollama') ollamaModels().then((m) => { if (!m.length) openSettings(); }).catch(openSettings);
   });
 
+  app.on('before-quit', () => { quitting = true; });
   app.on('will-quit', () => globalShortcut.unregisterAll());
   // Die App läuft im Hintergrund weiter, solange die Spinne da ist.
   app.on('window-all-closed', (e) => e?.preventDefault?.());

@@ -14,6 +14,7 @@ const text = fs.readFileSync('test/sample.txt', 'utf8');
 await bubble.evaluate((t) => window.spider.analyzeText(t), text);
 await new Promise((r) => setTimeout(r, 2500));
 const main = app.windows().find((w) => w.url().includes('index.html'));
+await main.waitForSelector('#btnGo'); await main.keyboard.press('Enter');
 await main.setViewportSize?.({ width: 1280, height: 860 });
 await main.screenshot({ path: `${out}/scan1.png` });
 await new Promise((r) => setTimeout(r, 1200));

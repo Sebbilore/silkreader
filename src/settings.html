@@ -27,7 +27,13 @@
   .inline { display: flex; gap: 8px; } .inline select { flex: 1; }
   button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); padding: 8px 16px; }
   button.primary { background: var(--pink); border-color: var(--pink); color: #fff; font-weight: 600; }
-  .ok { color: #30a46c; } .bad { color: #ff7a9c; }
+  .ok { color: #30a46c; }
+  label.check { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; margin-top: 18px; }
+  label.check input { width: auto; margin-top: 3px; accent-color: var(--pink); }
+  .keys div { display: flex; gap: 10px; align-items: baseline; font-size: 12px; margin: 4px 0; color: var(--muted); }
+  .keys kbd { font: 11px Consolas, monospace; color: var(--text); background: var(--card); border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 4px; padding: 1px 6px; min-width: 112px; text-align: center; }
+  .keys em { color: #ff7a9c; font-style: normal; } .bad { color: #ff7a9c; }
   ol { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 12px; } ol li { margin-bottom: 4px; }
 </style>
 </head>
@@ -81,7 +87,10 @@
   <option>Deutsch</option><option>Englisch</option><option>Französisch</option><option>Spanisch</option><option>Italienisch</option>
   <option value="der Sprache des Dokuments">Wie das Dokument</option>
 </select>
-<div class="hint" style="margin-top:10px">Tastenkürzel: <b id="hotkey"></b> analysiert den Text in der Zwischenablage.</div>
+<label class="check"><input type="checkbox" id="hatch"> Schlüpf-Animation: Die Spinne legt ein Ei, und eine große Spinne läuft über den markierten Text</label>
+
+<label>Tastenkürzel</label>
+<div id="shortcuts" class="keys"></div>
 
 <div class="row">
   <button class="primary" id="save">Speichern</button>
@@ -174,7 +183,7 @@
   window.spider.getSettings().then((s) => {
     for (const [id, name] of Object.entries(s.models)) $('model').add(new Option(name, id, false, id === s.model));
     $('lang').value = s.language;
-    $('hotkey').textContent = s.hotkey;
+    $('hatch').checked = s.hatchAnimation;
     wantedOllama = s.ollamaModel;
     if (s.hasKey) $('key').placeholder = '•••••••• (gespeichert – leer lassen, um ihn zu behalten)';
     setProvider(s.provider);
@@ -182,12 +191,18 @@
     loadModelStatus(true);
   });
   $('refresh').addEventListener('click', loadOllama);
+  window.spider.shortcuts().then((list) => {
+    const extra = [['Enter', 'Im Fenster: Analyse starten'], ['Esc', 'Im Fenster: schließen'], ['Strg+O', 'Im Fenster: Datei öffnen'],
+      ['Strg+K', 'Im Fenster: Text in Kokon packen'], ['Strg+Umschalt+C', 'Im Fenster: Ergebnis kopieren']];
+    $('shortcuts').innerHTML = list.map((k) => `<div><kbd>${k.label}</kbd><span>${k.desc}${k.ok ? '' : ' <em>(von anderem Programm belegt)</em>'}</span></div>`).join('')
+      + extra.map(([k, d]) => `<div><kbd>${k}</kbd><span>${d}</span></div>`).join('');
+  });
   $('ollamaLink').addEventListener('click', () => window.spider.openExternal('https://ollama.com/download'));
   $('console').addEventListener('click', () => window.spider.openExternal('https://platform.claude.com/settings/keys'));
   $('save').addEventListener('click', async () => {
     await window.spider.saveSettings({
       provider, apiKey: $('key').value, model: $('model').value,
-      ollamaModel: $('ollamaModel').value, language: $('lang').value, builtinModel,
+      ollamaModel: $('ollamaModel').value, language: $('lang').value, builtinModel, hatchAnimation: $('hatch').checked,
     });
     $('key').value = '';
     $('msg').textContent = 'Gespeichert ✓';

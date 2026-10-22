@@ -11,6 +11,7 @@ const t0 = Date.now();
 await rig.evaluate(() => window.spider.analyzeText('Der Umsatz stieg 2025 auf 412 Millionen Euro. Der Gewinn lag bei 39,2 Millionen Euro. Die Dividende steigt auf 1,10 Euro.'));
 await new Promise((r) => setTimeout(r, 1500));
 const main = app.windows().find((w) => w.url().includes('index.html'));
+await main.waitForSelector('#btnGo'); await main.keyboard.press('Enter');
 let status = '';
 for (let i = 0; i < 120; i++) {
   status = await main.textContent('#scanLabel');

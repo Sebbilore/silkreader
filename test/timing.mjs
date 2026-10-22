@@ -7,6 +7,7 @@ const rig = app.windows().find((w) => w.url().includes('bubble'));
 await rig.evaluate((t) => window.spider.analyzeText(t), fs.readFileSync('test/sample.txt', 'utf8'));
 await new Promise((r) => setTimeout(r, 1000));
 const main = app.windows().find((w) => w.url().includes('index.html'));
+await main.waitForSelector('#btnGo'); await main.keyboard.press('Enter');
 const t0 = Date.now();
 let firstSummary = null, results = null, done = null;
 while (Date.now() - t0 < 60000) {
