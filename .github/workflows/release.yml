@@ -1,0 +1,39 @@
+# Baut bei jedem Versions-Tag (z. B. v1.2.0) den signierten Windows-Installer und
+# veröffentlicht ihn als GitHub-Release. Die installierte App holt sich von dort Updates.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Signatur-Zertifikat bereitstellen
+        shell: pwsh
+        env:
+          PFX_BASE64: ${{ secrets.SILKREADER_PFX_BASE64 }}
+        run: |
+          if (-not $env:PFX_BASE64) { throw "Secret SILKREADER_PFX_BASE64 fehlt (Settings → Secrets and variables → Actions)." }
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\silkreader.pfx", [Convert]::FromBase64String($env:PFX_BASE64))
+
+      - name: Bauen, signieren und veröffentlichen
+        run: npx electron-builder --win nsis --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ runner.temp }}\silkreader.pfx
+          CSC_KEY_PASSWORD: ${{ secrets.SILKREADER_PFX_PASSWORD }}

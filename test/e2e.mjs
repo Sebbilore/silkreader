@@ -1,0 +1,28 @@
+import { _electron as electron } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import fs from 'fs';
+const out = process.argv[2];
+const app = await electron.launch({ executablePath: './node_modules/electron/dist/electron', args: ['--no-sandbox', '.'],
+  env: { ...process.env, SPIDER_MOCK: 'test/mock.json', ANTHROPIC_API_KEY: 'x' } });
+const errs = [];
+app.on('window', (w) => { w.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); }); w.on('pageerror', (e) => errs.push(String(e))); });
+await new Promise((r) => setTimeout(r, 2500));
+let wins = app.windows();
+console.log('windows:', wins.map((w) => w.url()));
+const bubble = wins.find((w) => w.url().includes('bubble'));
+await bubble.screenshot({ path: `${out}/bubble.png` });
+const text = fs.readFileSync('test/sample.txt', 'utf8');
+await bubble.evaluate((t) => window.spider.analyzeText(t), text);
+await new Promise((r) => setTimeout(r, 2500));
+const main = app.windows().find((w) => w.url().includes('index.html'));
+await main.setViewportSize?.({ width: 1280, height: 860 });
+await main.screenshot({ path: `${out}/scan1.png` });
+await new Promise((r) => setTimeout(r, 1200));
+await main.screenshot({ path: `${out}/scan2.png` });
+await new Promise((r) => setTimeout(r, 4500));
+await main.screenshot({ path: `${out}/figs.png` });
+await new Promise((r) => setTimeout(r, 14000));
+await main.screenshot({ path: `${out}/done.png` });
+console.log('counter:', await main.textContent('#counter'));
+console.log('hits:', await main.evaluate(() => document.querySelectorAll('.w.hit').length), 'missing:', await main.evaluate(() => document.querySelectorAll('.src.missing').length));
+console.log('errors:', errs);
+await app.close();

@@ -1,0 +1,26 @@
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
+
+contextBridge.exposeInMainWorld('spider', {
+  analyze: (doc) => ipcRenderer.invoke('analyze', doc),
+  openFile: (file) => ipcRenderer.invoke('open-file', webUtils.getPathForFile(file)),
+  pickFile: () => ipcRenderer.invoke('pick-file'),
+  analyzeClipboard: () => ipcRenderer.invoke('analyze-clipboard'),
+  analyzeText: (text) => ipcRenderer.invoke('analyze-text', text),
+  openSettings: () => ipcRenderer.invoke('open-settings'),
+  openMain: () => ipcRenderer.invoke('open-main'),
+  getSettings: () => ipcRenderer.invoke('get-settings'),
+  saveSettings: (s) => ipcRenderer.invoke('save-settings', s),
+  ollamaModels: () => ipcRenderer.invoke('ollama-models'),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  bubbleMenu: () => ipcRenderer.send('bubble-menu'),
+  rigHover: (inside) => ipcRenderer.send('rig-hover', inside),
+  rigDragStart: (length) => ipcRenderer.send('rig-drag-start', length),
+  rigDragEnd: () => ipcRenderer.invoke('rig-drag-end'),
+  onRigDragging: (cb) => ipcRenderer.on('rig-dragging', (_e, d) => cb(d)),
+  onRigInit: (cb) => ipcRenderer.on('rig-init', (_e, d) => cb(d)),
+  onCursor: (cb) => ipcRenderer.on('cursor', (_e, p) => cb(p)),
+  onThreadLength: (cb) => ipcRenderer.on('thread-length', (_e, l) => cb(l)),
+  onBusy: (cb) => ipcRenderer.on('busy', (_e, b) => cb(b)),
+  onDocument: (cb) => ipcRenderer.on('document', (_e, d) => cb(d)),
+  onProgress: (cb) => ipcRenderer.on('progress', (_e, n) => cb(n)),
+});

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<title>Silkreader</title>
+<style>
+  :root {
+    --bg: #0b0b10; --panel: #111118; --card: #17171f; --line: #26263a;
+    --text: #ececf3; --muted: #8b8ba3; --pink: #ff2d8a; --pink-soft: rgba(255,45,138,.18);
+    --yellow: #ffe14d; --paper: #ffffff; --paper-bg: #e9e7e2; --ink: #1b1b1f;
+    --mono: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; overflow: hidden; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card); color: var(--text); padding: 7px 14px; }
+  button:hover { border-color: var(--pink); }
+  button.primary { background: var(--pink); border-color: var(--pink); color: #fff; font-weight: 600; }
+  button.ghost { background: transparent; }
+
+  header { height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 16px;
+    border-bottom: 1px solid var(--line); background: var(--panel); }
+  header .brand { font-weight: 700; letter-spacing: .2px; display: flex; align-items: center; gap: 8px; margin-right: auto; }
+  header .brand svg { width: 22px; height: 22px; }
+  header .brand small { color: var(--muted); font-weight: 400; }
+
+  main { position: absolute; top: 52px; left: 0; right: 0; bottom: 0; display: flex; }
+
+  /* Startansicht */
+  #start { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .drop { width: min(720px, 100%); border: 2px dashed var(--line); border-radius: 16px; padding: 28px;
+    background: var(--panel); transition: border-color .2s, background .2s; }
+  .drop.over { border-color: var(--pink); background: #1a0f17; }
+  .drop h1 { margin: 0 0 4px; font-size: 22px; }
+  .drop p { margin: 0 0 16px; color: var(--muted); }
+  .drop textarea { width: 100%; height: 220px; resize: vertical; background: var(--bg); color: var(--text);
+    border: 1px solid var(--line); border-radius: 10px; padding: 12px; font: 13px/1.5 var(--mono); }
+  .drop textarea:focus { outline: none; border-color: var(--pink); }
+  .drop .row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .drop .tip { margin-top: 18px; font-size: 12px; color: var(--muted); }
+  kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 4px; padding: 1px 5px; color: var(--text); }
+
+  /* Analyseansicht */
+  #analysis { flex: 1; display: none; min-width: 0; }
+  #docScroll { flex: 1; overflow: auto; background: var(--paper-bg); position: relative; }
+  #doc { position: relative; padding: 28px 28px 200px; max-width: 860px; margin: 0 auto; }
+  .page { background: var(--paper); color: var(--ink); padding: 36px 44px; margin-bottom: 20px;
+    box-shadow: 0 2px 14px rgba(0,0,0,.12); border-radius: 3px; font: 14px/1.7 Georgia, "Times New Roman", serif; }
+  .page-no { font: 11px var(--mono); color: #9a9aa6; text-align: right; margin: -18px -24px 10px 0; }
+  .page p { margin: 0 0 .9em; white-space: normal; overflow-wrap: anywhere; }
+  .truncated { font: 12px var(--mono); color: #666; text-align: center; padding: 8px; }
+
+  .w { border-radius: 2px; transition: background-color .4s; }
+  .w.touched { animation: touched 3.2s ease-out forwards; }
+  @keyframes touched {
+    0% { box-shadow: 0 0 0 1.5px var(--pink); background: rgba(255,45,138,.12); }
+    55% { box-shadow: 0 0 0 1.5px var(--pink); }
+    100% { box-shadow: 0 0 0 1px rgba(255,45,138,0); }
+  }
+  .w.scan { background: rgba(255,225,77,.6); }
+  .w.hit { background: rgba(255,45,138,.28); box-shadow: 0 0 0 1.5px var(--pink); }
+  .w.hit.flash { animation: flash 1s ease-out; }
+  @keyframes flash { 0% { background: var(--pink); color: #fff; } 100% { background: rgba(255,45,138,.28); } }
+
+  .spider-layer { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; transition: opacity .4s; z-index: 5; }
+  .spider-leg { fill: none; stroke: var(--pink); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round;
+    filter: drop-shadow(0 0 2px rgba(255,45,138,.7)); }
+  .spider-foot { fill: var(--yellow); stroke: #c79a00; stroke-width: .6; }
+  .spider-abdomen, .spider-thorax { fill: #111; stroke: var(--pink); stroke-width: 1.4; }
+  .spider-mark { fill: var(--pink); }
+  .spider-eye { fill: #fff; }
+  .spider-glow { fill: rgba(255,45,138,.12); }
+
+  /* Ergebnispanel */
+  #panel { width: 430px; flex-shrink: 0; background: var(--panel); border-left: 1px solid var(--line);
+    display: flex; flex-direction: column; min-height: 0; }
+  #panelHead { padding: 14px 18px 12px; border-bottom: 1px solid var(--line); }
+  .meta { font: 11px var(--mono); color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
+  .meta b { color: var(--text); font-weight: 600; }
+  .meta .scanning { color: var(--pink); }
+  #docTitle { font-weight: 700; font-size: 16px; margin: 8px 0 2px; text-transform: uppercase; letter-spacing: .3px; }
+  #docTitle small { color: var(--muted); font-weight: 400; text-transform: none; font-family: var(--mono); font-size: 12px; }
+  #counter { font: 12px var(--mono); color: var(--muted); margin-top: 6px; }
+  .bar { height: 3px; background: var(--line); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--pink); transition: width .4s; }
+  .bar.indeterminate i { width: 30%; animation: indet 1.2s ease-in-out infinite; }
+  @keyframes indet { 0% { margin-left: -30%; } 100% { margin-left: 100%; } }
+
+  #panelBody { flex: 1; overflow: auto; padding: 6px 18px 18px; }
+  .status { color: var(--muted); font-size: 13px; padding: 14px 0; }
+  .error { background: #2a0f18; border: 1px solid #6b1d36; color: #ffd0de; padding: 12px; border-radius: 10px; margin: 14px 0; }
+  .error .row { margin-top: 10px; display: flex; gap: 8px; }
+  h3 { font: 600 11px var(--mono); letter-spacing: 1.4px; text-transform: uppercase; color: var(--pink); margin: 18px 0 8px; }
+
+  .fig { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 8px 6px; border-bottom: 1px solid var(--line);
+    cursor: pointer; border-radius: 6px; animation: rowIn .35s ease-out; }
+  .fig:hover { background: var(--card); }
+  .fig .label { color: var(--text); }
+  .fig .value { font: 600 15px var(--mono); text-align: right; white-space: nowrap; max-width: 210px; overflow: hidden; text-overflow: ellipsis; }
+  .fig .src { font: 10px var(--mono); color: var(--muted); grid-column: 2; text-align: right; }
+  .fig .src.missing { color: #6d6d82; }
+  .fig.active { background: var(--pink-soft); }
+  @keyframes rowIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .summary { color: var(--text); line-height: 1.6; animation: rowIn .4s ease-out; }
+  ul.points { padding-left: 18px; margin: 0; }
+  ul.points li { margin-bottom: 6px; animation: rowIn .4s ease-out backwards; }
+  .finding { background: var(--card); border-left: 3px solid var(--pink); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px;
+    animation: rowIn .4s ease-out backwards; }
+  .finding .kind { display: inline-block; font: 600 10px var(--mono); letter-spacing: 1px; text-transform: uppercase;
+    background: var(--pink); color: #fff; padding: 2px 7px; border-radius: 4px; }
+  .finding .kind.Risiko { background: #e5484d; } .finding .kind.Chance { background: #30a46c; }
+  .finding .kind.Handlung { background: #d59a00; } .finding .kind.Widerspruch { background: #8e4ec6; }
+  .finding .t { font-weight: 600; margin: 6px 0 2px; font-size: 15px; }
+  .finding .d { color: var(--muted); font-size: 13px; }
+  .finding .p { font: 10px var(--mono); color: var(--muted); margin-top: 4px; }
+
+  #panelFoot { padding: 12px 18px; border-top: 1px solid var(--line); display: flex; gap: 8px; }
+  #panelFoot button { flex: 1; }
+  .hidden { display: none !important; }
+
+  @media (max-width: 1000px) { #panel { width: 360px; } .page { padding: 24px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 64 64"><g stroke="#ff2d8a" stroke-width="3" fill="none" stroke-linecap="round"><path d="M28 26 16 14 6 20M28 30 12 26 4 34M28 36 14 40 8 52M29 40 20 50 18 60M36 26 48 14 58 20M36 30 52 26 60 34M36 36 50 40 56 52M35 40 44 50 46 60"/></g><ellipse cx="32" cy="40" rx="7" ry="12" fill="#111" stroke="#ff2d8a" stroke-width="2"/><ellipse cx="32" cy="24" rx="5.5" ry="6.5" fill="#111" stroke="#ff2d8a" stroke-width="2"/></svg>
+    Silkreader <small id="modelName"></small>
+  </div>
+  <button class="ghost" id="btnNew">Neu</button>
+  <button id="btnClip" title="Strg+Umschalt+Leertaste">Zwischenablage analysieren</button>
+  <button id="btnFile">Datei öffnen …</button>
+  <button class="ghost" id="btnSettings">Einstellungen</button>
+</header>
+
+<main>
+  <section id="start">
+    <div class="drop" id="drop">
+      <h1>Was soll die Spinne lesen?</h1>
+      <p>Text einfügen, oder eine PDF-, Word- oder Textdatei hierher ziehen.</p>
+      <textarea id="input" placeholder="Text hier einfügen (Strg+V) …"></textarea>
+      <div class="row">
+        <button class="primary" id="btnAnalyze">Analysieren</button>
+        <button id="btnFile2">Datei auswählen …</button>
+      </div>
+      <div class="tip">Tipp: Überall Text markieren, <kbd>Strg</kbd>+<kbd>C</kbd> drücken, dann <kbd>Strg</kbd>+<kbd>Umschalt</kbd>+<kbd>Leertaste</kbd> – oder einfach auf die schwebende Spinne klicken. Dateien können auch direkt auf die Spinne gezogen werden.</div>
+    </div>
+  </section>
+
+  <section id="analysis">
+    <div id="docScroll"><div id="doc"></div></div>
+    <aside id="panel">
+      <div id="panelHead">
+        <div class="meta"><span>🕷 <b>Silkreader</b></span><span id="builtWith">KI-Analyse</span><span class="scanning" id="scanLabel">SCANNING</span></div>
+        <div id="docTitle"></div>
+        <div id="counter"></div>
+        <div class="bar indeterminate" id="bar"><i></i></div>
+      </div>
+      <div id="panelBody"></div>
+      <div id="panelFoot">
+        <button id="btnSkip">Animation überspringen</button>
+        <button id="btnCopy" class="hidden">Ergebnis kopieren</button>
+      </div>
+    </aside>
+  </section>
+</main>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

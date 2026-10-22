@@ -1,0 +1,75 @@
+{
+  "name": "silkreader",
+  "productName": "Silkreader",
+  "version": "1.1.0",
+  "description": "Silkreader – eine schwebende Spinne, die Texte und Dokumente mit KI liest, zusammenfasst und analysiert",
+  "main": "src/main.js",
+  "author": "Silkreader",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis --x64 --publish never",
+    "dist:mac": "electron-builder --mac dmg",
+    "dist:linux": "electron-builder --linux AppImage",
+    "dist:win:linux": "electron-builder --win nsis --x64 --publish never -c.win.signtoolOptions.sign=./build/sign.js"
+  },
+  "build": {
+    "appId": "app.silkreader",
+    "productName": "Silkreader",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "icon": "build/icon.png",
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Silkreader",
+      "runAfterFinish": true,
+      "installerLanguages": [
+        "de_DE"
+      ],
+      "language": "1031",
+      "artifactName": "Silkreader-Setup-${version}.exe",
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Sebbilore",
+        "repo": "silkreader",
+        "releaseType": "release"
+      }
+    ],
+    "copyright": "© 2026 Silkreader",
+    "win": {
+      "signtoolOptions": {
+        "publisherName": [
+          "CN=Silkreader, O=Silkreader"
+        ],
+        "signingHashAlgorithms": [
+          "sha256"
+        ]
+      },
+      "legalTrademarks": "Silkreader"
+    }
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.1.0",
+    "electron-updater": "^6.8.9",
+    "mammoth": "^1.13.0",
+    "unpdf": "^1.9.1"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sebbilore/silkreader.git"
+  }
+}

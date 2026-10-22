@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<title>Silkreader</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; user-select: none; }
+  svg { display: block; width: 100%; height: 100%; }
+  #thread { stroke: rgba(245,245,250,.95); stroke-width: 1; }
+  #threadShadow { stroke: rgba(20,20,30,.45); stroke-width: 2.4; }
+  .leg { stroke: #ff2d8a; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  #body { fill: #16161d; stroke: #ff2d8a; stroke-width: 1.6; }
+  .catch #body { stroke: #ffe14d; }
+  .catch .leg { stroke: #ffe14d; }
+  .eye { fill: #fff; stroke: #16161d; stroke-width: .5; }
+  .pupil { fill: #111; }
+  .cheek { fill: rgba(255,45,138,.45); }
+  #mouth { stroke: #ff2d8a; stroke-width: 1.3; fill: none; stroke-linecap: round; }
+  #spider { cursor: grab; }
+  #spider.grabbing { cursor: grabbing; }
+</style>
+</head>
+<body>
+<svg id="svg">
+  <line id="threadShadow" x1="0" y1="0" x2="0" y2="0"/>
+  <line id="thread" x1="0" y1="0" x2="0" y2="0"/>
+  <g id="spider">
+    <g id="legs"></g>
+    <circle id="body" cx="0" cy="0" r="11"/>
+    <circle class="cheek" cx="-7.2" cy="4.2" r="1.8"/>
+    <circle class="cheek" cx="7.2" cy="4.2" r="1.8"/>
+    <ellipse class="eye" id="eyeL" cx="-4.4" cy="-1.6" rx="3.9" ry="4.4"/>
+    <ellipse class="eye" id="eyeR" cx="4.4" cy="-1.6" rx="3.9" ry="4.4"/>
+    <circle class="pupil" id="pupilL" cx="-4.4" cy="-1.6" r="1.9"/>
+    <circle class="pupil" id="pupilR" cx="4.4" cy="-1.6" r="1.9"/>
+    <path id="mouth" d=""/>
+  </g>
+</svg>
+<script>
+  const NS = 'http://www.w3.org/2000/svg';
+  const $ = (id) => document.getElementById(id);
+  const W = window.innerWidth;
+  const AX = W / 2; // Aufhängepunkt oben in der Mitte
+
+  // Beine: Hüfte am Körper, Knie nach außen oben, Fuß nach außen unten
+  const LEGS = [
+    { hx: 8, hy: -5, kx: 18, ky: -15, fx: 24, fy: -4 },
+    { hx: 10, hy: -1, kx: 21, ky: -7, fx: 28, fy: 4 },
+    { hx: 10, hy: 3, kx: 20, ky: 2, fx: 26, fy: 13 },
+    { hx: 8, hy: 7, kx: 16, ky: 9, fx: 20, fy: 20 },
+  ].flatMap((l, i) => [{ ...l, side: 1, i }, { ...l, hx: -l.hx, kx: -l.kx, fx: -l.fx, side: -1, i }]);
+  const legEls = LEGS.map(() => {
+    const p = document.createElementNS(NS, 'polyline');
+    p.setAttribute('class', 'leg');
+    $('legs').appendChild(p);
+    return p;
+  });
+
+  // ---------- Zustand ----------
+  let minLen = 24, maxLen = 230;
+  let baseLen = 90;           // gewünschte Fadenlänge
+  let len = -40, lenV = 0;    // aktuelle Länge (startet oben versteckt → fällt herunter)
+  let lenTarget = baseLen;
+  let theta = 0.25, omega = 0; // Pendelwinkel
+  let spin = 0, spinTarget = 0;
+  let lastAnchor = window.screenX, anchorV = 0;
+  let cursor = { x: -999, y: -999 };
+  let hover = false, dragging = false, busy = false, catching = false;
+  let trick = null, trickUntil = 0, lenOverride = null;
+  let blinkUntil = 0, nextBlink = performance.now() + 2500;
+  let nextTrick = performance.now() + 9000 + Math.random() * 8000;
+  let spiderPos = { x: AX, y: 60 };
+  let last = performance.now();
+
+  // ---------- Tricks ----------
+  const TRICKS = {
+    yoyo:  () => { lenOverride = minLen - 6; setTimeout(() => (lenOverride = null), 420); return 900; },
+    flip:  () => { spinTarget += 360; return 900; },
+    wave:  () => 1600,
+    peek:  () => { lenOverride = -45; setTimeout(() => (lenOverride = null), 1700); return 2600; },
+    swing: () => { omega += (Math.random() < 0.5 ? -1 : 1) * 3.2; return 1500; },
+    dance: () => 1800,
+  };
+  function doTrick(name) {
+    trick = name;
+    trickUntil = performance.now() + TRICKS[name]();
+  }
+
+  // ---------- Animationsschleife ----------
+  function frame(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    const t = now / 1000;
+
+    if (trick && now > trickUntil) trick = null;
+    if (!trick && !hover && !dragging && !busy && !catching && now > nextTrick) {
+      const names = Object.keys(TRICKS);
+      doTrick(names[Math.floor(Math.random() * names.length)]);
+      nextTrick = now + 10000 + Math.random() * 14000;
+    }
+
+    // Faden: gefederte Länge (wippt nach)
+    lenTarget = lenOverride ?? (baseLen + (hover && !dragging ? 16 : 0) + (catching ? 22 : 0));
+    const k = 140, damp = 9;
+    lenV += (-(len - lenTarget) * k - lenV * damp) * dt;
+    len += lenV * dt;
+
+    // Pendel: schwingt, wenn das Fenster seitlich bewegt wird, plus leichte Brise
+    const ax = window.screenX;
+    const v = (ax - lastAnchor) / Math.max(dt, 0.001);
+    const acc = (v - anchorV) / Math.max(dt, 0.001);
+    anchorV = v; lastAnchor = ax;
+    const L = Math.max(30, len + 20);
+    const breeze = Math.sin(t * 0.7) * 0.25 + Math.sin(t * 1.9) * 0.1;
+    omega += (-(1700 / L) * Math.sin(theta) - 1.2 * omega - (Math.max(-6000, Math.min(6000, acc)) / L) * Math.cos(theta) * 0.9 + breeze) * dt;
+    if (busy) omega += Math.sin(t * 9) * 1.2 * dt;
+    theta = Math.max(-1.2, Math.min(1.2, theta + omega * dt));
+
+    spin += (spinTarget - spin) * Math.min(1, dt * 7);
+
+    const sx = AX + Math.sin(theta) * Math.max(len, 0);
+    const sy = Math.cos(theta) * len + 11;
+    spiderPos = { x: sx, y: sy };
+
+    $('thread').setAttribute('x1', AX); $('thread').setAttribute('y1', 0);
+    $('thread').setAttribute('x2', sx); $('thread').setAttribute('y2', sy - 11);
+    $('threadShadow').setAttribute('x1', AX); $('threadShadow').setAttribute('x2', sx); $('threadShadow').setAttribute('y2', sy - 11);
+    const wobble = busy ? Math.sin(t * 14) * 8 : 0;
+    $('spider').setAttribute('transform', `translate(${sx.toFixed(2)} ${sy.toFixed(2)}) rotate(${(-theta * 57.3 + spin + wobble).toFixed(2)})`);
+    $('svg').classList.toggle('catch', catching);
+
+    drawLegs(t);
+    drawFace(now);
+    hitTest();
+    requestAnimationFrame(frame);
+  }
+
+  function drawLegs(t) {
+    const speed = busy ? 20 : hover ? 9 : trick === 'dance' ? 16 : 3;
+    const amp = busy ? 2.2 : trick === 'dance' ? 3.5 : hover ? 1.8 : 1.1;
+    LEGS.forEach((l, n) => {
+      let { hx, hy, kx, ky, fx, fy } = l;
+      const ph = Math.sin(t * speed + l.i * 1.3 + (l.side > 0 ? 0 : Math.PI));
+      fy += ph * amp; ky += ph * amp * 0.6;
+      if (catching) { fx *= 1.25; fy -= 10; kx *= 1.1; ky -= 6; }
+      if (trick === 'wave' && l.i === 0 && l.side === 1) {
+        const w = Math.sin(t * 14) * 6;
+        kx = 16; ky = -22; fx = 22 + w; fy = -32;
+      }
+      legEls[n].setAttribute('points', `${hx},${hy} ${kx},${ky} ${fx},${fy}`);
+    });
+  }
+
+  function drawFace(now) {
+    if (now > nextBlink) { blinkUntil = now + 130; nextBlink = now + 2500 + Math.random() * 4000; }
+    const ry = now < blinkUntil ? 0.5 : (catching || busy ? 4.9 : 4.4);
+    $('eyeL').setAttribute('ry', ry); $('eyeR').setAttribute('ry', ry);
+    // Pupillen schauen zum Mauszeiger (Drehung der Spinne wird herausgerechnet)
+    const ang = (-theta * 57.3 + spin) * Math.PI / 180;
+    for (const [id, ex] of [['pupilL', -4.4], ['pupilR', 4.4]]) {
+      const wx = spiderPos.x + ex, wy = spiderPos.y - 1.6;
+      const dx = cursor.x - wx, dy = cursor.y - wy;
+      const rx = dx * Math.cos(-ang) - dy * Math.sin(-ang);
+      const ry2 = dx * Math.sin(-ang) + dy * Math.cos(-ang);
+      const d = Math.hypot(rx, ry2) || 1;
+      const m = Math.min(1.8, d / 30);
+      const el = $(id);
+      el.setAttribute('cx', ex + (rx / d) * m);
+      el.setAttribute('cy', -1.6 + (ry2 / d) * m * 1.2);
+      el.style.opacity = now < blinkUntil ? 0 : 1;
+    }
+    const mouth = busy ? 'M-1.6 6.4 a1.6 1.6 0 1 0 3.2 0 a1.6 1.6 0 1 0 -3.2 0'
+      : catching ? 'M-3 5.5 Q0 10 3 5.5'
+      : hover ? 'M-3.4 5.2 Q0 9 3.4 5.2'
+      : 'M-2.4 5.6 Q0 7.6 2.4 5.6';
+    $('mouth').setAttribute('d', mouth);
+  }
+
+  // Nur über der Spinne (oder direkt am Faden) Mausereignisse annehmen, sonst durchklicken lassen
+  let wasInside = null;
+  function hitTest() {
+    const d = Math.hypot(cursor.x - spiderPos.x, cursor.y - spiderPos.y);
+    const onThread = cursor.y > 0 && cursor.y < spiderPos.y - 10 &&
+      Math.abs(cursor.x - (AX + (spiderPos.x - AX) * (cursor.y / Math.max(spiderPos.y, 1)))) < 6;
+    const inside = dragging || down !== null || d < 30 || onThread;
+    if (inside !== wasInside) {
+      wasInside = inside;
+      window.spider.rigHover(inside);
+    }
+    if (!dragging) hover = inside && d < 34;
+  }
+
+  // ---------- Bedienung ----------
+  const sp = $('svg');
+  let down = null;
+  sp.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    down = true;
+    sp.setPointerCapture(e.pointerId);
+    window.spider.rigDragStart(baseLen);
+  });
+  sp.addEventListener('pointerup', async (e) => {
+    if (!down) return;
+    down = null;
+    sp.releasePointerCapture(e.pointerId);
+    const { moved } = await window.spider.rigDragEnd();
+    if (!moved) {
+      doTrick('yoyo');
+      window.spider.analyzeClipboard();
+    }
+  });
+  sp.addEventListener('contextmenu', (e) => { e.preventDefault(); window.spider.bubbleMenu(); });
+
+  window.addEventListener('dragover', (e) => { e.preventDefault(); catching = true; });
+  window.addEventListener('dragleave', () => { catching = false; });
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    catching = false;
+    doTrick('yoyo');
+    const f = e.dataTransfer.files[0];
+    if (f) window.spider.openFile(f);
+    else {
+      const txt = e.dataTransfer.getData('text/plain');
+      if (txt) window.spider.analyzeText(txt);
+    }
+  });
+
+  window.spider.onRigInit((d) => { minLen = d.minLen; maxLen = d.maxLen; baseLen = d.length; });
+  window.spider.onCursor((p) => { cursor = p; });
+  window.spider.onThreadLength((l) => { baseLen = l; });
+  window.spider.onRigDragging((d) => { dragging = d; $('spider').classList.toggle('grabbing', d); });
+  window.spider.onBusy((b) => { busy = b; if (!b) doTrick('flip'); });
+
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>

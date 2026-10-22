@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<title>Einstellungen</title>
+<style>
+  :root { --bg: #0b0b10; --card: #17171f; --line: #26263a; --text: #ececf3; --muted: #8b8ba3; --pink: #ff2d8a; }
+  body { margin: 0; padding: 22px 26px; background: var(--bg); color: var(--text); font: 14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 14px; }
+  label { display: block; font-weight: 600; margin: 16px 0 6px; }
+  input, select { width: 100%; box-sizing: border-box; background: var(--card); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 9px 10px; font: inherit; }
+  input:focus, select:focus { outline: none; border-color: var(--pink); }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 5px; }
+  a { color: var(--pink); cursor: pointer; }
+  code { font-family: Consolas, monospace; background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; color: var(--text); user-select: all; }
+  .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .opt { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; background: var(--card); }
+  .opt.on { border-color: var(--pink); box-shadow: 0 0 0 1px var(--pink); }
+  .opt b { display: block; } .opt span { color: var(--muted); font-size: 12px; }
+  .box { border: 1px solid var(--line); border-radius: 10px; padding: 4px 14px 14px; margin-top: 14px; }
+  .row { display: flex; gap: 8px; margin-top: 22px; align-items: center; }
+  .inline { display: flex; gap: 8px; } .inline select { flex: 1; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); padding: 8px 16px; }
+  button.primary { background: var(--pink); border-color: var(--pink); color: #fff; font-weight: 600; }
+  .ok { color: #30a46c; } .bad { color: #ff7a9c; }
+  ol { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 12px; } ol li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<h1>🕷 Einstellungen</h1>
+
+<div class="choice">
+  <div class="opt" data-p="ollama"><b>Lokal: kostenlos</b><span>Läuft auf deinem PC mit Ollama, ohne Konto und offline</span></div>
+  <div class="opt" data-p="claude"><b>Claude: beste Qualität</b><span>Braucht einen API-Schlüssel, kostet ein paar Cent pro Analyse</span></div>
+</div>
+
+<div class="box" id="boxOllama">
+  <label for="ollamaModel">Lokales Modell</label>
+  <div class="inline">
+    <select id="ollamaModel"></select>
+    <button id="refresh" title="Neu laden">↻</button>
+  </div>
+  <div class="hint" id="ollamaStatus"></div>
+  <ol id="ollamaSteps">
+    <li>Ollama kostenlos installieren: <a id="ollamaLink">ollama.com/download</a></li>
+    <li>Eingabeaufforderung öffnen (Windows-Taste, „cmd“ eingeben) und ein Modell laden:<br>
+      <code>ollama pull gemma3:12b</code> (gut, ab 16 GB RAM) oder <code>ollama pull gemma3:4b</code> (für schwächere PCs)</li>
+    <li>Hier auf ↻ klicken.</li>
+  </ol>
+</div>
+
+<div class="box" id="boxClaude">
+  <label for="key">Anthropic API-Schlüssel</label>
+  <input id="key" type="password" placeholder="sk-ant-…" autocomplete="off">
+  <div class="hint">Erstellen unter <a id="console">platform.claude.com</a> → API Keys. Wird verschlüsselt nur auf diesem PC gespeichert.</div>
+  <label for="model">Modell</label>
+  <select id="model"></select>
+</div>
+
+<label for="lang">Sprache der Analyse</label>
+<select id="lang">
+  <option>Deutsch</option><option>Englisch</option><option>Französisch</option><option>Spanisch</option><option>Italienisch</option>
+  <option value="der Sprache des Dokuments">Wie das Dokument</option>
+</select>
+<div class="hint" style="margin-top:10px">Tastenkürzel: <b id="hotkey"></b> analysiert den Text in der Zwischenablage.</div>
+
+<div class="row">
+  <button class="primary" id="save">Speichern</button>
+  <button id="close">Schließen</button>
+  <span id="msg" class="ok"></span>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let provider = 'ollama', wantedOllama = 'gemma3:12b';
+
+  function setProvider(p) {
+    provider = p;
+    document.querySelectorAll('.opt').forEach((o) => o.classList.toggle('on', o.dataset.p === p));
+    $('boxOllama').style.display = p === 'ollama' ? '' : 'none';
+    $('boxClaude').style.display = p === 'claude' ? '' : 'none';
+  }
+  document.querySelectorAll('.opt').forEach((o) => o.addEventListener('click', () => setProvider(o.dataset.p)));
+
+  async function loadOllama() {
+    $('ollamaStatus').textContent = 'Suche Ollama …';
+    $('ollamaStatus').className = 'hint';
+    const r = await window.spider.ollamaModels();
+    const sel = $('ollamaModel');
+    sel.innerHTML = '';
+    if (!r.ok) {
+      $('ollamaStatus').textContent = 'Ollama wurde nicht gefunden. So geht’s:';
+      $('ollamaStatus').className = 'hint bad';
+      sel.add(new Option(wantedOllama, wantedOllama));
+      $('ollamaSteps').style.display = '';
+      return;
+    }
+    if (!r.models.length) {
+      $('ollamaStatus').textContent = 'Ollama läuft, aber es ist noch kein Modell geladen:';
+      $('ollamaStatus').className = 'hint bad';
+      sel.add(new Option(wantedOllama, wantedOllama));
+      $('ollamaSteps').style.display = '';
+      return;
+    }
+    for (const m of r.models) sel.add(new Option(m, m, false, m === wantedOllama));
+    $('ollamaStatus').textContent = `✓ Ollama läuft · ${r.models.length} Modell(e) installiert`;
+    $('ollamaStatus').className = 'hint ok';
+    $('ollamaSteps').style.display = 'none';
+  }
+
+  window.spider.getSettings().then((s) => {
+    for (const [id, name] of Object.entries(s.models)) $('model').add(new Option(name, id, false, id === s.model));
+    $('lang').value = s.language;
+    $('hotkey').textContent = s.hotkey;
+    wantedOllama = s.ollamaModel;
+    if (s.hasKey) $('key').placeholder = '•••••••• (gespeichert – leer lassen, um ihn zu behalten)';
+    setProvider(s.provider);
+    loadOllama();
+  });
+  $('refresh').addEventListener('click', loadOllama);
+  $('ollamaLink').addEventListener('click', () => window.spider.openExternal('https://ollama.com/download'));
+  $('console').addEventListener('click', () => window.spider.openExternal('https://platform.claude.com/settings/keys'));
+  $('save').addEventListener('click', async () => {
+    await window.spider.saveSettings({
+      provider, apiKey: $('key').value, model: $('model').value,
+      ollamaModel: $('ollamaModel').value, language: $('lang').value,
+    });
+    $('key').value = '';
+    $('msg').textContent = 'Gespeichert ✓';
+    setTimeout(() => window.close(), 700);
+  });
+  $('close').addEventListener('click', () => window.close());
+</script>
+</body>
+</html>
