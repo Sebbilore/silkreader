@@ -14,7 +14,7 @@ const loadAnthropic = () => (Anthropic ??= require('@anthropic-ai/sdk').default)
 let autoUpdaterInstance = null;
 const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoUpdater);
 
-const { grabSelection, copyFileToClipboard, warmUp: warmUpGrab } = require('./grab');
+const { grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown } = require('./grab');
 const { CocoonStore } = require('./cocoons');
 
 // Globale Tastenkürzel. Strg+Alt statt Strg+Umschalt, weil viele Programme Strg+Umschalt
@@ -100,7 +100,7 @@ function setApiKey(key) {
 
 // Die Spinne hängt an einem Faden vom oberen Bildschirmrand. Das Fenster ist größtenteils
 // durchsichtig und lässt Klicks durch – nur über der Spinne selbst fängt es die Maus ab.
-const RIG = { width: 140, height: 320, minLen: 24, maxLen: 230 };
+const RIG = { width: 220, height: 320, minLen: 24, maxLen: 230 };
 
 function rigArea() {
   return screen.getPrimaryDisplay().workArea;
@@ -140,12 +140,36 @@ function createBubble() {
     const x = c.x - wx, y = c.y - wy;
     const far = x < -300 || x > RIG.width + 300 || y > RIG.height + 300;
     const now = Date.now();
+    checkDropZone(x, y);
     if (lastPos && lastPos.x === x && lastPos.y === y) return; // Maus bewegt sich nicht
     if (far && now - lastSent < 400) return;
     lastSent = now;
     lastPos = { x, y };
     bubbleWin.webContents.send('cursor', { x, y });
   }, 40);
+}
+
+// Zieht jemand mit gedrückter Maustaste etwas in die Nähe der Spinne, wird das ganze Netz
+// zur Ablagefläche – man muss die schaukelnde Spinne nicht mehr genau treffen.
+let dropZone = false, btnPending = false, lastBtnCheck = 0;
+function checkDropZone(x, y) {
+  const near = x > -60 && x < RIG.width + 60 && y > -20 && y < RIG.height + 60;
+  if (!near) { if (dropZone) setDropZone(false); return; }
+  const now = Date.now();
+  if (btnPending || now - lastBtnCheck < 120) return;
+  lastBtnCheck = now;
+  btnPending = true;
+  isMouseDown().then((down) => {
+    btnPending = false;
+    if (down === null) return; // unbekannt (nicht Windows)
+    if (down !== dropZone) setDropZone(down);
+  });
+}
+function setDropZone(on) {
+  dropZone = on;
+  if (!bubbleWin || bubbleWin.isDestroyed()) return;
+  if (on) bubbleWin.setIgnoreMouseEvents(false);
+  bubbleWin.webContents.send('drop-zone', on);
 }
 
 function setBusy(busy) {
@@ -194,9 +218,9 @@ function openSettings() {
 
 // Öffnet das Analysefenster und übergibt ihm ein Dokument. Analysiert wird erst nach Enter
 // (oder sofort, wenn autoStart gesetzt ist).
-function showDocument(doc, { autoStart = false, result = null } = {}) {
+function showDocument(doc, { autoStart = false, result = null, focus = null } = {}) {
   const win = showMain();
-  const send = () => win.webContents.send('document', { doc, autoStart, result });
+  const send = () => win.webContents.send('document', { doc, autoStart, result, focus });
   if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send);
   else send();
 }
@@ -283,7 +307,7 @@ async function spiderTake({ autoStart = false, fromHotkey = false } = {}) {
       return;
     }
     if (!grabbed.text) {
-      bubbleWin?.webContents.send('rig-trick', 'shrug'); // nichts markiert
+      showMain(); // nichts markiert → einfach die App öffnen
       return;
     }
     const doc = { title: 'Markierter Text', source: 'selection', pages: [grabbed.text] };
@@ -338,8 +362,29 @@ const analyzeClipboard = () => spiderTake();
 
 // ---------- Kokon-Ablage ----------
 
-function sendCocoons() {
-  bubbleWin?.webContents.send('cocoons', cocoons.list());
+const iconCache = new Map();
+async function iconFor(it) {
+  if (it.type !== 'file' || it.missing) return null;
+  if (iconCache.has(it.path)) return iconCache.get(it.path);
+  let img = null;
+  // Bilder: echtes Vorschaubild; sonst Windows-/macOS-Vorschau, sonst das Dateisymbol
+  if (/\.(png|jpe?g|gif|webp|bmp)$/i.test(it.path)) {
+    try { img = nativeImage.createFromPath(it.path); if (!img.isEmpty()) img = img.resize({ width: 64 }); } catch { img = null; }
+  }
+  if (!img || img.isEmpty()) {
+    try { img = await nativeImage.createThumbnailFromPath(it.path, { width: 64, height: 64 }); } catch { /* kein Vorschaubild */ }
+  }
+  if (!img || img.isEmpty()) {
+    try { img = await app.getFileIcon(it.path, { size: 'normal' }); } catch { img = null; }
+  }
+  const url = img && !img.isEmpty() ? img.toDataURL() : null;
+  iconCache.set(it.path, url);
+  return url;
+}
+
+async function sendCocoons() {
+  const list = await Promise.all(cocoons.list().map(async (it) => ({ ...it, icon: await iconFor(it) })));
+  bubbleWin?.webContents.send('cocoons', list);
 }
 
 async function cocoonFromSelection() {
@@ -920,7 +965,7 @@ ipcMain.handle('pick-file', () => pickFile());
 ipcMain.handle('analyze-clipboard', () => spiderTake());
 ipcMain.handle('spider-take', () => spiderTake());
 ipcMain.handle('popup-close', () => popupWin?.hide());
-ipcMain.handle('popup-details', (_e, doc, result) => { popupWin?.hide(); showDocument(doc, { result }); });
+ipcMain.handle('popup-details', (_e, doc, result, focus) => { popupWin?.hide(); showDocument(doc, { result, focus }); });
 ipcMain.handle('clipboard-preview', async () => {
   const text = String((await clipboard.readText()) || '').trim();
   if (text) showDocument({ title: 'Text aus der Zwischenablage', source: 'clipboard', pages: [text] });

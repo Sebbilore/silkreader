@@ -25,6 +25,8 @@ using System;
 using System.Runtime.InteropServices;
 public static class SilkKeys {
   [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+  [DllImport("user32.dll")] static extern short GetAsyncKeyState(int vKey);
+  public static bool LeftDown() { return (GetAsyncKeyState(0x01) & 0x8000) != 0; }
   public static void Copy() {
     keybd_event(0x11, 0x1D, 0, UIntPtr.Zero);
     keybd_event(0x43, 0x2E, 0, UIntPtr.Zero);
@@ -37,8 +39,11 @@ public static class SilkKeys {
 while ($true) {
   $line = [Console]::In.ReadLine()
   if ($line -eq $null) { break }
-  if ($line -eq 'copy') { [SilkKeys]::Copy() }
-  [Console]::Out.WriteLine('ok')
+  try {
+    if ($line -eq 'copy') { [SilkKeys]::Copy(); [Console]::Out.WriteLine('ok') }
+    elseif ($line -eq 'btn') { if ([SilkKeys]::LeftDown()) { [Console]::Out.WriteLine('down') } else { [Console]::Out.WriteLine('up') } }
+    else { [Console]::Out.WriteLine('ok') }
+  } catch { [Console]::Out.WriteLine('err') }
 }
 `;
 
@@ -56,7 +61,7 @@ function startWindowsHelper() {
       const line = h.buf.slice(0, nl).trim();
       h.buf = h.buf.slice(nl + 1);
       if (line === 'ready') h.ready = true;
-      else if (line === 'ok') h.waiting.shift()?.();
+      else if (line) h.waiting.shift()?.(line);
     }
   });
   const reset = () => { h.waiting.splice(0).forEach((r) => r()); if (helper === h) helper = null; };
@@ -66,13 +71,25 @@ function startWindowsHelper() {
   return h;
 }
 
-function windowsCopy() {
+// Schickt einen Befehl an den Helfer und wartet auf seine eine Antwortzeile.
+function helperCommand(cmd, timeoutMs) {
   return new Promise((resolve) => {
     const h = startWindowsHelper();
-    const timer = setTimeout(resolve, 2500); // Helfer startet beim ersten Mal ggf. noch
-    h.waiting.push(() => { clearTimeout(timer); resolve(); });
-    try { h.proc.stdin.write('copy\n'); } catch { resolve(); }
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; resolve(v); } };
+    const timer = setTimeout(() => finish(null), timeoutMs);
+    h.waiting.push((line) => { clearTimeout(timer); finish(line); });
+    try { h.proc.stdin.write(`${cmd}\n`); } catch { finish(null); }
   });
+}
+
+const windowsCopy = () => helperCommand('copy', 2500); // beim ersten Mal startet der Helfer ggf. noch
+
+/** Ist die linke Maustaste gerade gedrückt? (null = unbekannt, z. B. nicht Windows) */
+async function isMouseDown() {
+  if (process.platform !== 'win32' || !helper?.ready) return null;
+  const r = await helperCommand('btn', 300);
+  return r === 'down' ? true : r === 'up' ? false : null;
 }
 
 /** Startet den Windows-Helfer vorab, damit der erste Klick nicht warten muss. */
@@ -158,4 +175,4 @@ async function copyFileToClipboard(filePath) {
   return true;
 }
 
-module.exports = { grabSelection, copyFileToClipboard, warmUp };
+module.exports = { grabSelection, copyFileToClipboard, warmUp, isMouseDown };

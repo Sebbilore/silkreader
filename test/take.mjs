@@ -6,7 +6,7 @@ const app = await electron.launch({ executablePath: './node_modules/electron/dis
   env: { ...process.env, SPIDER_MOCK: 'test/mock.json', HOME: home, SILK_MODEL_PATH: '/nonexistent', DISPLAY: process.env.DISPLAY } });
 const errs = [];
 app.process().stderr.on('data', (d) => { if (/Error|rror:/.test(d) && !/vulkan|GPU|gpu|dbus|Gtk/i.test(d)) errs.push(String(d).slice(0, 300)); });
-app.on('window', (w) => w.on('pageerror', (e) => errs.push(String(e))));
+app.on('window', (w) => { w.on('pageerror', (e) => errs.push(w.url().split('/').pop() + ': ' + String(e))); w.on('console', (m) => { if (m.type() === 'error') errs.push(w.url().split('/').pop() + ': ' + m.text()); }); });
 await new Promise((r) => setTimeout(r, 3500));
 await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter((w) => w.webContents.getURL().includes('settings')).forEach((w) => w.close()));
 // "Fremdes Programm" mit markiertem Text simulieren
@@ -39,9 +39,10 @@ await pop.keyboard.press('Enter');
 await pop.waitForSelector('#foot:not(.hidden)', { timeout: 30000 });
 console.log('after Enter →', await pop.textContent('#title'), '| findings:', await pop.evaluate(() => document.querySelectorAll('.finding').length), '| chips:', await pop.evaluate(() => document.querySelectorAll('.chip').length));
 execSync(`import -window root ${out}/popup.png`);
-await pop.click('#details');
+await pop.click('li.jump[data-index="1"]');
 await new Promise((r) => setTimeout(r, 5000));
 const main = app.windows().find((w) => w.url().includes('index.html'));
+console.log('focused item:', await main.evaluate(() => document.querySelector('.focus')?.textContent.trim()), '| highlighted words:', await main.evaluate(() => [...document.querySelectorAll('.w.flash')].map((e) => e.textContent).join(' ')));
 console.log('details →', await main.textContent('#scanLabel'), '|', await main.textContent('#counter'), '| popup hidden:', !(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().includes('popup') && w.isVisible()))));
 console.log('errors:', errs);
 await app.close();

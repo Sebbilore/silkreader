@@ -211,9 +211,9 @@ async function presentResult(r, myRun) {
   const body = $('panelBody');
   body.innerHTML = `${r.note ? `<div class="status">ℹ️ ${esc(r.note)}</div>` : ''}
     <h3>Zusammenfassung</h3><div class="summary">${esc(r.summary)}</div>
-    <h3>Kernaussagen</h3><ul class="points">${r.key_points.map((p, i) => `<li style="animation-delay:${i * 60}ms">${esc(p)}</li>`).join('')}</ul>
+    <h3>Kernaussagen</h3><ul class="points">${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}" style="animation-delay:${i * 60}ms">${esc(p)}</li>`).join('')}</ul>
     <h3>Erkenntnisse</h3>${r.findings.map((f, i) => `
-      <div class="finding" style="animation-delay:${i * 80}ms">
+      <div class="finding jump" data-type="finding" data-index="${i}" style="animation-delay:${i * 80}ms">
         <span class="kind ${esc(f.kind)}">${esc(f.kind)}</span>
         <div class="t">${esc(f.title)}</div>
         <div class="d">${esc(f.detail)}</div>
@@ -221,6 +221,10 @@ async function presentResult(r, myRun) {
       </div>`).join('')}
     <h3>Gefundene Angaben</h3><div id="figs"></div>`;
   body.scrollTop = 0;
+  body.querySelectorAll('.jump').forEach((row) => row.addEventListener('click', () => {
+    skip = true; // laufende Tour abkürzen
+    focusItem({ type: row.dataset.type, index: Number(row.dataset.index) }, row);
+  }));
   const figs = $('figs');
   const total = r.figures.length;
   const setCount = (n) => {
@@ -248,6 +252,57 @@ async function presentResult(r, myRun) {
   if (myRun !== run) return;
   $('scanLabel').textContent = 'FERTIG';
   $('btnSkip').classList.add('hidden');
+}
+
+// Findet die Textstelle, zu der eine zusammengefasste Aussage gehört: der Satz mit den
+// meisten gemeinsamen Wörtern (Zahlen zählen doppelt).
+function findPassage(text) {
+  const q = new Set(text.split(/\s+/).map(norm).filter((w) => w.length >= 4 || /\d/.test(w)));
+  if (!q.size || !words.length) return null;
+  let best = null, bestScore = 0, start = 0;
+  const flush = (end) => {
+    let score = 0;
+    const seen = new Set();
+    for (let k = start; k <= end; k++) {
+      const w = words[k].norm;
+      if (q.has(w) && !seen.has(w)) { seen.add(w); score += /\d/.test(w) ? 2 : 1; }
+    }
+    // kurze Sätze leicht bevorzugen
+    const adj = score / Math.sqrt(Math.max(6, end - start + 1) / 6);
+    if (adj > bestScore) { bestScore = adj; best = { start, len: Math.min(end - start + 1, 45) }; }
+  };
+  for (let k = 0; k < words.length; k++) {
+    if (/[.!?:;]$/.test(words[k].el.textContent) || k === words.length - 1 || words[k + 1]?.page !== words[k].page) {
+      flush(k);
+      start = k + 1;
+    }
+  }
+  return bestScore >= 1.5 ? best : null;
+}
+
+// Spinne zur Fundstelle eines Ergebnis-Eintrags schicken
+async function focusItem(focus, rowEl) {
+  if (!result || !focus) return;
+  let loc = null;
+  if (focus.type === 'figure') {
+    const f = result.figures[focus.index];
+    loc = f && (locate(f.quote, f.page) || findPassage(`${f.label} ${f.value}`));
+  } else if (focus.type === 'point') {
+    loc = findPassage(result.key_points[focus.index] || '');
+  } else if (focus.type === 'finding') {
+    const f = result.findings[focus.index];
+    loc = f && findPassage(`${f.title} ${f.detail}`);
+  } else if (focus.type === 'summary') {
+    loc = findPassage(result.summary);
+  }
+  document.querySelectorAll('.focus').forEach((e) => e.classList.remove('focus'));
+  rowEl?.classList.add('focus');
+  if (!loc) { toast('Diese Stelle steht so nicht wörtlich im Text'); return; }
+  const el = words[loc.start].el;
+  $('docScroll').scrollTo({ top: el.offsetTop - $('docScroll').clientHeight / 3, behavior: 'smooth' });
+  spider.speed = 900;
+  await walkTo(loc, 2200);
+  markHit(loc, true);
 }
 
 function walkTo(loc, maxMs = 2600) {
@@ -343,13 +398,13 @@ window.addEventListener('drop', (e) => {
 });
 
 window.addEventListener('resize', () => spider?.index());
-window.spider.onDocument(({ doc, autoStart, result: r }) => {
-  if (r) showWithResult(doc, r); // aus der Sprechblase: Ergebnis gibt es schon
+window.spider.onDocument(({ doc, autoStart, result: r, focus }) => {
+  if (r) showWithResult(doc, r, focus); // aus der Sprechblase: Ergebnis gibt es schon
   else if (autoStart) startAnalysis(doc);
   else showPreview(doc);
 });
 
-function showWithResult(doc, r) {
+function showWithResult(doc, r, focus) {
   const myRun = ++run;
   pending = null;
   stopWander();
@@ -361,7 +416,17 @@ function showWithResult(doc, r) {
   spider.show();
   const first = spider.words[0];
   if (first) spider.teleport(first.x + 60, first.y + 40);
-  presentResult(r, myRun);
+  if (focus) {
+    // Direkt zur angeklickten Stelle: Tour überspringen, dann hinlaufen
+    skip = true;
+    presentResult(r, myRun).then(() => {
+      skip = false;
+      const sel = focus.type === 'figure' ? `#figs .fig:nth-child(${focus.index + 1})` : `.jump[data-type="${focus.type}"][data-index="${focus.index}"]`;
+      focusItem(focus, document.querySelector(sel));
+    });
+  } else {
+    presentResult(r, myRun);
+  }
 }
 
 // Tastenkürzel im Analysefenster

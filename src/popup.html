@@ -56,6 +56,10 @@
     padding: 7px 6px; cursor: pointer; }
   footer button:hover { border-color: var(--pink); }
   .hidden { display: none !important; }
+  .jump { cursor: pointer; transition: background .15s, border-color .15s; }
+  li.jump { border-radius: 5px; padding: 1px 3px; margin-left: -3px; }
+  li.jump:hover, .finding.jump:hover { background: #24243a; }
+  .chip.jump:hover { border-color: var(--pink); }
 </style>
 </head>
 <body>
@@ -126,12 +130,15 @@
     const figs = r.figures.slice(0, 10);
     $('main').innerHTML = `
       <h4>Zusammenfassung</h4><div class="summary">${esc(r.summary)}</div>
-      ${r.key_points.length ? `<h4>Kernaussagen</h4><ul>${r.key_points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
-      ${r.findings.length ? `<h4>Erkenntnisse</h4>${r.findings.map((f) => `<div class="finding"><span class="k ${esc(f.kind)}">${esc(f.kind)}</span> ${esc(f.title)}${f.detail ? `<div class="d">${esc(f.detail)}</div>` : ''}</div>`).join('')}` : ''}
-      ${figs.length ? `<h4>Wichtige Angaben</h4><div class="chips">${figs.map((f) => `<span class="chip" title="„${esc(f.quote)}“ · S. ${f.page}">${esc(f.label)}: <b>${esc(f.value)}</b></span>`).join('')}${r.figures.length > figs.length ? `<span class="chip">+${r.figures.length - figs.length} weitere</span>` : ''}</div>` : ''}
+      ${r.key_points.length ? `<h4>Kernaussagen</h4><ul>${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}">${esc(p)}</li>`).join('')}</ul>` : ''}
+      ${r.findings.length ? `<h4>Erkenntnisse</h4>${r.findings.map((f, i) => `<div class="finding jump" data-type="finding" data-index="${i}"><span class="k ${esc(f.kind)}">${esc(f.kind)}</span> ${esc(f.title)}${f.detail ? `<div class="d">${esc(f.detail)}</div>` : ''}</div>`).join('')}` : ''}
+      ${figs.length ? `<h4>Wichtige Angaben</h4><div class="chips">${figs.map((f, i) => `<span class="chip jump" data-type="figure" data-index="${i}" title="„${esc(f.quote)}“ · S. ${f.page}">${esc(f.label)}: <b>${esc(f.value)}</b></span>`).join('')}${r.figures.length > figs.length ? `<span class="chip">+${r.figures.length - figs.length} weitere</span>` : ''}</div>` : ''}
       ${r.note ? `<div class="note">ℹ️ ${esc(r.note)}</div>` : ''}`;
     $('main').scrollTop = 0;
     $('foot').classList.remove('hidden');
+    // Klick auf eine Info: Leseansicht öffnen, die Spinne läuft zur Fundstelle
+    $('main').querySelectorAll('.jump').forEach((row) => row.addEventListener('click', () =>
+      window.spider.popupDetails(doc, result, { type: row.dataset.type, index: Number(row.dataset.index) })));
   }
 
   function markdown(r) {
