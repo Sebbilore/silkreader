@@ -14,7 +14,7 @@ const loadAnthropic = () => (Anthropic ??= require('@anthropic-ai/sdk').default)
 let autoUpdaterInstance = null;
 const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoUpdater);
 
-const { grabSelection, copyFileToClipboard } = require('./grab');
+const { grabSelection, copyFileToClipboard, warmUp: warmUpGrab } = require('./grab');
 const { CocoonStore } = require('./cocoons');
 
 // Globale Tastenkürzel. Strg+Alt statt Strg+Umschalt, weil viele Programme Strg+Umschalt
@@ -970,6 +970,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     cocoons = new CocoonStore(path.join(app.getPath('userData'), 'cocoons.json'));
+    setTimeout(warmUpGrab, 2000); // Tastatur-Helfer vorab starten, damit der erste Klick sofort klappt
     createBubble();
 
     const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png'));

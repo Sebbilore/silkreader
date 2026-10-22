@@ -8,7 +8,7 @@ Eine kleine schwebende Spinne auf deinem Desktop. Klick sie an, und sie liest je
 
 ## Installation (Windows)
 
-1. `Silkreader-Setup-1.4.1.exe` herunterladen.
+1. `Silkreader-Setup-1.4.2.exe` herunterladen.
 2. Falls Windows blockiert: Rechtsklick auf die Datei → **Eigenschaften** → unten den Haken bei **„Zulassen“** setzen → OK.
 3. Setup starten und durchklicken. Beim ersten Mal fragt Windows, ob du dem Zertifikat „Silkreader“ vertraust: **Ja**. Ab dann steht bei Windows „Herausgeber: Silkreader“, und Updates können ihre Echtheit prüfen.
 4. Die Spinne erscheint oben am Bildschirmrand. Beim ersten Start öffnen sich die Einstellungen (siehe unten).

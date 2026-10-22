@@ -3,13 +3,12 @@
 // Zwischenablage danach wiederhergestellt.
 
 const { clipboard, ClipboardItem } = require('electron');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-let sendKeysScript = null;
 
 function run(cmd, args, timeout = 4000) {
   return new Promise((resolve) => {
@@ -17,14 +16,72 @@ function run(cmd, args, timeout = 4000) {
   });
 }
 
-function sendCopyKeystroke() {
-  if (process.platform === 'win32') {
-    if (!sendKeysScript) {
-      sendKeysScript = path.join(os.tmpdir(), 'silkreader-copy.js');
-      fs.writeFileSync(sendKeysScript, 'WScript.CreateObject("WScript.Shell").SendKeys("^c");');
-    }
-    return run('cscript', ['//nologo', '//E:jscript', sendKeysScript]);
+// Windows: Ein kleiner PowerShell-Helfer läuft im Hintergrund und drückt auf Zuruf Strg+C –
+// direkt über die Windows-Tastaturfunktion. (Das alte WScript-SendKeys schaltet bei jedem
+// Aufruf NumLock um, deshalb wird es nicht mehr benutzt.)
+const PS_HELPER = `
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class SilkKeys {
+  [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+  public static void Copy() {
+    keybd_event(0x11, 0x1D, 0, UIntPtr.Zero);
+    keybd_event(0x43, 0x2E, 0, UIntPtr.Zero);
+    keybd_event(0x43, 0x2E, 2, UIntPtr.Zero);
+    keybd_event(0x11, 0x1D, 2, UIntPtr.Zero);
   }
+}
+"@
+[Console]::Out.WriteLine('ready')
+while ($true) {
+  $line = [Console]::In.ReadLine()
+  if ($line -eq $null) { break }
+  if ($line -eq 'copy') { [SilkKeys]::Copy() }
+  [Console]::Out.WriteLine('ok')
+}
+`;
+
+let helper = null;
+function startWindowsHelper() {
+  if (helper) return helper;
+  // Als -EncodedCommand statt als Skriptdatei: so greifen keine Skript-Sperren (Execution Policy).
+  const encoded = Buffer.from(PS_HELPER, 'utf16le').toString('base64');
+  const proc = spawn('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], { windowsHide: true });
+  const h = { proc, ready: false, waiting: [], buf: '' };
+  proc.stdout.on('data', (d) => {
+    h.buf += d;
+    let nl;
+    while ((nl = h.buf.indexOf('\n')) >= 0) {
+      const line = h.buf.slice(0, nl).trim();
+      h.buf = h.buf.slice(nl + 1);
+      if (line === 'ready') h.ready = true;
+      else if (line === 'ok') h.waiting.shift()?.();
+    }
+  });
+  const reset = () => { h.waiting.splice(0).forEach((r) => r()); if (helper === h) helper = null; };
+  proc.on('exit', reset);
+  proc.on('error', reset);
+  helper = h;
+  return h;
+}
+
+function windowsCopy() {
+  return new Promise((resolve) => {
+    const h = startWindowsHelper();
+    const timer = setTimeout(resolve, 2500); // Helfer startet beim ersten Mal ggf. noch
+    h.waiting.push(() => { clearTimeout(timer); resolve(); });
+    try { h.proc.stdin.write('copy\n'); } catch { resolve(); }
+  });
+}
+
+/** Startet den Windows-Helfer vorab, damit der erste Klick nicht warten muss. */
+function warmUp() {
+  if (process.platform === 'win32') startWindowsHelper();
+}
+
+function sendCopyKeystroke() {
+  if (process.platform === 'win32') return windowsCopy();
   if (process.platform === 'darwin') {
     return run('osascript', ['-e', 'tell application "System Events" to keystroke "c" using command down']);
   }
@@ -101,4 +158,4 @@ async function copyFileToClipboard(filePath) {
   return true;
 }
 
-module.exports = { grabSelection, copyFileToClipboard };
+module.exports = { grabSelection, copyFileToClipboard, warmUp };
