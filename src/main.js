@@ -26,6 +26,7 @@ const BUILTIN_MODELS = {
     file: 'Qwen2.5-1.5B-Instruct-Q4_K_M.gguf',
     sizeLabel: '1 GB',
     maxDocTokens: 6000,
+    answerTokens: 1300,
   },
   quality: {
     name: 'Gründlich (Qwen3 4B)',
@@ -33,6 +34,7 @@ const BUILTIN_MODELS = {
     file: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
     sizeLabel: '2,5 GB',
     maxDocTokens: 12000,
+    answerTokens: 1800,
   },
 };
 const MODELS = {
@@ -103,7 +105,7 @@ function createBubble() {
     width: RIG.width, height: RIG.height, x: Math.round(x), y: area.y,
     frame: false, transparent: true, resizable: false, alwaysOnTop: true,
     skipTaskbar: true, hasShadow: false, focusable: true, maximizable: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.js') },
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
   });
   bubbleWin.setAlwaysOnTop(true, 'floating');
   bubbleWin.setVisibleOnAllWorkspaces(true);
@@ -137,11 +139,12 @@ function setBusy(busy) {
 }
 
 function createMain() {
+  preloadBuiltinModel();
   if (mainWin && !mainWin.isDestroyed()) return mainWin;
   mainWin = new BrowserWindow({
     width: 1280, height: 860, minWidth: 820, minHeight: 560,
     title: 'Silkreader', backgroundColor: '#0b0b10', autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'preload.js') },
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
   });
   mainWin.loadFile(path.join(__dirname, 'index.html'));
   mainWin.on('closed', () => { mainWin = null; });
@@ -153,7 +156,7 @@ function openSettings() {
   settingsWin = new BrowserWindow({
     width: 560, height: 680, resizable: true, title: 'Einstellungen',
     backgroundColor: '#0b0b10', autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'preload.js') },
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
   });
   settingsWin.loadFile(path.join(__dirname, 'settings.html'));
   settingsWin.on('closed', () => { settingsWin = null; });
@@ -297,8 +300,9 @@ function buildPrompt(doc, language, compact = false) {
 async function analyze(doc, onProgress) {
   // Entwicklungs-Hook: feste Antwort aus einer JSON-Datei statt API-Aufruf.
   if (process.env.SPIDER_MOCK) {
-    for (let n = 1; n <= 8; n++) { await new Promise((r) => setTimeout(r, 500)); onProgress(n * 400); }
-    return JSON.parse(fs.readFileSync(process.env.SPIDER_MOCK, 'utf8'));
+    const mock = fs.readFileSync(process.env.SPIDER_MOCK, 'utf8');
+    for (let i = 0; i < mock.length; i += 200) { await new Promise((r) => setTimeout(r, 120)); onProgress(mock.slice(i, i + 200)); }
+    return JSON.parse(mock);
   }
   const s = loadSettings();
   if (s.provider === 'builtin') return analyzeBuiltin(doc, s, onProgress);
@@ -324,8 +328,7 @@ async function analyzeClaude(doc, s, onProgress) {
   }
 
   const stream = client.beta.messages.stream(params);
-  let chars = 0;
-  stream.on('text', (delta) => { chars += delta.length; onProgress(chars); });
+  stream.on('text', (delta) => onProgress(delta));
   const msg = await stream.finalMessage();
 
   if (msg.stop_reason === 'refusal') throw new Error('Claude hat die Analyse dieses Textes abgelehnt.');
@@ -369,11 +372,26 @@ async function unloadBuiltinModel() {
   await rt?.model.dispose().catch(() => {});
 }
 
-// Modell schon kurz nach dem Start im Hintergrund laden, damit die erste Analyse nicht warten muss.
+// Das Modell belegt 1–2,5 GB Arbeitsspeicher. Deshalb wird es erst geladen, wenn sich eine
+// Analyse anbahnt (Maus über der Spinne, Analysefenster offen …), und nach 10 Minuten ohne
+// Benutzung wieder freigegeben – so bremst Silkreader den PC im Hintergrund nicht aus.
+const MODEL_IDLE_MS = 10 * 60 * 1000;
+let lastModelUse = 0;
+let analysisRunning = 0;
+
 function preloadBuiltinModel() {
   const s = loadSettings();
-  if (s.provider === 'builtin' && builtinModelReady()) loadBuiltinModel().catch((e) => console.error('Modell vorladen:', e));
+  if (s.provider !== 'builtin' || !builtinModelReady()) return;
+  lastModelUse = Date.now();
+  if (llamaRuntime?.key === builtinKey(s) || llamaLoading) return;
+  loadBuiltinModel().catch((e) => console.error('Modell vorladen:', e));
 }
+
+setInterval(() => {
+  if (llamaRuntime && !llamaLoading && !analysisRunning && Date.now() - lastModelUse > MODEL_IDLE_MS) {
+    unloadBuiltinModel();
+  }
+}, 60 * 1000);
 
 async function analyzeBuiltin(doc, s, onProgress) {
   const key = builtinKey(s);
@@ -382,6 +400,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
     throw Object.assign(new Error(`Das eingebaute KI-Modell ist noch nicht heruntergeladen (einmalig ${info.sizeLabel}). Bitte in den Einstellungen auf „Herunterladen“ klicken.`), { code: 'NO_MODEL' });
   }
   const { LlamaChatSession } = await import('node-llama-cpp');
+  lastModelUse = Date.now();
   const { llama, model } = await loadBuiltinModel(key);
 
   // Lange Dokumente kürzen: Auf dem Prozessor kostet jedes Token Lesezeit.
@@ -403,7 +422,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
 
   const prompt = buildPrompt(usedDoc, s.language, true);
   const promptTokens = model.tokenize(prompt).length;
-  const answerTokens = 1800;
+  const answerTokens = info.answerTokens;
   const context = await model.createContext({ contextSize: promptTokens + answerTokens + 400, flashAttention: 'auto' });
   try {
     const session = new LlamaChatSession({
@@ -411,12 +430,11 @@ async function analyzeBuiltin(doc, s, onProgress) {
       systemPrompt: 'Du bist ein sorgfältiger Analyst. Antworte ausschließlich mit JSON nach dem vorgegebenen Schema. Fasse dich kurz.',
     });
     const grammar = await llama.createGrammarForJsonSchema(ANALYSIS_SCHEMA);
-    let chars = 0;
     const text = await session.prompt(prompt, {
       grammar,
       maxTokens: answerTokens,
       temperature: 0.2,
-      onTextChunk: (chunk) => { chars += chunk.length; onProgress(chars); },
+      onTextChunk: (chunk) => onProgress(chunk),
     });
     let result;
     try {
@@ -526,7 +544,7 @@ async function analyzeOllama(doc, s, onProgress) {
       const msg = JSON.parse(line);
       if (msg.error) throw new Error(`Ollama-Fehler: ${msg.error}`);
       out += msg.message?.content || '';
-      onProgress(out.length);
+      onProgress(msg.message?.content || '');
     }
   }
   try {
@@ -552,6 +570,13 @@ function normalizeResult(r) {
   };
 }
 
+// Liest ein (evtl. noch unvollständiges) Textfeld aus halb fertigem JSON.
+function partialField(json, name) {
+  const m = json.match(new RegExp(`"${name}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`));
+  if (!m) return null;
+  try { return JSON.parse(`"${m[1].replace(/\\+$/, (b) => (b.length % 2 ? b.slice(1) : b))}"`); } catch { return m[1]; }
+}
+
 function friendlyError(e) {
   if (e.code === 'NO_KEY' || e.code === 'NO_OLLAMA' || e.code === 'NO_MODEL') return e.message;
   if (Anthropic && e instanceof Anthropic.AuthenticationError) return 'Der API-Schlüssel ist ungültig. Bitte in den Einstellungen prüfen.';
@@ -567,11 +592,23 @@ function friendlyError(e) {
 ipcMain.handle('analyze', async (event, doc) => {
   try {
     setBusy(true);
-    const result = await analyze(doc, (n) => event.sender.send('progress', n));
+    analysisRunning++;
+    // Fortschritt: Zeichenzahl und – sobald die KI sie geschrieben hat – schon die Zusammenfassung,
+    // damit man nicht bis zum Ende warten muss.
+    let text = '', lastSent = 0;
+    const result = await analyze(doc, (chunk) => {
+      text += chunk;
+      const now = Date.now();
+      if (now - lastSent < 150) return;
+      lastSent = now;
+      event.sender.send('progress', { chars: text.length, summary: partialField(text, 'summary') });
+    });
     return { ok: true, result };
   } catch (e) {
     return { ok: false, error: friendlyError(e), needsKey: e.code === 'NO_KEY' || e.code === 'NO_OLLAMA' || e.code === 'NO_MODEL' || Anthropic && e instanceof Anthropic.AuthenticationError };
   } finally {
+    analysisRunning--;
+    lastModelUse = Date.now();
     setBusy(false);
   }
 });
@@ -633,6 +670,7 @@ ipcMain.on('bubble-menu', () => {
 // Nur über der Spinne Mausereignisse annehmen, sonst durchklicken lassen.
 ipcMain.on('rig-hover', (_e, inside) => {
   bubbleWin?.setIgnoreMouseEvents(!inside, { forward: true });
+  if (inside) preloadBuiltinModel(); // Maus an der Spinne → gleich geht's wahrscheinlich los
 });
 
 // Ziehen: seitwärts wandert die Spinne am Rand entlang, hoch/runter ändert die Fadenlänge.
@@ -757,7 +795,6 @@ if (!app.requestSingleInstanceLock()) {
 
     globalShortcut.register(HOTKEY, analyzeClipboard);
     setupUpdates();
-    setTimeout(preloadBuiltinModel, 8000);
 
     const s = loadSettings();
     if (s.provider === 'claude' && !getApiKey()) openSettings();

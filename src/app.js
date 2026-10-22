@@ -168,8 +168,22 @@ async function presentResult(r, myRun) {
   document.querySelectorAll('.w.scan').forEach((el) => el.classList.remove('scan'));
   $('docTitle').innerHTML = `${esc(r.title)}<br><small>${esc(r.doc_type)} · ${esc(current.title)}</small>`;
   $('bar').classList.remove('indeterminate');
+  $('btnCopy').classList.remove('hidden');
+
+  // Zusammenfassung & Erkenntnisse sofort zeigen – die Angaben folgen animiert darunter.
   const body = $('panelBody');
-  body.innerHTML = '<h3>Gefundene Angaben</h3><div id="figs"></div>';
+  body.innerHTML = `${r.note ? `<div class="status">ℹ️ ${esc(r.note)}</div>` : ''}
+    <h3>Zusammenfassung</h3><div class="summary">${esc(r.summary)}</div>
+    <h3>Kernaussagen</h3><ul class="points">${r.key_points.map((p, i) => `<li style="animation-delay:${i * 60}ms">${esc(p)}</li>`).join('')}</ul>
+    <h3>Erkenntnisse</h3>${r.findings.map((f, i) => `
+      <div class="finding" style="animation-delay:${i * 80}ms">
+        <span class="kind ${esc(f.kind)}">${esc(f.kind)}</span>
+        <div class="t">${esc(f.title)}</div>
+        <div class="d">${esc(f.detail)}</div>
+        ${f.pages.length ? `<div class="p">${f.pages.map((p) => `S. ${p}`).join(' · ')}</div>` : ''}
+      </div>`).join('')}
+    <h3>Gefundene Angaben</h3><div id="figs"></div>`;
+  body.scrollTop = 0;
   const figs = $('figs');
   const total = r.figures.length;
   const setCount = (n) => {
@@ -178,45 +192,28 @@ async function presentResult(r, myRun) {
   };
   setCount(0);
 
+  // Die ganze Spinnen-Tour dauert höchstens ~4 Sekunden, egal wie viele Angaben es sind.
+  const perFigure = total ? Math.max(120, Math.min(550, 4000 / total)) : 0;
+  spider.speed = 1400;
   for (let i = 0; i < total; i++) {
     if (myRun !== run) return;
     const f = r.figures[i];
     const loc = locate(f.quote, f.page);
-    if (loc && !skip) await walkTo(loc);
+    if (loc && !skip) await walkTo(loc, perFigure);
     if (myRun !== run) return;
     if (loc) markHit(loc, !skip);
     figs.appendChild(figureRow(f, loc));
     setCount(i + 1);
-    if (!skip) figs.lastElementChild.scrollIntoView({ block: 'nearest' });
-    await sleep(loc ? 260 : 120);
+    if (!skip) await sleep(40);
   }
+  spider.speed = 340;
 
   if (myRun !== run) return;
   $('scanLabel').textContent = 'FERTIG';
   $('btnSkip').classList.add('hidden');
-  $('btnCopy').classList.remove('hidden');
-
-  const sum = document.createElement('div');
-  sum.innerHTML = `<h3>Zusammenfassung</h3><div class="summary">${esc(r.summary)}</div>
-    <h3>Kernaussagen</h3><ul class="points">${r.key_points.map((p, i) => `<li style="animation-delay:${i * 80}ms">${esc(p)}</li>`).join('')}</ul>
-    <h3>Erkenntnisse</h3>${r.findings.map((f, i) => `
-      <div class="finding" style="animation-delay:${i * 120}ms">
-        <span class="kind ${esc(f.kind)}">${esc(f.kind)}</span>
-        <div class="t">${esc(f.title)}</div>
-        <div class="d">${esc(f.detail)}</div>
-        ${f.pages.length ? `<div class="p">${f.pages.map((p) => `S. ${p}`).join(' · ')}</div>` : ''}
-      </div>`).join('')}`;
-  if (r.note) {
-    const n = document.createElement('div');
-    n.className = 'status';
-    n.textContent = 'ℹ️ ' + r.note;
-    sum.prepend(n);
-  }
-  body.prepend(sum);
-  body.scrollTop = 0;
 }
 
-function walkTo(loc) {
+function walkTo(loc, maxMs = 2600) {
   return new Promise((resolve) => {
     const w = words[loc.start].el;
     const x = w.offsetLeft + w.offsetWidth / 2;
@@ -230,7 +227,7 @@ function walkTo(loc) {
     let done = false;
     const finish = () => { if (!done) { done = true; resolve(); } };
     spider.moveTo(x, y + 26, finish);
-    setTimeout(finish, 2600);
+    setTimeout(finish, maxMs);
   });
 }
 
@@ -310,9 +307,16 @@ window.addEventListener('drop', (e) => {
 
 window.addEventListener('resize', () => spider?.index());
 window.spider.onDocument((doc) => startAnalysis(doc));
-window.spider.onProgress((n) => {
+window.spider.onProgress(({ chars, summary }) => {
   const s = $('status');
-  if (s) s.textContent = `KI analysiert … ${n.toLocaleString('de-DE')} Zeichen Ergebnis empfangen`;
+  if (!s) return;
+  if (summary) {
+    // Zusammenfassung schon live anzeigen, während die KI noch weiterschreibt
+    s.innerHTML = `<h3>Zusammenfassung</h3><div class="summary">${esc(summary)}<span class="cursor">▍</span></div>
+      <div class="status">KI schreibt weiter … ${chars.toLocaleString('de-DE')} Zeichen</div>`;
+  } else {
+    s.textContent = `KI analysiert … ${chars.toLocaleString('de-DE')} Zeichen Ergebnis empfangen`;
+  }
 });
 
 function showModel(s) {

@@ -1,0 +1,10 @@
+import { _electron as electron } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+const app = await electron.launch({ executablePath: './node_modules/electron/dist/electron', args: ['--no-sandbox', '.'], env: { ...process.env, HOME: process.argv[2], SILK_MODEL_PATH: process.argv[3] } });
+await new Promise((r) => setTimeout(r, 9000));
+const mem = () => app.evaluate(({ app }) => Math.round(app.getAppMetrics().reduce((s, m) => s + m.memory.workingSetSize, 0) / 1024));
+console.log('nach dem Start: Modell geladen?', await app.evaluate(() => !!globalThis.__dummy), '(Speicher', await mem(), 'MB)');
+const rig = app.windows().find((w) => w.url().includes('bubble'));
+await rig.evaluate(() => window.spider.rigHover(true));
+await new Promise((r) => setTimeout(r, 3000));
+console.log('nach Hover: Speicher', await mem(), 'MB');
+await app.close();
