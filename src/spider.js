@@ -54,6 +54,8 @@ export class Spider {
     });
 
     this.last = performance.now();
+    this.minGap = 0; // ms zwischen zwei Bildern (0 = volle Bildrate)
+    this.lastDraw = 0;
     this.running = true;
     this.hidden = true;
     this.svg.style.opacity = '0';
@@ -110,6 +112,8 @@ export class Spider {
 
   tick = (now) => {
     if (!this.running) return;
+    if (now - this.lastDraw < this.minGap) { requestAnimationFrame(this.tick); return; }
+    this.lastDraw = now;
     const dt = Math.min(0.05, (now - this.last) / 1000);
     this.last = now;
 

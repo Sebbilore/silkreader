@@ -1,7 +1,7 @@
 import { Spider } from './spider.js';
 
 const $ = (id) => document.getElementById(id);
-const MAX_WORDS = 40000; // so viele Wörter werden höchstens dargestellt (analysiert wird alles)
+const MAX_WORDS = 25000; // so viele Wörter werden höchstens dargestellt (analysiert wird alles)
 
 let spider = null;
 let words = [];      // { el, norm, page }
@@ -101,6 +101,7 @@ function startWander() {
   const first = sw[0];
   spider.teleport(first.x + 60, first.y + 40);
   spider.show();
+  spider.minGap = 33; // während die KI rechnet: 30 fps reichen und lassen ihr mehr Rechenzeit
   const step = () => {
     idx = (idx + 10 + Math.floor(Math.random() * 30)) % sw.length;
     const w = sw[idx];
@@ -118,6 +119,7 @@ function startWander() {
 function stopWander() {
   clearTimeout(wanderTimer);
   wanderTimer = null;
+  if (spider) spider.minGap = 0;
 }
 
 // ---------- Analyse ----------
@@ -204,6 +206,12 @@ async function presentResult(r, myRun) {
         <div class="d">${esc(f.detail)}</div>
         ${f.pages.length ? `<div class="p">${f.pages.map((p) => `S. ${p}`).join(' · ')}</div>` : ''}
       </div>`).join('')}`;
+  if (r.note) {
+    const n = document.createElement('div');
+    n.className = 'status';
+    n.textContent = 'ℹ️ ' + r.note;
+    sum.prepend(n);
+  }
   body.prepend(sum);
   body.scrollTop = 0;
 }

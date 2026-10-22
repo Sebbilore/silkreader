@@ -16,6 +16,7 @@
   a { color: var(--pink); cursor: pointer; }
   code { font-family: Consolas, monospace; background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; color: var(--text); user-select: all; }
   .choice { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .choice.two { grid-template-columns: 1fr 1fr; }
   .progress { height: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 5px; overflow: hidden; margin: 10px 0 6px; }
   .progress i { display: block; height: 100%; width: 0; background: var(--pink); transition: width .3s; }
   .opt { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; background: var(--card); }
@@ -41,14 +42,15 @@
 
 <div class="box" id="boxBuiltin">
   <label>Eingebautes KI-Modell</label>
-  <div id="modelInfo" class="hint"></div>
+  <div class="choice two" id="modelChoice"></div>
+  <div id="modelInfo" class="hint" style="margin-top:8px"></div>
   <div class="progress" id="modelBar" style="display:none"><i></i></div>
   <div class="hint" id="modelProgress"></div>
   <div class="inline" style="margin-top:10px">
     <button class="primary" id="modelDl">Herunterladen</button>
     <button id="modelCancel" style="display:none">Abbrechen</button>
   </div>
-  <div class="hint" style="margin-top:10px">Wird nur einmal geladen und dann auf diesem PC gespeichert. Läuft danach komplett offline; deine Texte verlassen den PC nicht. Empfohlen: 8 GB RAM oder mehr.</div>
+  <div class="hint" style="margin-top:10px">Wird nur einmal geladen und dann auf diesem PC gespeichert. Läuft danach komplett offline; deine Texte verlassen den PC nicht. „Schnell“ antwortet meist in unter einer Minute, „Gründlich“ ist genauer, braucht aber länger und mehr Speicher (ab 8 GB RAM).</div>
 </div>
 
 <div class="box" id="boxOllama">
@@ -93,23 +95,36 @@
 
   function setProvider(p) {
     provider = p;
-    document.querySelectorAll('.opt').forEach((o) => o.classList.toggle('on', o.dataset.p === p));
+    document.querySelectorAll('.opt[data-p]').forEach((o) => o.classList.toggle('on', o.dataset.p === p));
     $('boxOllama').style.display = p === 'ollama' ? '' : 'none';
     $('boxBuiltin').style.display = p === 'builtin' ? '' : 'none';
     $('boxClaude').style.display = p === 'claude' ? '' : 'none';
   }
-  document.querySelectorAll('.opt').forEach((o) => o.addEventListener('click', () => setProvider(o.dataset.p)));
+  document.querySelectorAll('.opt[data-p]').forEach((o) => o.addEventListener('click', () => setProvider(o.dataset.p)));
 
   const gb = (b) => (b / 1e9).toLocaleString('de-DE', { maximumFractionDigits: 2 });
-  async function loadModelStatus() {
-    const m = await window.spider.modelStatus();
-    $('modelInfo').textContent = m.ready
-      ? `✓ ${m.name} ist bereit.`
-      : `${m.name}: noch nicht heruntergeladen (einmalig ${m.size}).`;
-    $('modelInfo').className = m.ready ? 'hint ok' : 'hint';
-    $('modelDl').style.display = m.ready || m.downloading ? 'none' : '';
+  let builtinModel = 'fast', modelState = null;
+  function renderModels() {
+    const m = modelState;
+    $('modelChoice').innerHTML = '';
+    for (const [key, info] of Object.entries(m.models)) {
+      const d = document.createElement('div');
+      d.className = 'opt' + (key === builtinModel ? ' on' : '');
+      d.innerHTML = `<b>${info.name.split(' (')[0]}</b><span>${info.name.split(' (')[1]?.replace(')', '') || ''} · ${info.size}${info.ready ? ' · ✓ geladen' : ''}</span>`;
+      d.addEventListener('click', () => { builtinModel = key; renderModels(); });
+      $('modelChoice').appendChild(d);
+    }
+    const sel = m.models[builtinModel];
+    $('modelInfo').textContent = sel.ready ? `✓ ${sel.name} ist bereit.` : `${sel.name}: noch nicht heruntergeladen (einmalig ${sel.size}).`;
+    $('modelInfo').className = sel.ready ? 'hint ok' : 'hint';
+    $('modelDl').style.display = sel.ready || m.downloading ? 'none' : '';
     $('modelCancel').style.display = m.downloading ? '' : 'none';
     $('modelBar').style.display = m.downloading ? '' : 'none';
+  }
+  async function loadModelStatus(initial = false) {
+    modelState = await window.spider.modelStatus();
+    if (initial) builtinModel = modelState.selected;
+    renderModels();
   }
   window.spider.onModelProgress((p) => {
     if (p.finished) { $('modelProgress').textContent = ''; loadModelStatus(); return; }
@@ -126,7 +141,7 @@
     $('modelBar').style.display = '';
     $('modelProgress').className = 'hint';
     $('modelProgress').textContent = 'Starte Download …';
-    window.spider.modelDownload();
+    window.spider.modelDownload(builtinModel);
   });
   $('modelCancel').addEventListener('click', () => window.spider.modelCancel());
 
@@ -164,7 +179,7 @@
     if (s.hasKey) $('key').placeholder = '•••••••• (gespeichert – leer lassen, um ihn zu behalten)';
     setProvider(s.provider);
     loadOllama();
-    loadModelStatus();
+    loadModelStatus(true);
   });
   $('refresh').addEventListener('click', loadOllama);
   $('ollamaLink').addEventListener('click', () => window.spider.openExternal('https://ollama.com/download'));
@@ -172,7 +187,7 @@
   $('save').addEventListener('click', async () => {
     await window.spider.saveSettings({
       provider, apiKey: $('key').value, model: $('model').value,
-      ollamaModel: $('ollamaModel').value, language: $('lang').value,
+      ollamaModel: $('ollamaModel').value, language: $('lang').value, builtinModel,
     });
     $('key').value = '';
     $('msg').textContent = 'Gespeichert ✓';

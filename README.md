@@ -8,7 +8,7 @@ Eine kleine schwebende Spinne auf deinem Desktop. Klick sie an, und sie liest je
 
 ## Installation (Windows)
 
-1. `Silkreader-Setup-1.1.1.exe` herunterladen.
+1. `Silkreader-Setup-1.2.0.exe` herunterladen.
 2. Falls Windows blockiert: Rechtsklick auf die Datei → **Eigenschaften** → unten den Haken bei **„Zulassen“** setzen → OK.
 3. Setup starten und durchklicken. Beim ersten Mal fragt Windows, ob du dem Zertifikat „Silkreader“ vertraust: **Ja**. Ab dann steht bei Windows „Herausgeber: Silkreader“, und Updates können ihre Echtheit prüfen.
 4. Die Spinne erscheint oben am Bildschirmrand. Beim ersten Start öffnen sich die Einstellungen (siehe unten).
@@ -24,26 +24,22 @@ Updates werden nur installiert, wenn sie mit dem Silkreader-Zertifikat signiert 
 
 ## Kostenlos oder Claude?
 
-| | **Lokal: kostenlos** (Standard) | **Claude** |
+| | **Eingebaut** (Standard) | **Claude** |
 |---|---|---|
 | Kosten | 0 € | ein paar Cent pro Analyse (API-Schlüssel) |
-| Internet | nicht nötig, Texte bleiben auf deinem PC | nötig |
-| Qualität | gut für Zusammenfassungen, schwächer bei Rechnungen und langen Dokumenten | deutlich gründlicher |
-| Tempo | hängt vom PC ab (mit Grafikkarte schnell, sonst eher 1–3 Minuten) | schnell |
+| Internet | nur einmal zum Herunterladen des Modells | nötig |
+| Qualität | gut für Zusammenfassungen; sehr lange Dokumente werden gekürzt | deutlich gründlicher, ganze Dokumente |
+| Tempo | „Schnell“: meist unter 1 Minute, „Gründlich“: länger (mit Grafikkarte deutlich schneller) | schnell |
 
-**Einrichtung für den kostenlosen Modus (einmalig):**
-
-1. [Ollama](https://ollama.com/download) herunterladen und installieren (kostenlos, Open Source).
-2. Eingabeaufforderung öffnen (Windows-Taste → `cmd`) und ein Modell laden:
-   - `ollama pull gemma3:12b`: gute Qualität, ab ca. 16 GB RAM
-   - `ollama pull gemma3:4b`: für schwächere PCs (8 GB RAM)
-3. In den Einstellungen der Spinne auf ↻ klicken und das Modell auswählen.
+**Eingebautes Modell einrichten (einmalig):** In den Einstellungen „Eingebaut“ wählen, dann **Schnell** (1 GB) oder **Gründlich** (2,5 GB) auswählen und auf **Herunterladen** klicken. Danach läuft alles offline auf deinem PC.
 
 **Für Claude:** einen API-Schlüssel unter https://platform.claude.com/settings/keys erstellen und in den Einstellungen eintragen.
 
+**Für Profis:** Unter „Ollama“ lässt sich auch ein eigenes Modell über [Ollama](https://ollama.com) nutzen.
+
 ## Bedienung
 
-Die Spinne hängt an einem Faden vom oberen Bildschirmrand, schaukelt, schaut mit ihren Kulleraugen deinem Mauszeiger hinterher und macht ab und zu Kunststücke.
+Die Spinne hängt an einem Faden vom oberen Bildschirmrand, schaukelt, schaut mit ihren Kulleraugen deinem Mauszeiger hinterher und macht ab und zu Kunststücke: Sie baut Spinnennetze, fängt Fliegen, springt Bungee, schlägt Saltos, tanzt und winkt dir zu, wenn du mit der Maus vorbeikommst. Lässt du sie lange in Ruhe, schläft sie ein (z z Z) und schreckt hoch, sobald die Maus kommt.
 
 | Aktion | Ergebnis |
 |---|---|
@@ -79,8 +75,8 @@ npm run dist:mac     # macOS (.dmg), muss auf einem Mac gebaut werden
 
 Aufbau:
 
-- `src/main.js`: Hauptprozess mit schwebendem Fenster, Tastenkürzel, Dateien lesen und KI-Aufruf (Ollama oder Claude)
+- `src/main.js`: Hauptprozess mit Spinnenfenster, Tastenkürzel, Dateien lesen und KI-Aufruf (eingebaut, Claude oder Ollama)
 - `src/spider.js`: die animierte Spinne (Beine suchen sich Wörter als Halt)
 - `src/app.js` und `src/index.html`: Analysefenster
-- `src/bubble.html`: das schwebende Icon
+- `src/bubble.html`: die Spinne am Bildschirmrand mit allen Kunststücken
 - `src/settings.html`: Einstellungen

@@ -9,22 +9,33 @@
   svg { display: block; width: 100%; height: 100%; }
   #thread { stroke: rgba(245,245,250,.95); stroke-width: 1; }
   #threadShadow { stroke: rgba(20,20,30,.45); stroke-width: 2.4; }
+  #web { transition: opacity 4s; }
+  #web line, #web polyline { fill: none; stroke: rgba(245,245,250,.9); stroke-width: .9; stroke-linecap: round; stroke-linejoin: round;
+    filter: drop-shadow(0 0 .8px rgba(20,20,30,.7)); }
   .leg { stroke: #ff2d8a; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
   #body { fill: #16161d; stroke: #ff2d8a; stroke-width: 1.6; }
-  .catch #body { stroke: #ffe14d; }
-  .catch .leg { stroke: #ffe14d; }
+  .catch #body, .catch .leg { stroke: #ffe14d; }
   .eye { fill: #fff; stroke: #16161d; stroke-width: .5; }
   .pupil { fill: #111; }
   .cheek { fill: rgba(255,45,138,.45); }
   #mouth { stroke: #ff2d8a; stroke-width: 1.3; fill: none; stroke-linecap: round; }
   #spider { cursor: grab; }
   #spider.grabbing { cursor: grabbing; }
+  #fly .wing { fill: rgba(220,235,255,.85); stroke: rgba(40,40,60,.6); stroke-width: .4; }
+  #fly .fbody { fill: #2b2b33; }
+  #zzz { font: 700 11px "Segoe UI", system-ui, sans-serif; fill: #ff2d8a; paint-order: stroke; stroke: rgba(255,255,255,.85); stroke-width: 2.4px; }
 </style>
 </head>
 <body>
 <svg id="svg">
+  <g id="web" opacity="0"></g>
   <line id="threadShadow" x1="0" y1="0" x2="0" y2="0"/>
   <line id="thread" x1="0" y1="0" x2="0" y2="0"/>
+  <g id="fly" style="display:none">
+    <ellipse class="wing" id="wingL" cx="-2.6" cy="-2" rx="2.6" ry="1.6"/>
+    <ellipse class="wing" id="wingR" cx="2.6" cy="-2" rx="2.6" ry="1.6"/>
+    <ellipse class="fbody" cx="0" cy="0" rx="2.2" ry="2.8"/>
+  </g>
   <g id="spider">
     <g id="legs"></g>
     <circle id="body" cx="0" cy="0" r="11"/>
@@ -36,11 +47,18 @@
     <circle class="pupil" id="pupilR" cx="4.4" cy="-1.6" r="1.9"/>
     <path id="mouth" d=""/>
   </g>
+  <text id="zzz" x="0" y="0" opacity="0">z</text>
 </svg>
 <script>
   const NS = 'http://www.w3.org/2000/svg';
   const $ = (id) => document.getElementById(id);
-  const W = window.innerWidth;
+  // Elemente einmal nachschlagen statt in jedem Bild
+  const el = {
+    svg: $('svg'), thread: $('thread'), shadow: $('threadShadow'), spider: $('spider'), web: $('web'),
+    eyeL: $('eyeL'), eyeR: $('eyeR'), pupilL: $('pupilL'), pupilR: $('pupilR'), mouth: $('mouth'),
+    fly: $('fly'), wingL: $('wingL'), wingR: $('wingR'), zzz: $('zzz'),
+  };
+  const W = window.innerWidth, H = window.innerHeight;
   const AX = W / 2; // Aufhängepunkt oben in der Mitte
 
   // Beine: Hüfte am Körper, Knie nach außen oben, Fuß nach außen unten
@@ -61,47 +79,147 @@
   let minLen = 24, maxLen = 230;
   let baseLen = 90;           // gewünschte Fadenlänge
   let len = -40, lenV = 0;    // aktuelle Länge (startet oben versteckt → fällt herunter)
-  let lenTarget = baseLen;
   let theta = 0.25, omega = 0; // Pendelwinkel
   let spin = 0, spinTarget = 0;
   let lastAnchor = window.screenX, anchorV = 0;
   let cursor = { x: -999, y: -999 };
   let hover = false, dragging = false, busy = false, catching = false;
-  let trick = null, trickUntil = 0, lenOverride = null;
+  let trick = null, trickUntil = 0, trickStart = 0, lenOverride = null;
   let blinkUntil = 0, nextBlink = performance.now() + 2500;
-  let nextTrick = performance.now() + 9000 + Math.random() * 8000;
+  let nextTrick = performance.now() + 8000 + Math.random() * 6000;
+  let lastActivity = performance.now(), sleeping = false, surprisedUntil = 0, chewUntil = 0;
+  let wasNear = false, lastHello = 0;
   let spiderPos = { x: AX, y: 60 };
-  let last = performance.now();
+  let override = null; // direkte Position (z. B. beim Netzbauen), sonst Pendel
+  let last = performance.now(), lastDraw = 0;
+  const SLEEP_AFTER = 120000;
+
+  // ---------- Spinnennetz ----------
+  const WEB = { cx: AX, cy: 64, r: 48, spokes: 8 };
+  const spokeDirs = Array.from({ length: WEB.spokes }, (_, i) => {
+    const a = (i / WEB.spokes) * Math.PI * 2 + Math.PI / WEB.spokes;
+    return [Math.cos(a), Math.sin(a)];
+  });
+  // Spirale als Punktfolge auf den Speichen (von innen nach außen)
+  const spiral = [];
+  for (let k = 0; k <= WEB.spokes * 4.5; k++) {
+    const u = k / (WEB.spokes * 4.5);
+    const r = 7 + (WEB.r - 9) * u;
+    const [dx, dy] = spokeDirs[k % WEB.spokes];
+    spiral.push([WEB.cx + dx * r, WEB.cy + dy * r]);
+  }
+  let webEls = null, webFade = null;
+  function resetWeb() {
+    clearTimeout(webFade);
+    el.web.innerHTML = '';
+    el.web.style.transition = 'none';
+    el.web.setAttribute('opacity', '1');
+    webEls = {
+      spokes: spokeDirs.map(() => {
+        const l = document.createElementNS(NS, 'line');
+        l.setAttribute('x1', WEB.cx); l.setAttribute('y1', WEB.cy); l.setAttribute('x2', WEB.cx); l.setAttribute('y2', WEB.cy);
+        el.web.appendChild(l);
+        return l;
+      }),
+      spiral: (() => { const p = document.createElementNS(NS, 'polyline'); el.web.appendChild(p); return p; })(),
+    };
+  }
+  function webStep(p) { // p: 0..1 Fortschritt des Netzbaus → Position der Spinne
+    const climb = 0.1, spokesEnd = 0.45;
+    if (p < climb) return [WEB.cx, WEB.cy];
+    if (p < spokesEnd) {
+      const q = (p - climb) / (spokesEnd - climb) * WEB.spokes;
+      const k = Math.min(WEB.spokes - 1, Math.floor(q));
+      const f = q - k;
+      const out = f < 0.6 ? f / 0.6 : 1 - (f - 0.6) / 0.4; // raus und zurück
+      for (let j = 0; j < WEB.spokes; j++) {
+        const done = j < k ? 1 : j === k ? Math.min(1, f / 0.6) : 0;
+        webEls.spokes[j].setAttribute('x2', WEB.cx + spokeDirs[j][0] * WEB.r * done);
+        webEls.spokes[j].setAttribute('y2', WEB.cy + spokeDirs[j][1] * WEB.r * done);
+      }
+      return [WEB.cx + spokeDirs[k][0] * WEB.r * out, WEB.cy + spokeDirs[k][1] * WEB.r * out];
+    }
+    const q = Math.min(1, (p - spokesEnd) / (1 - spokesEnd - 0.06));
+    const n = Math.max(1, Math.floor(q * (spiral.length - 1)));
+    webEls.spiral.setAttribute('points', spiral.slice(0, n + 1).map((pt) => pt.join(',')).join(' '));
+    return spiral[n];
+  }
+
+  // ---------- Fliege ----------
+  const fly = { on: false, x: 0, y: 0, vx: 0, vy: 0, caught: false };
 
   // ---------- Tricks ----------
   const TRICKS = {
-    yoyo:  () => { lenOverride = minLen - 6; setTimeout(() => (lenOverride = null), 420); return 900; },
-    flip:  () => { spinTarget += 360; return 900; },
-    wave:  () => 1600,
-    peek:  () => { lenOverride = -45; setTimeout(() => (lenOverride = null), 1700); return 2600; },
-    swing: () => { omega += (Math.random() < 0.5 ? -1 : 1) * 3.2; return 1500; },
-    dance: () => 1800,
+    yoyo:   { w: 2, run: () => { lenOverride = minLen - 6; setTimeout(() => (lenOverride = null), 420); return 900; } },
+    flip:   { w: 2, run: () => { spinTarget += 360; return 900; } },
+    wave:   { w: 2, run: () => 1600 },
+    peek:   { w: 1, run: () => { lenOverride = -45; setTimeout(() => (lenOverride = null), 1700); return 2600; } },
+    swing:  { w: 1, run: () => { omega += (Math.random() < 0.5 ? -1 : 1) * 3.2; return 1500; } },
+    dance:  { w: 2, run: () => 1800 },
+    bungee: { w: 2, run: () => { lenOverride = H - 40; setTimeout(() => (lenOverride = null), 380); return 2200; } },
+    web:    { w: 3, run: () => { resetWeb(); return 9500; } },
+    fly:    { w: 3, run: () => {
+      const fromLeft = Math.random() < 0.5;
+      Object.assign(fly, { on: true, caught: false, x: fromLeft ? -8 : W + 8, y: 50 + Math.random() * 120, vx: fromLeft ? 40 : -40, vy: 0 });
+      el.fly.style.display = '';
+      return 5200;
+    } },
   };
   function doTrick(name) {
     trick = name;
-    trickUntil = performance.now() + TRICKS[name]();
+    trickStart = performance.now();
+    trickUntil = trickStart + TRICKS[name].run();
+  }
+  function randomTrick() {
+    const names = Object.keys(TRICKS);
+    let r = Math.random() * names.reduce((s, n) => s + TRICKS[n].w, 0);
+    for (const n of names) { r -= TRICKS[n].w; if (r <= 0) return n; }
+    return names[0];
+  }
+  function endTrick() {
+    if (trick === 'web') {
+      override = null;
+      // Netz bleibt eine Weile hängen und verblasst dann
+      webFade = setTimeout(() => { el.web.style.transition = 'opacity 4s'; el.web.setAttribute('opacity', '0'); }, 45000);
+    }
+    if (trick === 'fly') { fly.on = false; el.fly.style.display = 'none'; lenOverride = null; }
+    trick = null;
+  }
+  function wake() {
+    lastActivity = performance.now();
+    if (!sleeping) return;
+    sleeping = false;
+    surprisedUntil = performance.now() + 1200;
+    el.zzz.setAttribute('opacity', '0');
+    doTrick('yoyo');
   }
 
   // ---------- Animationsschleife ----------
   function frame(now) {
-    const dt = Math.min(0.033, (now - last) / 1000);
+    requestAnimationFrame(frame);
+    // Bildrate begrenzen: ruhig 20 fps, schlafend 10 fps, nur bei Action volle Bildrate
+    const active = dragging || hover || trick || catching || busy || Math.abs(omega) > 0.6 || Math.abs(lenV) > 40;
+    const minGap = sleeping ? 100 : active ? 0 : 50;
+    if (now - lastDraw < minGap) return;
+    lastDraw = now;
+
+    const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     const t = now / 1000;
 
-    if (trick && now > trickUntil) trick = null;
-    if (!trick && !hover && !dragging && !busy && !catching && now > nextTrick) {
-      const names = Object.keys(TRICKS);
-      doTrick(names[Math.floor(Math.random() * names.length)]);
-      nextTrick = now + 10000 + Math.random() * 14000;
+    if (trick && now > trickUntil) endTrick();
+    if (!sleeping && !busy && !dragging && now - lastActivity > SLEEP_AFTER && !trick) {
+      sleeping = true;
+    }
+    if (!trick && !sleeping && !hover && !dragging && !busy && !catching && now > nextTrick) {
+      doTrick(randomTrick());
+      nextTrick = now + 8000 + Math.random() * 10000;
     }
 
-    // Faden: gefederte Länge (wippt nach)
-    lenTarget = lenOverride ?? (baseLen + (hover && !dragging ? 16 : 0) + (catching ? 22 : 0));
+    // Faden: gefederte Länge (wippt nach); im Schlaf leichtes Atmen
+    let lenTarget = lenOverride ?? (baseLen + (hover && !dragging ? 16 : 0) + (catching ? 22 : 0));
+    if (sleeping) lenTarget = baseLen + Math.sin(t * 1.4) * 3;
+    if (trick === 'web') lenTarget = WEB.cy - 11;
     const k = 140, damp = 9;
     lenV += (-(len - lenTarget) * k - lenV * damp) * dt;
     len += lenV * dt;
@@ -112,74 +230,133 @@
     const acc = (v - anchorV) / Math.max(dt, 0.001);
     anchorV = v; lastAnchor = ax;
     const L = Math.max(30, len + 20);
-    const breeze = Math.sin(t * 0.7) * 0.25 + Math.sin(t * 1.9) * 0.1;
+    const breeze = sleeping ? 0 : Math.sin(t * 0.7) * 0.25 + Math.sin(t * 1.9) * 0.1;
     omega += (-(1700 / L) * Math.sin(theta) - 1.2 * omega - (Math.max(-6000, Math.min(6000, acc)) / L) * Math.cos(theta) * 0.9 + breeze) * dt;
     if (busy) omega += Math.sin(t * 9) * 1.2 * dt;
+    if (trick === 'web') omega *= 0.85;
     theta = Math.max(-1.2, Math.min(1.2, theta + omega * dt));
 
     spin += (spinTarget - spin) * Math.min(1, dt * 7);
 
-    const sx = AX + Math.sin(theta) * Math.max(len, 0);
-    const sy = Math.cos(theta) * len + 11;
-    spiderPos = { x: sx, y: sy };
+    let sx = AX + Math.sin(theta) * Math.max(len, 0);
+    let sy = Math.cos(theta) * len + 11;
+    let rot = -theta * 57.3 + spin + (busy ? Math.sin(t * 14) * 8 : 0);
 
-    $('thread').setAttribute('x1', AX); $('thread').setAttribute('y1', 0);
-    $('thread').setAttribute('x2', sx); $('thread').setAttribute('y2', sy - 11);
-    $('threadShadow').setAttribute('x1', AX); $('threadShadow').setAttribute('x2', sx); $('threadShadow').setAttribute('y2', sy - 11);
-    const wobble = busy ? Math.sin(t * 14) * 8 : 0;
-    $('spider').setAttribute('transform', `translate(${sx.toFixed(2)} ${sy.toFixed(2)}) rotate(${(-theta * 57.3 + spin + wobble).toFixed(2)})`);
-    $('svg').classList.toggle('catch', catching);
+    if (trick === 'web') {
+      const p = (now - trickStart) / (trickUntil - trickStart);
+      if (p > 0.1) {
+        const [wx, wy] = webStep(p);
+        const prev = override || { x: sx, y: sy };
+        override = { x: prev.x + (wx - prev.x) * Math.min(1, dt * 14), y: prev.y + (wy - prev.y) * Math.min(1, dt * 14) };
+        rot = Math.atan2(override.y - prev.y, override.x - prev.x) * 57.3 - 90;
+        if (Math.hypot(override.y - prev.y, override.x - prev.x) < 0.3) rot = 0;
+        sx = override.x; sy = override.y;
+        len = sy - 11; lenV = 0; theta = Math.asin(Math.max(-1, Math.min(1, (sx - AX) / Math.max(len, 1)))) * 0.5;
+      }
+    }
+
+    if (trick === 'fly' && fly.on) updateFly(now, dt, t, sx, sy);
+    if (fly.caught === true && trick === 'fly') {
+      // Spinne schnappt nach der Fliege: Faden zur Fliege, dann zurück
+      lenOverride = Math.max(minLen, fly.y - 11);
+      const desired = Math.asin(Math.max(-0.9, Math.min(0.9, (fly.x - AX) / Math.max(len, 20))));
+      theta += (desired - theta) * Math.min(1, dt * 10);
+      omega *= 0.8;
+    }
+
+    spiderPos = { x: sx, y: sy };
+    el.thread.setAttribute('x1', AX); el.thread.setAttribute('y1', 0);
+    el.thread.setAttribute('x2', sx); el.thread.setAttribute('y2', sy - 11);
+    el.shadow.setAttribute('x1', AX); el.shadow.setAttribute('x2', sx); el.shadow.setAttribute('y2', sy - 11);
+    el.spider.setAttribute('transform', `translate(${sx.toFixed(1)} ${sy.toFixed(1)}) rotate(${rot.toFixed(1)})`);
+    el.svg.classList.toggle('catch', catching);
+
+    if (sleeping) {
+      const zp = (t * 0.5) % 1;
+      el.zzz.textContent = zp < 0.33 ? 'z' : zp < 0.66 ? 'z z' : 'z z Z';
+      el.zzz.setAttribute('x', sx + 12); el.zzz.setAttribute('y', sy - 14 - zp * 8);
+      el.zzz.setAttribute('opacity', (1 - zp * 0.6).toFixed(2));
+    }
 
     drawLegs(t);
     drawFace(now);
-    hitTest();
-    requestAnimationFrame(frame);
+    hitTest(now);
+  }
+
+  function updateFly(now, dt, t, sx, sy) {
+    const age = (now - trickStart) / 1000;
+    if (!fly.caught) {
+      // zickzack-Flug in Richtung Spinne
+      const tx = sx + Math.sin(t * 2.3) * 35, ty = sy - 10 + Math.cos(t * 3.1) * 25;
+      fly.vx += ((tx - fly.x) * 1.4 - fly.vx * 0.9 + (Math.random() - 0.5) * 900) * dt;
+      fly.vy += ((ty - fly.y) * 1.4 - fly.vy * 0.9 + (Math.random() - 0.5) * 900) * dt;
+      fly.x += fly.vx * dt; fly.y += fly.vy * dt;
+      fly.x = Math.max(6, Math.min(W - 6, fly.x)); fly.y = Math.max(8, Math.min(H - 20, fly.y));
+      if (age > 2.6) { fly.caught = true; fly.vx = fly.vy = 0; }
+    } else if (fly.caught === true && Math.hypot(fly.x - sx, fly.y - sy) < 14) {
+      fly.caught = 'eaten';
+      el.fly.style.display = 'none'; // geschnappt!
+      chewUntil = now + 1400;
+      lenOverride = null;
+      trickUntil = Math.min(trickUntil, now + 1600);
+    }
+    const flap = Math.sin(t * 90) > 0 ? 1.6 : 0.5;
+    el.wingL.setAttribute('ry', flap); el.wingR.setAttribute('ry', flap);
+    el.fly.setAttribute('transform', `translate(${fly.x.toFixed(1)} ${fly.y.toFixed(1)}) scale(1.5)`);
   }
 
   function drawLegs(t) {
-    const speed = busy ? 20 : hover ? 9 : trick === 'dance' ? 16 : 3;
-    const amp = busy ? 2.2 : trick === 'dance' ? 3.5 : hover ? 1.8 : 1.1;
+    const speed = busy ? 20 : hover ? 9 : trick === 'dance' ? 16 : trick === 'web' ? 14 : sleeping ? 0.6 : 3;
+    const amp = busy ? 2.2 : trick === 'dance' ? 3.5 : trick === 'web' ? 2.4 : hover ? 1.8 : sleeping ? 0.4 : 1.1;
     LEGS.forEach((l, n) => {
       let { hx, hy, kx, ky, fx, fy } = l;
       const ph = Math.sin(t * speed + l.i * 1.3 + (l.side > 0 ? 0 : Math.PI));
       fy += ph * amp; ky += ph * amp * 0.6;
+      if (sleeping) { fx *= 0.72; fy = fy * 0.6 + 4; kx *= 0.8; }
       if (catching) { fx *= 1.25; fy -= 10; kx *= 1.1; ky -= 6; }
-      if (trick === 'wave' && l.i === 0 && l.side === 1) {
+      if ((trick === 'wave' || trick === 'hello') && l.i === 0 && l.side === 1) {
         const w = Math.sin(t * 14) * 6;
         kx = 16; ky = -22; fx = 22 + w; fy = -32;
       }
+      if (trick === 'bungee' && len > baseLen + 40) { fy -= 10; ky -= 8; } // Beine hoch im freien Fall
       legEls[n].setAttribute('points', `${hx},${hy} ${kx},${ky} ${fx},${fy}`);
     });
   }
 
   function drawFace(now) {
     if (now > nextBlink) { blinkUntil = now + 130; nextBlink = now + 2500 + Math.random() * 4000; }
-    const ry = now < blinkUntil ? 0.5 : (catching || busy ? 4.9 : 4.4);
-    $('eyeL').setAttribute('ry', ry); $('eyeR').setAttribute('ry', ry);
-    // Pupillen schauen zum Mauszeiger (Drehung der Spinne wird herausgerechnet)
+    const surprised = now < surprisedUntil;
+    const closed = sleeping || now < blinkUntil;
+    const ry = closed ? 0.5 : (catching || busy || surprised ? 5 : 4.4);
+    el.eyeL.setAttribute('ry', ry); el.eyeR.setAttribute('ry', ry);
+    // Pupillen schauen zum Mauszeiger – oder zur Fliege
+    const look = trick === 'fly' && fly.on && el.fly.style.display !== 'none' ? fly : cursor;
     const ang = (-theta * 57.3 + spin) * Math.PI / 180;
-    for (const [id, ex] of [['pupilL', -4.4], ['pupilR', 4.4]]) {
+    for (const [p, ex] of [[el.pupilL, -4.4], [el.pupilR, 4.4]]) {
       const wx = spiderPos.x + ex, wy = spiderPos.y - 1.6;
-      const dx = cursor.x - wx, dy = cursor.y - wy;
+      const dx = look.x - wx, dy = look.y - wy;
       const rx = dx * Math.cos(-ang) - dy * Math.sin(-ang);
       const ry2 = dx * Math.sin(-ang) + dy * Math.cos(-ang);
       const d = Math.hypot(rx, ry2) || 1;
       const m = Math.min(1.8, d / 30);
-      const el = $(id);
-      el.setAttribute('cx', ex + (rx / d) * m);
-      el.setAttribute('cy', -1.6 + (ry2 / d) * m * 1.2);
-      el.style.opacity = now < blinkUntil ? 0 : 1;
+      p.setAttribute('cx', ex + (rx / d) * m);
+      p.setAttribute('cy', -1.6 + (ry2 / d) * m * 1.2);
+      p.style.opacity = closed ? 0 : 1;
+      p.setAttribute('r', surprised ? 1.3 : 1.9);
     }
-    const mouth = busy ? 'M-1.6 6.4 a1.6 1.6 0 1 0 3.2 0 a1.6 1.6 0 1 0 -3.2 0'
+    const chewing = now < chewUntil;
+    const mouth = sleeping ? 'M-2 6 Q0 6.8 2 6'
+      : chewing ? (Math.sin(now / 70) > 0 ? 'M-2.4 5.4 Q0 8.4 2.4 5.4' : 'M-2.4 6.4 L2.4 6.4')
+      : busy || surprised ? 'M-1.6 6.4 a1.6 1.6 0 1 0 3.2 0 a1.6 1.6 0 1 0 -3.2 0'
       : catching ? 'M-3 5.5 Q0 10 3 5.5'
       : hover ? 'M-3.4 5.2 Q0 9 3.4 5.2'
       : 'M-2.4 5.6 Q0 7.6 2.4 5.6';
-    $('mouth').setAttribute('d', mouth);
+    if (el.mouth.getAttribute('d') !== mouth) el.mouth.setAttribute('d', mouth);
   }
 
   // Nur über der Spinne (oder direkt am Faden) Mausereignisse annehmen, sonst durchklicken lassen
   let wasInside = null;
-  function hitTest() {
+  function hitTest(now) {
     const d = Math.hypot(cursor.x - spiderPos.x, cursor.y - spiderPos.y);
     const onThread = cursor.y > 0 && cursor.y < spiderPos.y - 10 &&
       Math.abs(cursor.x - (AX + (spiderPos.x - AX) * (cursor.y / Math.max(spiderPos.y, 1)))) < 6;
@@ -189,34 +366,43 @@
       window.spider.rigHover(inside);
     }
     if (!dragging) hover = inside && d < 34;
+
+    // Aufwachen, wenn die Maus in die Nähe kommt; Winken, wenn sie neu auftaucht
+    const near = d < 130;
+    if (near) { if (sleeping) wake(); else lastActivity = now; }
+    if (near && !wasNear && !trick && now - lastHello > 30000) { doTrick('hello'); lastHello = now; }
+    wasNear = near;
   }
+  TRICKS.hello = { w: 0, run: () => 1400 };
 
   // ---------- Bedienung ----------
-  const sp = $('svg');
   let down = null;
-  sp.addEventListener('pointerdown', (e) => {
+  el.svg.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     down = true;
-    sp.setPointerCapture(e.pointerId);
+    wake();
+    el.svg.setPointerCapture(e.pointerId);
     window.spider.rigDragStart(baseLen);
   });
-  sp.addEventListener('pointerup', async (e) => {
+  el.svg.addEventListener('pointerup', async (e) => {
     if (!down) return;
     down = null;
-    sp.releasePointerCapture(e.pointerId);
+    el.svg.releasePointerCapture(e.pointerId);
     const { moved } = await window.spider.rigDragEnd();
     if (!moved) {
+      if (trick) endTrick();
       doTrick('yoyo');
       window.spider.analyzeClipboard();
     }
   });
-  sp.addEventListener('contextmenu', (e) => { e.preventDefault(); window.spider.bubbleMenu(); });
+  el.svg.addEventListener('contextmenu', (e) => { e.preventDefault(); window.spider.bubbleMenu(); });
 
-  window.addEventListener('dragover', (e) => { e.preventDefault(); catching = true; });
+  window.addEventListener('dragover', (e) => { e.preventDefault(); catching = true; wake(); });
   window.addEventListener('dragleave', () => { catching = false; });
   window.addEventListener('drop', (e) => {
     e.preventDefault();
     catching = false;
+    if (trick) endTrick();
     doTrick('yoyo');
     const f = e.dataTransfer.files[0];
     if (f) window.spider.openFile(f);
@@ -229,8 +415,13 @@
   window.spider.onRigInit((d) => { minLen = d.minLen; maxLen = d.maxLen; baseLen = d.length; });
   window.spider.onCursor((p) => { cursor = p; });
   window.spider.onThreadLength((l) => { baseLen = l; });
-  window.spider.onRigDragging((d) => { dragging = d; $('spider').classList.toggle('grabbing', d); });
-  window.spider.onBusy((b) => { busy = b; if (!b) doTrick('flip'); });
+  window.spider.onRigDragging((d) => { dragging = d; el.spider.classList.toggle('grabbing', d); });
+  window.spider.onBusy((b) => {
+    busy = b;
+    wake();
+    if (b && trick) endTrick();
+    if (!b) doTrick('flip');
+  });
 
   requestAnimationFrame(frame);
 </script>

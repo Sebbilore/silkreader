@@ -8,19 +8,32 @@ const {
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const Anthropic = require('@anthropic-ai/sdk').default;
-const { autoUpdater } = require('electron-updater');
+// Große Module erst laden, wenn sie gebraucht werden – das macht den Start schneller.
+let Anthropic = null;
+const loadAnthropic = () => (Anthropic ??= require('@anthropic-ai/sdk').default);
+let autoUpdaterInstance = null;
+const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoUpdater);
 
 const HOTKEY = 'CommandOrControl+Shift+Space';
 const OLLAMA_URL = 'http://127.0.0.1:11434';
 
 // Eingebautes KI-Modell (läuft mit llama.cpp direkt in der App, kostenlos und offline).
 // Die Modelldatei wird einmalig aus der App heraus geladen und im Benutzerordner gespeichert.
-const BUILTIN_MODEL = {
-  name: 'Qwen3 4B Instruct',
-  uri: 'hf:unsloth/Qwen3-4B-Instruct-2507-GGUF/Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
-  file: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
-  sizeLabel: '2,5 GB',
+const BUILTIN_MODELS = {
+  fast: {
+    name: 'Schnell (Qwen2.5 1.5B)',
+    uri: 'hf:bartowski/Qwen2.5-1.5B-Instruct-GGUF:Q4_K_M',
+    file: 'Qwen2.5-1.5B-Instruct-Q4_K_M.gguf',
+    sizeLabel: '1 GB',
+    maxDocTokens: 6000,
+  },
+  quality: {
+    name: 'Gründlich (Qwen3 4B)',
+    uri: 'hf:unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M',
+    file: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
+    sizeLabel: '2,5 GB',
+    maxDocTokens: 12000,
+  },
 };
 const MODELS = {
   'claude-opus-5-5': 'Claude Opus 5.5 (beste Qualität)',
@@ -101,12 +114,21 @@ function createBubble() {
   });
 
   // Mausposition regelmäßig an die Spinne schicken (Augen folgen dem Zeiger, Treffer-Test).
+  // Ist die Maus weit weg, reicht seltenes Nachfragen – das spart Rechenzeit.
+  let lastSent = 0, lastPos = null;
   const timer = setInterval(() => {
     if (!bubbleWin || bubbleWin.isDestroyed()) return clearInterval(timer);
     if (!bubbleWin.isVisible()) return;
     const c = screen.getCursorScreenPoint();
     const [wx, wy] = bubbleWin.getPosition();
-    bubbleWin.webContents.send('cursor', { x: c.x - wx, y: c.y - wy });
+    const x = c.x - wx, y = c.y - wy;
+    const far = x < -300 || x > RIG.width + 300 || y > RIG.height + 300;
+    const now = Date.now();
+    if (lastPos && lastPos.x === x && lastPos.y === y) return; // Maus bewegt sich nicht
+    if (far && now - lastSent < 400) return;
+    lastSent = now;
+    lastPos = { x, y };
+    bubbleWin.webContents.send('cursor', { x, y });
   }, 40);
 }
 
@@ -244,7 +266,7 @@ const ANALYSIS_SCHEMA = {
   },
 };
 
-function buildPrompt(doc, language) {
+function buildPrompt(doc, language, compact = false) {
   const body = doc.pages.length > 1
     ? doc.pages.map((p, i) => `<page number="${i + 1}">\n${p}\n</page>`).join('\n')
     : doc.pages[0];
@@ -253,9 +275,17 @@ function buildPrompt(doc, language) {
     `Antworte auf ${language}.`,
     '',
     'Liefere:',
-    '- eine prägnante Zusammenfassung und die Kernaussagen,',
-    '- 6 bis 30 wichtige Angaben (Zahlen, Beträge, Daten, Fristen, Personen, Begriffe) – je nach Länge und Dichte des Textes. Das Feld "quote" muss eine wörtliche, zusammenhängende Stelle aus dem Dokument sein (Zeichen für Zeichen kopiert), damit sie im Text markiert werden kann,',
-    '- 3 bis 8 echte Erkenntnisse, die über bloßes Nacherzählen hinausgehen: Kennzahlen/Verhältnisse selbst ausrechnen, wo es sinnvoll ist, Risiken, Fristen, Widersprüche oder nötige Handlungen benennen.',
+    ...(compact ? [
+      // Kurze Antwort für das eingebaute Modell: weniger Text = viel schneller
+      '- eine Zusammenfassung in 2 bis 4 Sätzen und höchstens 5 kurze Kernaussagen,',
+      '- 4 bis 12 wichtige Angaben (Zahlen, Beträge, Daten, Fristen, Personen). Das Feld "quote" muss eine kurze wörtliche Stelle aus dem Dokument sein (3 bis 8 Wörter),',
+      '- 3 bis 5 Erkenntnisse mit je einem kurzen Satz als Begründung.',
+      'Fasse dich kurz.',
+    ] : [
+      '- eine prägnante Zusammenfassung und die Kernaussagen,',
+      '- 6 bis 30 wichtige Angaben (Zahlen, Beträge, Daten, Fristen, Personen, Begriffe) – je nach Länge und Dichte des Textes. Das Feld "quote" muss eine wörtliche, zusammenhängende Stelle aus dem Dokument sein (Zeichen für Zeichen kopiert), damit sie im Text markiert werden kann,',
+      '- 3 bis 8 echte Erkenntnisse, die über bloßes Nacherzählen hinausgehen: Kennzahlen/Verhältnisse selbst ausrechnen, wo es sinnvoll ist, Risiken, Fristen, Widersprüche oder nötige Handlungen benennen.',
+    ]),
     'Erfinde nichts, was nicht im Text steht oder sich daraus ableiten lässt.',
     '',
     '<document>',
@@ -278,7 +308,7 @@ async function analyze(doc, onProgress) {
 async function analyzeClaude(doc, s, onProgress) {
   const apiKey = getApiKey();
   if (!apiKey) throw Object.assign(new Error('Kein API-Schlüssel hinterlegt. Bitte in den Einstellungen eintragen – oder dort auf den kostenlosen lokalen Modus umstellen.'), { code: 'NO_KEY' });
-  const client = new Anthropic({ apiKey });
+  const client = new (loadAnthropic())({ apiKey });
 
   const params = {
     model: s.model,
@@ -307,42 +337,78 @@ async function analyzeClaude(doc, s, onProgress) {
 // ---------- Kostenlos & eingebaut: llama.cpp ----------
 
 const modelDir = () => path.join(app.getPath('userData'), 'models');
-const builtinModelPath = () => process.env.SILK_MODEL_PATH || path.join(modelDir(), BUILTIN_MODEL.file);
-const builtinModelReady = () => fs.existsSync(builtinModelPath());
+const modelPathFor = (key) => process.env.SILK_MODEL_PATH || path.join(modelDir(), BUILTIN_MODELS[key].file);
+const modelReady = (key) => fs.existsSync(modelPathFor(key));
+// Ohne Auswahl: das gründliche Modell, falls es schon da ist, sonst das schnelle.
+const builtinKey = (s = loadSettings()) => (BUILTIN_MODELS[s.builtinModel] ? s.builtinModel : modelReady('quality') ? 'quality' : 'fast');
+const builtinModelReady = () => modelReady(builtinKey());
 
-let llamaRuntime = null; // { llama, model } – bleibt geladen, damit weitere Analysen schnell starten
+let llamaRuntime = null; // { key, llama, model } – bleibt geladen, damit weitere Analysen sofort starten
+let llamaLoading = null;
 let modelDownload = null;
 let modelDownloadCanceled = false;
 
-async function loadBuiltinModel() {
-  if (llamaRuntime) return llamaRuntime;
-  const { getLlama } = await import('node-llama-cpp');
-  const llama = await getLlama({ gpu: 'auto' }); // nutzt die Grafikkarte, falls möglich, sonst den Prozessor
-  const model = await llama.loadModel({ modelPath: builtinModelPath() });
-  llamaRuntime = { llama, model };
-  return llamaRuntime;
+async function loadBuiltinModel(key = builtinKey()) {
+  if (llamaRuntime?.key === key) return llamaRuntime;
+  if (llamaLoading?.key === key) return llamaLoading.promise;
+  const promise = (async () => {
+    await unloadBuiltinModel();
+    const { getLlama } = await import('node-llama-cpp');
+    const llama = await getLlama({ gpu: 'auto' }); // nutzt die Grafikkarte, falls möglich, sonst den Prozessor
+    const model = await llama.loadModel({ modelPath: modelPathFor(key) });
+    llamaRuntime = { key, llama, model };
+    return llamaRuntime;
+  })();
+  llamaLoading = { key, promise };
+  try { return await promise; } finally { llamaLoading = null; }
+}
+
+async function unloadBuiltinModel() {
+  const rt = llamaRuntime;
+  llamaRuntime = null;
+  await rt?.model.dispose().catch(() => {});
+}
+
+// Modell schon kurz nach dem Start im Hintergrund laden, damit die erste Analyse nicht warten muss.
+function preloadBuiltinModel() {
+  const s = loadSettings();
+  if (s.provider === 'builtin' && builtinModelReady()) loadBuiltinModel().catch((e) => console.error('Modell vorladen:', e));
 }
 
 async function analyzeBuiltin(doc, s, onProgress) {
-  if (!builtinModelReady()) {
-    throw Object.assign(new Error(`Das eingebaute KI-Modell ist noch nicht heruntergeladen (einmalig ${BUILTIN_MODEL.sizeLabel}). Bitte in den Einstellungen auf „Herunterladen“ klicken.`), { code: 'NO_MODEL' });
+  const key = builtinKey(s);
+  const info = BUILTIN_MODELS[key];
+  if (!modelReady(key)) {
+    throw Object.assign(new Error(`Das eingebaute KI-Modell ist noch nicht heruntergeladen (einmalig ${info.sizeLabel}). Bitte in den Einstellungen auf „Herunterladen“ klicken.`), { code: 'NO_MODEL' });
   }
   const { LlamaChatSession } = await import('node-llama-cpp');
-  const { llama, model } = await loadBuiltinModel();
+  const { llama, model } = await loadBuiltinModel(key);
 
-  const prompt = buildPrompt(doc, s.language);
-  const promptTokens = model.tokenize(prompt).length;
-  const answerTokens = 4096;
-  const maxCtx = Math.min(model.trainContextSize || 32768, 32768);
-  if (promptTokens + answerTokens + 300 > maxCtx) {
-    throw new Error(`Das Dokument ist zu lang für das eingebaute Modell (ca. ${Math.round(promptTokens / 1000)}k von max. ${Math.round((maxCtx - answerTokens) / 1000)}k Token). Kürzere Abschnitte analysieren oder in den Einstellungen Claude wählen.`);
+  // Lange Dokumente kürzen: Auf dem Prozessor kostet jedes Token Lesezeit.
+  let note = null;
+  let usedDoc = doc;
+  const fullTokens = model.tokenize(doc.pages.join('\n')).length;
+  if (fullTokens > info.maxDocTokens) {
+    const ratio = info.maxDocTokens / fullTokens;
+    let budget = Math.floor(doc.pages.join('\n').length * ratio);
+    const pages = [];
+    for (const p of doc.pages) {
+      if (budget <= 0) break;
+      pages.push(p.slice(0, budget));
+      budget -= p.length;
+    }
+    usedDoc = { ...doc, pages };
+    note = `Das eingebaute Modell hat aus Tempogründen nur etwa die ersten ${Math.max(1, Math.round(ratio * 100))} % des Dokuments gelesen. Für das ganze Dokument in den Einstellungen Claude wählen.`;
   }
 
-  const context = await model.createContext({ contextSize: promptTokens + answerTokens + 300 });
+  const prompt = buildPrompt(usedDoc, s.language, true);
+  const promptTokens = model.tokenize(prompt).length;
+  const answerTokens = 1800;
+  const context = await model.createContext({ contextSize: promptTokens + answerTokens + 400, flashAttention: 'auto' });
   try {
     const session = new LlamaChatSession({
       contextSequence: context.getSequence(),
-      systemPrompt: 'Du bist ein sorgfältiger Analyst. Antworte ausschließlich mit JSON nach dem vorgegebenen Schema.',
+      systemPrompt: 'Du bist ein sorgfältiger Analyst. Antworte ausschließlich mit JSON nach dem vorgegebenen Schema. Fasse dich kurz.',
     });
     const grammar = await llama.createGrammarForJsonSchema(ANALYSIS_SCHEMA);
     let chars = 0;
@@ -352,18 +418,22 @@ async function analyzeBuiltin(doc, s, onProgress) {
       temperature: 0.2,
       onTextChunk: (chunk) => { chars += chunk.length; onProgress(chars); },
     });
+    let result;
     try {
-      return normalizeResult(grammar.parse(text));
+      result = normalizeResult(grammar.parse(text));
     } catch {
       throw new Error('Das eingebaute Modell hat keine vollständige Antwort geliefert. Bitte erneut versuchen.');
     }
+    if (note) result.note = note;
+    return result;
   } finally {
     await context.dispose();
   }
 }
 
-async function startModelDownload(sender) {
+async function startModelDownload(sender, key) {
   if (modelDownload) return;
+  const info = BUILTIN_MODELS[key] || BUILTIN_MODELS.fast;
   const send = (ch, d) => { if (!sender.isDestroyed()) sender.send(ch, d); };
   try {
     const { createModelDownloader } = await import('node-llama-cpp');
@@ -372,9 +442,9 @@ async function startModelDownload(sender) {
     let stalled = false;
     const downloader = await Promise.race([
       createModelDownloader({
-        modelUri: BUILTIN_MODEL.uri,
+        modelUri: info.uri,
         dirPath: modelDir(),
-        fileName: BUILTIN_MODEL.file,
+        fileName: info.file,
         onProgress: ({ totalSize, downloadedSize, averageSpeed }) => {
           lastProgress = Date.now();
           send('model-progress', { total: totalSize, done: downloadedSize, speed: averageSpeed });
@@ -395,6 +465,7 @@ async function startModelDownload(sender) {
     }
     if (stalled) throw new Error('der Download ist hängen geblieben – bitte Internetverbindung prüfen und erneut versuchen');
     send('model-progress', { finished: true });
+    preloadBuiltinModel();
   } catch (e) {
     send('model-progress', { error: modelDownloadCanceled && !String(e.message).includes('hängen') ? 'Download abgebrochen.' : `Download fehlgeschlagen: ${e.message || e}` });
   } finally {
@@ -483,11 +554,11 @@ function normalizeResult(r) {
 
 function friendlyError(e) {
   if (e.code === 'NO_KEY' || e.code === 'NO_OLLAMA' || e.code === 'NO_MODEL') return e.message;
-  if (e instanceof Anthropic.AuthenticationError) return 'Der API-Schlüssel ist ungültig. Bitte in den Einstellungen prüfen.';
-  if (e instanceof Anthropic.RateLimitError) return 'Zu viele Anfragen – bitte kurz warten und erneut versuchen.';
-  if (e instanceof Anthropic.BadRequestError) return `Anfrage abgelehnt: ${e.message}`;
-  if (e instanceof Anthropic.APIConnectionError) return 'Keine Verbindung zu Claude – Internetverbindung prüfen.';
-  if (e instanceof Anthropic.APIError) return `Fehler von Claude: ${e.message}`;
+  if (Anthropic && e instanceof Anthropic.AuthenticationError) return 'Der API-Schlüssel ist ungültig. Bitte in den Einstellungen prüfen.';
+  if (Anthropic && e instanceof Anthropic.RateLimitError) return 'Zu viele Anfragen – bitte kurz warten und erneut versuchen.';
+  if (Anthropic && e instanceof Anthropic.BadRequestError) return `Anfrage abgelehnt: ${e.message}`;
+  if (Anthropic && e instanceof Anthropic.APIConnectionError) return 'Keine Verbindung zu Claude – Internetverbindung prüfen.';
+  if (Anthropic && e instanceof Anthropic.APIError) return `Fehler von Claude: ${e.message}`;
   return String(e.message || e);
 }
 
@@ -499,7 +570,7 @@ ipcMain.handle('analyze', async (event, doc) => {
     const result = await analyze(doc, (n) => event.sender.send('progress', n));
     return { ok: true, result };
   } catch (e) {
-    return { ok: false, error: friendlyError(e), needsKey: e.code === 'NO_KEY' || e.code === 'NO_OLLAMA' || e.code === 'NO_MODEL' || e instanceof Anthropic.AuthenticationError };
+    return { ok: false, error: friendlyError(e), needsKey: e.code === 'NO_KEY' || e.code === 'NO_OLLAMA' || e.code === 'NO_MODEL' || Anthropic && e instanceof Anthropic.AuthenticationError };
   } finally {
     setBusy(false);
   }
@@ -520,21 +591,25 @@ ipcMain.handle('get-settings', () => {
   };
 });
 ipcMain.handle('model-status', () => ({
-  ready: builtinModelReady(), downloading: !!modelDownload, name: BUILTIN_MODEL.name, size: BUILTIN_MODEL.sizeLabel,
+  selected: builtinKey(),
+  downloading: !!modelDownload,
+  models: Object.fromEntries(Object.entries(BUILTIN_MODELS).map(([k, m]) => [k, { name: m.name, size: m.sizeLabel, ready: modelReady(k) }])),
 }));
-ipcMain.handle('model-download', (event) => { startModelDownload(event.sender); });
+ipcMain.handle('model-download', (event, key) => { startModelDownload(event.sender, key); });
 ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await modelDownload?.cancel(); });
 ipcMain.handle('ollama-models', async () => {
   try { return { ok: true, models: await ollamaModels() }; } catch { return { ok: false, models: [] }; }
 });
-ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language }) => {
+ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel }) => {
   if (apiKey) setApiKey(apiKey.trim());
   const s = loadSettings();
   if (['builtin', 'claude', 'ollama'].includes(provider)) s.provider = provider;
   if (ollamaModel) s.ollamaModel = ollamaModel.trim();
+  if (BUILTIN_MODELS[builtinModel]) s.builtinModel = builtinModel;
   if (model && MODELS[model]) s.model = model;
   if (language) s.language = language;
   saveSettings(s);
+  preloadBuiltinModel();
   return true;
 });
 ipcMain.handle('open-external', (_e, url) => {
@@ -605,10 +680,10 @@ let manualUpdateCheck = false;
 
 function setupUpdates() {
   if (!app.isPackaged) return; // nur in der installierten App
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  updater().autoDownload = true;
+  updater().autoInstallOnAppQuit = true;
 
-  autoUpdater.on('update-downloaded', async (info) => {
+  updater().on('update-downloaded', async (info) => {
     const { response } = await dialog.showMessageBox({
       type: 'info',
       title: 'Silkreader-Update',
@@ -618,26 +693,26 @@ function setupUpdates() {
       defaultId: 0,
       cancelId: 1,
     });
-    if (response === 0) autoUpdater.quitAndInstall(true, true);
+    if (response === 0) updater().quitAndInstall(true, true);
   });
-  autoUpdater.on('update-not-available', () => {
+  updater().on('update-not-available', () => {
     if (!manualUpdateCheck) return;
     manualUpdateCheck = false;
     dialog.showMessageBox({ type: 'info', title: 'Silkreader', message: `Du hast die neueste Version (${app.getVersion()}).` });
   });
-  autoUpdater.on('update-available', (info) => {
+  updater().on('update-available', (info) => {
     if (!manualUpdateCheck) return;
     manualUpdateCheck = false;
     dialog.showMessageBox({ type: 'info', title: 'Silkreader', message: `Version ${info.version} wird im Hintergrund heruntergeladen …` });
   });
-  autoUpdater.on('error', (e) => {
+  updater().on('error', (e) => {
     console.error('Update-Fehler:', e);
     if (!manualUpdateCheck) return; // automatische Prüfungen scheitern still (z. B. offline)
     manualUpdateCheck = false;
     dialog.showMessageBox({ type: 'warning', title: 'Silkreader', message: 'Die Update-Prüfung hat nicht geklappt.', detail: String(e.message || e).slice(0, 400) });
   });
 
-  const check = () => autoUpdater.checkForUpdates().catch(() => {});
+  const check = () => updater().checkForUpdates().catch(() => {});
   setTimeout(check, 15000);
   setInterval(check, 4 * 60 * 60 * 1000);
 }
@@ -648,7 +723,7 @@ function checkUpdatesNow() {
     return;
   }
   manualUpdateCheck = true;
-  autoUpdater.checkForUpdates().catch(() => {});
+  updater().checkForUpdates().catch(() => {});
 }
 
 // ---------- Start ----------
@@ -682,6 +757,7 @@ if (!app.requestSingleInstanceLock()) {
 
     globalShortcut.register(HOTKEY, analyzeClipboard);
     setupUpdates();
+    setTimeout(preloadBuiltinModel, 8000);
 
     const s = loadSettings();
     if (s.provider === 'claude' && !getApiKey()) openSettings();
