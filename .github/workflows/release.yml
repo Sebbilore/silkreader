@@ -25,8 +25,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          gh release view "v$version" --repo "${{ github.repository }}" 2>$null | Out-Null
-          if ($LASTEXITCODE -eq 0) {
+          $isDraft = gh release view "v$version" --repo "${{ github.repository }}" --json isDraft --jq .isDraft 2>$null
+          if ($LASTEXITCODE -eq 0 -and $isDraft -eq 'false') {
             Write-Host "Release v$version existiert bereits – nichts zu tun."
             "skip=true" >> $env:GITHUB_OUTPUT
           } else {
@@ -68,3 +68,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ runner.temp }}\silkreader.pfx
           CSC_KEY_PASSWORD: ${{ secrets.SILKREADER_PFX_PASSWORD }}
+
+      # Erst als Entwurf hochladen, dann in einem Schritt veröffentlichen –
+      # so entsteht garantiert genau ein Release pro Version.
+      - name: Release veröffentlichen
+        if: steps.check.outputs.skip == 'false'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          gh release edit "v$version" --repo "${{ github.repository }}" --draft=false --latest

@@ -45,7 +45,7 @@
         "provider": "github",
         "owner": "Sebbilore",
         "repo": "silkreader",
-        "releaseType": "release"
+        "releaseType": "draft"
       }
     ],
     "copyright": "© 2026 Silkreader",
