@@ -61,13 +61,8 @@ Im Analysefenster springt die Spinne beim Klick auf eine Angabe zur Fundstelle i
 ## Neue Version veröffentlichen
 
 1. In `package.json` die `version` erhöhen (z. B. `1.2.0`).
-2. Committen, Tag setzen und pushen:
-   ```bash
-   git commit -am "Version 1.2.0"
-   git tag v1.2.0
-   git push && git push --tags
-   ```
-3. GitHub Actions baut, signiert und veröffentlicht die neue Version automatisch als Release. Alle installierten Apps holen sie sich von selbst.
+2. Committen und auf `main` pushen.
+3. GitHub Actions merkt die neue Versionsnummer, baut, signiert und veröffentlicht sie automatisch als Release `v1.2.0`. Alle installierten Apps holen sie sich von selbst.
 
 Dafür braucht das Repository zwei Secrets (**Settings → Secrets and variables → Actions**): `SILKREADER_PFX_BASE64` (das Signatur-Zertifikat als Base64) und `SILKREADER_PFX_PASSWORD`.
 

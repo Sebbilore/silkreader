@@ -1,10 +1,12 @@
-# Baut bei jedem Versions-Tag (z. B. v1.2.0) den signierten Windows-Installer und
-# veröffentlicht ihn als GitHub-Release. Die installierte App holt sich von dort Updates.
+# Sobald sich die Versionsnummer in package.json auf main ändert, baut dieser Workflow den
+# signierten Windows-Installer und veröffentlicht ihn als GitHub-Release (Tag v<Version>).
+# Die installierte App holt sich von dort automatisch Updates.
 name: Release
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths: [package.json]
   workflow_dispatch:
 
 permissions:
@@ -16,22 +18,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Gibt es diese Version schon?
+        id: check
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          gh release view "v$version" --repo "${{ github.repository }}" 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release v$version existiert bereits – nichts zu tun."
+            "skip=true" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "Neue Version v$version wird gebaut."
+            "skip=false" >> $env:GITHUB_OUTPUT
+          }
+          $global:LASTEXITCODE = 0
+
       - uses: actions/setup-node@v4
+        if: steps.check.outputs.skip == 'false'
         with:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      - if: steps.check.outputs.skip == 'false'
+        run: npm ci
 
       - name: Signatur-Zertifikat bereitstellen
+        if: steps.check.outputs.skip == 'false'
         shell: pwsh
         env:
           PFX_BASE64: ${{ secrets.SILKREADER_PFX_BASE64 }}
         run: |
           if (-not $env:PFX_BASE64) { throw "Secret SILKREADER_PFX_BASE64 fehlt (Settings → Secrets and variables → Actions)." }
-          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\silkreader.pfx", [Convert]::FromBase64String($env:PFX_BASE64))
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\silkreader.pfx", [Convert]::FromBase64String($env:PFX_BASE64.Trim()))
 
       - name: Bauen, signieren und veröffentlichen
+        if: steps.check.outputs.skip == 'false'
         run: npx electron-builder --win nsis --x64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
