@@ -15,25 +15,26 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v5
 
       - name: Gibt es diese Version schon?
         id: check
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          $isDraft = gh release view "v$version" --repo "${{ github.repository }}" --json isDraft --jq .isDraft 2>$null
-          if ($LASTEXITCODE -eq 0 -and $isDraft -eq 'false') {
-            Write-Host "Release v$version existiert bereits – nichts zu tun."
+          "version=$version" >> $env:GITHUB_OUTPUT
+          $releases = gh api "repos/${{ github.repository }}/releases?per_page=100" | ConvertFrom-Json
+          $done = $releases | Where-Object { $_.tag_name -eq "v$version" -and -not $_.draft -and ($_.assets.name -contains 'latest.yml') }
+          if ($done) {
+            Write-Host "Release v$version ist schon vollständig veröffentlicht – nichts zu tun."
             "skip=true" >> $env:GITHUB_OUTPUT
           } else {
-            Write-Host "Neue Version v$version wird gebaut."
+            Write-Host "Version v$version wird gebaut."
             "skip=false" >> $env:GITHUB_OUTPUT
           }
-          $global:LASTEXITCODE = 0
 
       - uses: actions/setup-node@v5
         if: steps.check.outputs.skip == 'false'
@@ -53,29 +54,32 @@ jobs:
           if (-not $env:PFX_BASE64) { throw "Secret SILKREADER_PFX_BASE64 fehlt (Settings → Secrets and variables → Actions)." }
           [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\silkreader.pfx", [Convert]::FromBase64String($env:PFX_BASE64.Trim()))
 
-      - name: Bauen, signieren und veröffentlichen
+      - name: Bauen und signieren
         if: steps.check.outputs.skip == 'false'
         shell: pwsh
+        env:
+          CSC_LINK: ${{ runner.temp }}\silkreader.pfx
+          CSC_KEY_PASSWORD: ${{ secrets.SILKREADER_PFX_PASSWORD }}
         run: |
-          npx electron-builder --win nsis --x64 --publish always 2>&1 | Tee-Object -FilePath build.log
+          npx electron-builder --win nsis --x64 --publish never 2>&1 | Tee-Object -FilePath build.log
           if ($LASTEXITCODE -ne 0) {
             # Ende des Logs als Annotation ausgeben, damit der Fehler auf der Übersichtsseite steht
             $tail = (Get-Content build.log -Tail 60) -join '%0A'
             Write-Output "::error title=Build fehlgeschlagen::$tail"
             exit 1
           }
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ runner.temp }}\silkreader.pfx
-          CSC_KEY_PASSWORD: ${{ secrets.SILKREADER_PFX_PASSWORD }}
 
-      # Erst als Entwurf hochladen, dann in einem Schritt veröffentlichen –
-      # so entsteht garantiert genau ein Release pro Version.
-      - name: Release veröffentlichen
+      # Genau ein Release pro Version: halbfertige Einträge dieser Version entfernen,
+      # dann das Release mit allen Dateien in einem Schritt anlegen.
+      - name: Veröffentlichen
         if: steps.check.outputs.skip == 'false'
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          gh release edit "v$version" --repo "${{ github.repository }}" --draft=false --latest
+          $version = "${{ steps.check.outputs.version }}"
+          $releases = gh api "repos/${{ github.repository }}/releases?per_page=100" | ConvertFrom-Json
+          foreach ($r in $releases | Where-Object { $_.tag_name -eq "v$version" }) {
+            Write-Host "Entferne alten Eintrag $($r.id)"
+            gh api -X DELETE "repos/${{ github.repository }}/releases/$($r.id)" | Out-Null
+          }
+          $files = @("dist\latest.yml") + (Get-ChildItem dist\*.exe, dist\*.blockmap | ForEach-Object { $_.FullName })
+          gh release create "v$version" @files --repo "${{ github.repository }}" --title "$version" --notes "Silkreader $version" --target "${{ github.sha }}" --latest
