@@ -1,6 +1,6 @@
 # Sobald sich die Versionsnummer in package.json auf main ändert, baut dieser Workflow den
 # signierten Windows-Installer und veröffentlicht ihn als GitHub-Release (Tag v<Version>).
-# Die installierte App holt sich von dort automatisch Updates.
+# Die installierte App holt sich von dort automatisch Updates (electron-updater).
 name: Release
 
 on:
