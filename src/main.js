@@ -35,6 +35,17 @@ const SHORTCUTS = [
 ];
 // Hinweis: Strg+Alt+E/Q/M/2/3/7–0 sind auf deutschen Tastaturen AltGr-Zeichen (€, @, µ …) und daher tabu.
 const HOTKEY = SHORTCUTS[0].keys;
+
+// Kleine Aussetzer (z. B. ein Timer nach dem Schließen eines Fensters) sollen kein
+// Fehlerfenster aufpoppen lassen – stattdessen in silkreader-errors.log festhalten.
+function logError(err) {
+  try {
+    const file = path.join(app.getPath('userData'), 'silkreader-errors.log');
+    fs.appendFileSync(file, `${new Date().toISOString()} ${err?.stack || err}\n`);
+  } catch {}
+}
+process.on('uncaughtException', logError);
+process.on('unhandledRejection', logError);
 const shortcutActions = {
   take: () => spiderTake({ fromHotkey: true }),
   analyze: () => spiderTake({ fromHotkey: true, autoStart: true }),
@@ -1454,10 +1465,13 @@ ipcMain.on('rig-hover', (_e, inside) => {
 // so klappt das Ziehen auch, wenn gerade ein anderes Fenster den Fokus hat.
 let drag = null;
 ipcMain.on('rig-drag-start', (_e, length) => {
+  if (!bubbleWin || bubbleWin.isDestroyed()) return;
+  if (drag) clearInterval(drag.timer); // doppelter Start: alten Timer nicht verwaist weiterlaufen lassen
   const c = screen.getCursorScreenPoint();
   const [x] = bubbleWin.getPosition();
-  drag = { cx: c.x, cy: c.y, x, length: Number(length) || 90, cur: Number(length) || 90, moved: false };
-  drag.timer = setInterval(() => {
+  const d = drag = { cx: c.x, cy: c.y, x, length: Number(length) || 90, cur: Number(length) || 90, moved: false };
+  d.timer = setInterval(() => {
+    if (drag !== d || !bubbleWin || bubbleWin.isDestroyed()) { clearInterval(d.timer); return; }
     const p = screen.getCursorScreenPoint();
     const dx = p.x - drag.cx, dy = p.y - drag.cy;
     if (!drag.moved && Math.abs(dx) + Math.abs(dy) > 4) {
@@ -1472,7 +1486,8 @@ ipcMain.on('rig-drag-start', (_e, length) => {
     bubbleWin.webContents.send('thread-length', drag.cur);
   }, 16);
 });
-ipcMain.handle('rig-drag-end', () => {
+ipcMain.handle('rig-drag-end', () => endRigDrag());
+function endRigDrag() {
   if (!drag) return { moved: false };
   clearInterval(drag.timer);
   const { moved, cur } = drag;
@@ -1485,7 +1500,7 @@ ipcMain.handle('rig-drag-end', () => {
     saveSettings(s);
   }
   return { moved };
-});
+}
 
 // ---------- Automatische Updates (GitHub Releases) ----------
 
