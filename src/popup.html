@@ -213,8 +213,31 @@
       btn.textContent = ok ? '✓ geöffnet' : 'nicht möglich';
     }));
     $('main').scrollTop = 0;
-    footer({ ask: true, actions: [['Kopieren', copyResult], ['Festhalten', keepResult], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)]] });
+    footer({ ask: true, actions: [['Kopieren', copyResult], ['Vorlesen', () => speak(bullets(r.summary).join('. '))], ['Festhalten', keepResult], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)]] });
   }
+
+  // ---------- Vorlesen (Windows-Stimmen, offline) – die Spinne bewegt dabei den Mund ----------
+  let speaking = false;
+  function speak(text, label = 'Vorlesen') {
+    const synth = window.speechSynthesis;
+    if (speaking) { synth.cancel(); return; }
+    const u = new SpeechSynthesisUtterance(text);
+    const voices = synth.getVoices();
+    const lang = /[äöüß]|\b(der|die|und|ist)\b/i.test(text) ? 'de' : 'en';
+    u.voice = voices.find((v) => v.lang.toLowerCase().startsWith(lang)) || null;
+    u.lang = lang === 'de' ? 'de-DE' : 'en-US';
+    u.rate = 1.05;
+    const btn = $('foot').querySelector(`[data-a="${label}"]`);
+    const set = (on) => {
+      speaking = on;
+      window.spider.rigTalk(on);
+      if (btn) btn.innerHTML = `${silkIcon(on ? 'stop' : 'speak')}<span>${on ? 'Stopp' : label}</span>`;
+    };
+    u.onend = u.onerror = () => set(false);
+    set(true);
+    synth.speak(u);
+  }
+  const stopSpeaking = () => { if (speaking) window.speechSynthesis.cancel(); };
 
   // ---------- Frage an den Text ----------
   async function ask(q) {
@@ -238,12 +261,19 @@
     const myRun = ++run;
     $('foot').classList.add('hidden');
     $('main').innerHTML = `${weave('Die Spinne schreibt …')}<div class="out" id="out"></div>`;
-    const res = await window.spider.transform(P.mode, P.text);
+    const res = await window.spider.transform(P.mode, P.text, P.extra || '');
     if (myRun !== run) return;
     if (!res.ok) return showError(res, transform);
     state = 'done';
     $('main').innerHTML = `<div class="out rise">${esc(res.text)}</div>${res.truncated ? '<div class="muted" style="margin-top:8px">Nur der Anfang wurde bearbeitet (eingebautes Modell).</div>' : ''}`;
-    footer({ actions: [['Kopieren', async () => { await navigator.clipboard.writeText(res.text); flash('Kopieren', '✓ Kopiert'); }]] });
+    // Nachschärfen mit einem Klick: kürzer, förmlicher, lockerer
+    const again = (extra) => () => { P = { ...P, extra: `${P.extra || ''} ${extra}`.trim() }; transform(); };
+    footer({ actions: [
+      ['Kopieren', async () => { await navigator.clipboard.writeText(res.text); flash('Kopieren', '✓ Kopiert'); }],
+      ['Vorlesen', () => speak(res.text)],
+      ['Kürzer', again('Fasse dich deutlich kürzer.')],
+      ...(P.mode === 'reply' ? [['Förmlicher', again('Schreibe förmlicher (Sie-Form).')], ['Lockerer', again('Schreibe lockerer und persönlicher.')]] : []),
+    ] });
   }
   window.spider.onTransformProgress((text) => { if (state === 'running' && $('out')) { $('weave')?.remove(); $('out').innerHTML = `${esc(text)}<span class="cur">▍</span>`; } });
 
@@ -430,6 +460,7 @@
         <option value="der Sprache des Dokuments"${s.language === 'der Sprache des Dokuments' ? ' selected' : ''}>Wie das Dokument</option></select></div>
       <label class="tog"><input type="checkbox" id="hatch"${s.hatchAnimation ? ' checked' : ''}> Große Spinne liest mit</label>
       <label class="tog"><input type="checkbox" id="pinCopied"${s.pinCopied ? ' checked' : ''}> Kopierte Dateien ins Netz</label>
+      <label class="tog"><input type="checkbox" id="copyHint"${s.copyHint ? ' checked' : ''}> Bei kopiertem Text anbieten, ihn zu lesen</label>
       <label class="tog"><input type="checkbox" id="lowPower"${s.lowPower ? ' checked' : ''}> Sparmodus <span class="muted">(nach Neustart)</span></label>`;
     $('main').querySelectorAll('[data-set]').forEach((g) => g.addEventListener('click', async (e) => {
       const b = e.target.closest('[data-v]'); if (!b) return;
@@ -439,7 +470,7 @@
     }));
     $('keyLink').addEventListener('click', () => window.spider.openSettings());
     $('lang').addEventListener('change', (e) => window.spider.saveSettings({ language: e.target.value }));
-    for (const id of ['hatch', 'pinCopied', 'lowPower']) {
+    for (const id of ['hatch', 'pinCopied', 'copyHint', 'lowPower']) {
       $(id).addEventListener('change', (e) => window.spider.saveSettings({ [id === 'hatch' ? 'hatchAnimation' : id]: e.target.checked }));
     }
     footer({ actions: [['Tastenkürzel & mehr …', () => window.spider.openSettings()], ['Lesemodus', () => window.spider.openReader(null)]] });
@@ -460,7 +491,7 @@
     });
     f.classList.remove('hidden');
   }
-  const ACTION_ICONS = { Kopieren: 'copy', Festhalten: 'keep', Lesemodus: 'reader', Notizbuch: 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Erneut versuchen': 'send' };
+  const ACTION_ICONS = { Vorlesen: 'speak', Kürzer: 'shorter', Förmlicher: 'tone', Lockerer: 'tone', Kopieren: 'copy', Festhalten: 'keep', Lesemodus: 'reader', Notizbuch: 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Erneut versuchen': 'send' };
   function flash(label, text) { const b = $('foot').querySelector(`[data-a="${label}"] span`); if (!b) return; b.textContent = text; setTimeout(() => (b.textContent = label), 1300); }
   function showError(res, retry) {
     state = 'error';
@@ -475,6 +506,7 @@
   async function copyResult() { await navigator.clipboard.writeText(markdown(result)); flash('Kopieren', '✓ Kopiert'); }
   async function keepResult() { await window.spider.cocoonAddText(markdown(result)); flash('Festhalten', '✓ Im Netz'); }
   function close() {
+    stopSpeaking();
     run++; state = 'idle';
     $('bubble').classList.add('closing');
     setTimeout(() => window.spider.popupClose(), 160);
@@ -507,6 +539,7 @@
   }, 250));
 
   window.spider.onPopupDoc((payload) => {
+    stopSpeaking();
     P = payload; result = null; run++;
     setBack(null);
     document.documentElement.style.setProperty('--arrow', `${payload.arrow}px`);

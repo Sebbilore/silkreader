@@ -22,6 +22,7 @@ await new Promise((r) => setTimeout(r, 800));
 // Maus erst "beim Text" ruhen lassen, dann zur Spinne
 execSync('xdotool mousemove 700 420'); await new Promise((r) => setTimeout(r, 600));
 const rig = app.windows().find((w) => w.url().includes('bubble'));
+if (process.env.TAKE_MODE) await rig.evaluate((m) => window.spider.setClickMode(m), process.env.TAKE_MODE);
 const b = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('bubble')).getBounds());
 const sp = await rig.evaluate(() => spiderPos);
 execSync(`xdotool mousemove ${Math.round(b.x + sp.x)} ${Math.round(b.y + sp.y)}`); await new Promise((r) => setTimeout(r, 500));
@@ -56,6 +57,7 @@ console.log('big window opened:', await app.evaluate(({ BrowserWindow }) => Brow
 console.log('popup started by itself:', !(await pop.$('#go')));
 console.log('clipboard restored:', JSON.stringify(await app.evaluate(async ({ clipboard }) => clipboard.readText())));
 await pop.waitForSelector('#foot:not(.hidden)', { timeout: 30000 });
+if (process.env.TAKE_MODE) { console.log('Modus', process.env.TAKE_MODE, '→ Blase:', await pop.textContent('#title'), '|', (await pop.textContent('#main')).slice(0, 60)); await app.close(); process.exit(0); }
 console.log('result →', await pop.textContent('#title'), '| findings:', await pop.evaluate(() => document.querySelectorAll('.finding').length), '| chips:', await pop.evaluate(() => document.querySelectorAll('.chip').length), '| bullets:', await pop.evaluate(() => document.querySelectorAll('ul.sum li').length));
 execSync(`import -window root ${out}/popup.png`);
 await pop.getByText('Mehr ▾').click();

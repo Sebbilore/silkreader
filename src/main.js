@@ -187,15 +187,23 @@ function createBubble() {
 
   // Mausposition regelmäßig an die Spinne schicken (Augen folgen dem Zeiger, Treffer-Test).
   // Ist die Maus weit weg, reicht seltenes Nachfragen – das spart Rechenzeit.
-  let lastSent = 0, lastPos = null;
-  const timer = setInterval(() => {
-    if (!bubbleWin || bubbleWin.isDestroyed()) return clearInterval(timer);
-    if (!bubbleWin.isVisible()) return;
+  // Abfragetakt passt sich an: nah 25×/s, weit weg und still nur 4×/s.
+  let lastSent = 0, lastPos = null, lastRaw = null, delay = 40;
+  const loop = () => {
+    if (!bubbleWin || bubbleWin.isDestroyed()) return;
+    setTimeout(loop, delay);
+    tick();
+  };
+  const tick = () => {
+    if (!bubbleWin.isVisible()) { delay = 300; return; }
     const c = screen.getCursorScreenPoint();
+    const still = lastRaw && lastRaw.x === c.x && lastRaw.y === c.y;
+    lastRaw = c;
     recordCursor(c);
     const [wx, wy] = bubbleWin.getPosition();
     const x = c.x - wx, y = c.y - wy;
     const far = x < -300 || x > RIG.width + 300 || y > RIG.height + 300;
+    delay = dropZone || !far ? 40 : still ? 250 : 120;
     const now = Date.now();
     if (far && now - lastSent < 150 && !dropZone) return; // weit weg: nur ~7× pro Sekunde nachsehen
     checkDropZone(x, y);
@@ -204,7 +212,8 @@ function createBubble() {
     lastSent = now;
     lastPos = { x, y };
     bubbleWin.webContents.send('cursor', { x, y });
-  }, 40);
+  };
+  loop();
 }
 
 // Zieht jemand mit gedrückter Maustaste etwas in die Nähe der Spinne, wird das ganze Netz
@@ -441,6 +450,8 @@ function closeRing() {
   if (ringWin && !ringWin.isDestroyed()) ringWin.hide();
 }
 ipcMain.on('ring-hover', (_e, id) => { if (ring) ring.hover = id; });
+ipcMain.on('prewarm', () => { createPopup(); });
+ipcMain.on('rig-talk', (_e, on) => bubbleWin?.webContents.send('rig-talk', !!on));
 ipcMain.on('ring-action', (_e, id) => {
   closeRing();
   if (id) runRingAction(id).catch(logError);
@@ -573,9 +584,20 @@ async function spiderTake({ autoStart = false, fromHotkey = false, mode = null }
     preloadBuiltinModel();
     const anchor = selectionAnchor(fromHotkey);
     // Bildschirmfoto der Markierung gleich mit aufnehmen (nur im Speicher), solange sie sichtbar ist
-    const wantAnimation = mode === 'read' && loadSettings().hatchAnimation !== false && bubbleWin?.isVisible();
+    const wantAnimation = loadSettings().hatchAnimation !== false && bubbleWin?.isVisible();
     const scanned = wantAnimation ? scanSelection(anchor).catch(() => null) : Promise.resolve(null);
+    const overlay = wantAnimation ? prepareOverlay(anchor) : null;
     const grabbed = await grabSelection({ hotkey: fromHotkey });
+    logLine(`Lesen: Modus ${mode}, Animation ${wantAnimation ? 'an' : 'aus'}, Text ${grabbed.text ? grabbed.text.length : 0} Zeichen, Dateien ${grabbed.files.length}`);
+    if (!grabbed.text) overlay?.destroy();
+    // Nichts markiert, aber eben ein längerer Text kopiert? Dann den lesen.
+    if (!grabbed.text && !grabbed.files.length && copiedOffer && Date.now() < copiedOffer.until) {
+      grabbed.text = copiedOffer.text;
+      copiedOffer = null;
+      bubbleWin?.webContents.send('rig-hint', null);
+      if (mode !== 'read') return transformSelection(mode, grabbed);
+      return showPopup({ title: 'Kopierter Text', source: 'clipboard', pages: [grabbed.text] }, { autoStart: true });
+    }
     // Analysiert wird nur markierter Text. Markierte Dateien werden festgehalten.
     if (!grabbed.text && grabbed.files.length) {
       grabbed.files.slice(0, 6).forEach((f) => cocoons.addFile(f));
@@ -587,7 +609,6 @@ async function spiderTake({ autoStart = false, fromHotkey = false, mode = null }
       showHome(); // nichts markiert → kleine Blase: einfügen, Zwischenablage, Datei, zuletzt Gelesenes
       return;
     }
-    if (mode !== 'read') return transformSelection(mode, grabbed);
     const doc = { title: 'Markierter Text', source: 'selection', pages: [grabbed.text] };
 
     if (wantAnimation) {
@@ -601,9 +622,10 @@ async function spiderTake({ autoStart = false, fromHotkey = false, mode = null }
         lastScreenSel = { text: grabbed.text, words: dipWords, time: Date.now() };
         doc.screenAt = lastScreenSel.time;
       }
-      await runCrawlOverlay(anchor, rects);
+      await runCrawlOverlay(anchor, rects, overlay);
       bubbleWin.webContents.send('rig-trick', 'return');
     }
+    if (mode !== 'read') return transformSelection(mode, grabbed);
     showPopup(doc, { autoStart: true }); // In der Sprechblase geht's direkt los – Enter nur im großen Fenster
   } finally {
     taking = false;
@@ -619,7 +641,56 @@ function toDipRects(list) {
 }
 
 // Die große Spinne kriecht vom Bildschirmrand herein, liest die markierten Wörter und verschwindet wieder.
-function runCrawlOverlay(anchorAbs, rects) {
+// Das Overlay-Fenster schon laden, während der markierte Text geholt wird (spart spürbar Zeit)
+function prepareOverlay(near) {
+  const b = screen.getDisplayNearestPoint(near || screen.getCursorScreenPoint()).bounds;
+  const win = new BrowserWindow({
+    x: b.x, y: b.y, width: b.width, height: b.height, show: false,
+    frame: false, transparent: true, resizable: false, movable: false, alwaysOnTop: true,
+    skipTaskbar: true, focusable: false, hasShadow: false,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+  });
+  win.setAlwaysOnTop(true, 'screen-saver');
+  win.setIgnoreMouseEvents(true);
+  // Unter Windows taucht das Overlay so nicht in Bildschirmfotos auf – wichtig, damit wir die Markierung beim Scrollen wiederfinden
+  if (process.platform === 'win32') win.setContentProtection(true);
+  win.__loaded = new Promise((r) => win.webContents.once('did-finish-load', r));
+  win.loadFile(path.join(__dirname, 'overlay.html'));
+  return win;
+}
+
+// Bewegt sich die Seite (Scrollen), wandert die Markierung mit – die große Spinne soll auf dem Text bleiben.
+// Windows: über UI Automation (genaue Wortpositionen) oder ein neues Bildschirmfoto der Markierungsfarbe.
+function trackSelectionMove(rects, near, onShift) {
+  if (process.platform !== 'win32') return () => {};
+  const base = rects?.dip ? rects.words?.[0] : toDipRects([rects?.words?.[0] || rects?.lines?.[0]].filter(Boolean))[0];
+  if (!base) return () => {};
+  const viaUia = !rects.dip;
+  let stopped = false, busy = false, misses = 0, last = [0, 0];
+  const timer = setInterval(async () => {
+    if (stopped || busy) return;
+    busy = true;
+    try {
+      let first = null;
+      if (viaUia) {
+        const r = await selectionRects();
+        const w = r?.words?.[0] || r?.lines?.[0];
+        if (w) first = toDipRects([w])[0];
+      } else {
+        first = (await scanSelection(near))?.[0] || null;
+      }
+      if (stopped) return;
+      if (!first) { if (++misses >= 3) stop(); return; } // Markierung weg (z. B. weggescrollt): einfach nicht mehr folgen
+      misses = 0;
+      const dx = Math.round(first[0] - base[0]), dy = Math.round(first[1] - base[1]);
+      if (Math.abs(dx - last[0]) + Math.abs(dy - last[1]) >= 2) { last = [dx, dy]; onShift(dx, dy); }
+    } catch { /* nächster Versuch */ } finally { busy = false; }
+  }, 280);
+  const stop = () => { stopped = true; clearInterval(timer); };
+  return stop;
+}
+
+function runCrawlOverlay(anchorAbs, rects, prepared = null) {
   return new Promise((resolve) => {
     const words = rects?.dip ? rects.words : toDipRects(rects?.words);
     const lines = rects?.dip ? [] : toDipRects(rects?.lines);
@@ -627,18 +698,14 @@ function runCrawlOverlay(anchorAbs, rects) {
     if (first) anchorAbs = { x: first[0], y: first[1] };
     const b = screen.getDisplayNearestPoint(anchorAbs).bounds;
     const rel = (arr) => arr.map(([x, y, w, h]) => [x - b.x, y - b.y, w, h]);
-    const win = new BrowserWindow({
-      x: b.x, y: b.y, width: b.width, height: b.height, show: false,
-      frame: false, transparent: true, resizable: false, movable: false, alwaysOnTop: true,
-      skipTaskbar: true, focusable: false, hasShadow: false,
-      webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
-    });
-    win.setAlwaysOnTop(true, 'screen-saver');
-    win.setIgnoreMouseEvents(true);
-    let done = false;
+    const win = prepared && !prepared.isDestroyed() ? prepared : prepareOverlay(anchorAbs);
+    const wb = win.getBounds();
+    if (wb.x !== b.x || wb.y !== b.y || wb.width !== b.width || wb.height !== b.height) win.setBounds(b);
+    let done = false, stopTrack = () => {};
     const finish = () => {
       if (done) return;
       done = true;
+      stopTrack();
       ipcMain.removeListener('overlay-done', onDone);
       if (!win.isDestroyed()) win.destroy();
       resolve();
@@ -646,15 +713,16 @@ function runCrawlOverlay(anchorAbs, rects) {
     const onDone = (e) => { if (e.sender === win.webContents) finish(); };
     ipcMain.on('overlay-done', onDone);
     setTimeout(finish, 12000);
-    win.webContents.once('did-finish-load', () => {
+    win.__loaded.then(() => {
+      if (done || win.isDestroyed()) return;
       win.showInactive();
       win.webContents.send('overlay-start', {
         anchor: { x: anchorAbs.x - b.x, y: anchorAbs.y - b.y },
         width: b.width, height: b.height,
         words: rel(words), lines: rel(lines),
       });
+      stopTrack = trackSelectionMove(rects, anchorAbs, (dx, dy) => { if (!win.isDestroyed()) win.webContents.send('overlay-shift', { dx, dy }); });
     });
-    win.loadFile(path.join(__dirname, 'overlay.html'));
   });
 }
 
@@ -662,20 +730,29 @@ function runCrawlOverlay(anchorAbs, rects) {
 const analyzeClipboard = () => spiderTake();
 
 // Strg+C auf Dateien/Ordner (z. B. im Explorer) → automatisch auch ins Spinnennetz
+// Längerer Text kopiert → die Spinne bietet an, ihn zu lesen (ein Klick genügt)
+let copiedOffer = null;
 function watchCopiedFiles() {
   let lastSeq = null, checking = false;
   setInterval(async () => {
-    if (checking || loadSettings().pinCopied === false) return;
+    const st = loadSettings();
+    if (checking || (st.pinCopied === false && st.copyHint === false)) return;
     checking = true;
     try {
       const seq = await clipboardSeq();
       if (seq === null) return;
       if (lastSeq !== null && seq !== lastSeq && !ownClipboardActive()) {
-        const files = await readClipboardFiles();
+        const files = st.pinCopied === false ? [] : await readClipboardFiles();
         if (files.length) {
           files.slice(0, 6).forEach((f) => cocoons.addFile(f));
           bubbleWin?.webContents.send('rig-trick', 'wrap');
           sendCocoons();
+        } else if (st.copyHint !== false && bubbleWin?.isVisible()) {
+          const text = String((await clipboard.readText()) || '').trim();
+          if (text.length >= 280) {
+            copiedOffer = { text, until: Date.now() + 9000 };
+            bubbleWin.webContents.send('rig-hint', 'Kopiert – Klick zum Lesen');
+          }
         }
       }
       lastSeq = seq;
@@ -1416,12 +1493,13 @@ ipcMain.handle('ask', async (event, doc, question) => {
   } catch (e) { return friendlyErr(e); } finally { setBusy(false); }
 });
 
-ipcMain.handle('transform', async (event, mode, text) => {
+ipcMain.handle('transform', async (event, mode, text, extra = '') => {
   try {
+    bubbleWin?.webContents.send('rig-task', mode);
     setBusy(true);
     let out = '';
     const { value, truncated } = await llmGenerate({
-      instruction: TRANSFORMS[mode].instruction, material: text, maxTokens: 1500,
+      instruction: TRANSFORMS[mode].instruction + (extra ? ` ${extra}` : ''), material: text, maxTokens: 1500,
       onChunk: (c) => { out += c; event.sender.send('transform-progress', out); },
     });
     return { ok: true, text: value, truncated };
@@ -1487,6 +1565,7 @@ ipcMain.handle('history-delete', (_e, id) => { fs.writeFileSync(historyFile(), J
 
 ipcMain.handle('analyze', async (event, doc) => {
   try {
+    bubbleWin?.webContents.send('rig-task', 'read');
     setBusy(true);
     analysisRunning++;
     // Fortschritt: Zeichenzahl und – sobald die KI sie geschrieben hat – schon die Zusammenfassung,
@@ -1613,6 +1692,7 @@ ipcMain.handle('get-settings', () => {
     hatchAnimation: s.hatchAnimation !== false,
     lowPower: !!s.lowPower,
     pinCopied: s.pinCopied !== false,
+    copyHint: s.copyHint !== false,
     clickMode: clickMode(),
     hasKey: !!getApiKey(), models: MODELS, hotkey: SHORTCUTS[0].label,
   };
@@ -1627,7 +1707,7 @@ ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await
 ipcMain.handle('ollama-models', async () => {
   try { return { ok: true, models: await ollamaModels() }; } catch { return { ok: false, models: [] }; }
 });
-ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied, clickMode: cm }) => {
+ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied, copyHint, clickMode: cm }) => {
   if (apiKey) setApiKey(apiKey.trim());
   const s = loadSettings();
   if (['builtin', 'claude', 'ollama'].includes(provider)) s.provider = provider;
@@ -1636,6 +1716,7 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   if (typeof hatchAnimation === 'boolean') s.hatchAnimation = hatchAnimation;
   if (typeof lowPower === 'boolean') s.lowPower = lowPower;
   if (typeof pinCopied === 'boolean') s.pinCopied = pinCopied;
+  if (typeof copyHint === 'boolean') s.copyHint = copyHint;
   if (CLICK_MODES.includes(cm)) { s.clickMode = cm; bubbleWin?.webContents.send('click-mode', cm); }
   if (model && MODELS[model]) s.model = model;
   if (language) s.language = language;
@@ -1771,6 +1852,7 @@ try {
 
 // Chromium hält sonst einen Reserve-Prozess (~60 MB) bereit, den Silkreader nicht braucht.
 app.commandLine.appendSwitch('disable-features', 'SpareRendererForSitePerProcess');
+app.commandLine.appendSwitch('enable-features', 'NetworkServiceInProcess2');
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -1828,4 +1910,5 @@ if (!app.requestSingleInstanceLock()) {
 
 // Nur für automatische Tests: ein paar Funktionen erreichbar machen
 if (process.env.SPIDER_MOCK) global.__silk = { showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
-  get cocoons() { return cocoons; }, get lastScreenSel() { return lastScreenSel; }, set lastScreenSel(v) { lastScreenSel = v; } };
+  get cocoons() { return cocoons; }, get lastScreenSel() { return lastScreenSel; }, set lastScreenSel(v) { lastScreenSel = v; },
+  set copiedOffer(v) { copiedOffer = v; }, spiderTake, runCrawlOverlay };

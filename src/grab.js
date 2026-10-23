@@ -280,11 +280,14 @@ async function grabSelection({ hotkey = false } = {}) {
   const before = await snapshotClipboard();
   const marker = `silkreader-marker-${Date.now()}-${Math.random()}`;
   await clipboard.writeText(marker);
+  const seq0 = winkeys.load() ? winkeys.clipboardSeq() : null;
   await sendCopyKeystroke(hotkey);
 
   let text = null;
   for (let i = 0; i < 30; i++) { // manche Programme (Word, Browser) brauchen etwas länger
     await sleep(40);
+    // Windows zählt jede Änderung der Zwischenablage: bleibt der Zähler stehen, wurde nichts kopiert → nicht unnötig warten
+    if (seq0 !== null && winkeys.clipboardSeq() === seq0) { if (i >= 8) break; continue; }
     const t = await clipboard.readText();
     if (t !== marker) { text = t; break; }
   }

@@ -280,6 +280,7 @@
     } },
   };
   function doTrick(name) {
+    if (typeof kick === 'function') kick();
     trick = name;
     trickStart = performance.now();
     trickUntil = trickStart + TRICKS[name].run();
@@ -310,12 +311,24 @@
   }
 
   // ---------- Animationsschleife ----------
-  function frame(now) {
+  // Bildrate: bei Action volle Bildrate, sonst 10 fps, halb ausgeblendet 4 fps, schlafend 3 fps.
+  // In Ruhe schläft die Schleife wirklich (Timer) statt 60-mal pro Sekunde aufzuwachen.
+  let nextTimer = null;
+  function schedule(gap) {
+    if (gap <= 0) { requestAnimationFrame(frame); return; }
+    nextTimer = setTimeout(() => { nextTimer = null; requestAnimationFrame(frame); }, gap);
+  }
+  // Maus kommt in die Nähe oder etwas passiert: sofort weiterzeichnen
+  function kick() {
+    if (!nextTimer) return;
+    clearTimeout(nextTimer); nextTimer = null;
     requestAnimationFrame(frame);
-    // Bildrate begrenzen: ruhig 20 fps, schlafend 10 fps, nur bei Action volle Bildrate
-    const active = dragging || hover || trick || catching || busy || Math.abs(omega) > 0.6 || Math.abs(lenV) > 40;
-    const minGap = sleeping ? 250 : active ? 0 : 83;
-    if (now - lastDraw < minGap) return;
+  }
+  function frame(now) {
+    const active = dragging || hover || trick || catching || busy || talking || Math.abs(omega) > 0.6 || Math.abs(lenV) > 40;
+    const calm = !active && document.body.classList.contains('faded');
+    const minGap = sleeping ? 330 : active ? 0 : calm ? 250 : 100;
+    schedule(minGap);
     lastDraw = now;
 
     const dt = Math.min(0.05, (now - last) / 1000);
@@ -346,7 +359,7 @@
     anchorV = v; lastAnchor = ax;
     const L = Math.max(30, len + 20);
     const nearMouse = Math.hypot(cursor.x - spiderPos.x, cursor.y - spiderPos.y) < 130 && !dragging;
-    const breeze = sleeping || nearMouse ? 0 : Math.sin(t * 0.7) * 0.25 + Math.sin(t * 1.9) * 0.1;
+    const breeze = sleeping || nearMouse || calm ? 0 : Math.sin(t * 0.7) * 0.25 + Math.sin(t * 1.9) * 0.1;
     omega += (-(1700 / L) * Math.sin(theta) - 1.2 * omega - (Math.max(-6000, Math.min(6000, acc)) / L) * Math.cos(theta) * 0.9 + breeze) * dt;
     if (nearMouse) omega *= Math.pow(0.02, dt); // Maus kommt → Spinne hält still
     if (busy) omega += Math.sin(t * 9) * 1.2 * dt;
@@ -502,7 +515,8 @@
       p.style.opacity = show; g.style.opacity = show;
     }
     const chewing = now < chewUntil;
-    const mouth = mood === 'sleep' ? 'M-2 6 Q0 6.8 2 6'
+    const mouth = talking ? (Math.sin(now / 85) > 0 ? 'M-2.4 5.2 Q0 9.4 2.4 5.2 Z' : 'M-2 6 Q0 7.4 2 6')
+      : mood === 'sleep' ? 'M-2 6 Q0 6.8 2 6'
       : chewing ? (Math.sin(now / 70) > 0 ? 'M-2.4 5.4 Q0 8.4 2.4 5.4' : 'M-2.4 6.4 L2.4 6.4')
       : mood === 'proud' ? 'M-3.8 4.8 Q0 10.4 3.8 4.8 Z'
       : mood === 'focus' ? 'M-1.8 6.3 L1.8 6.3'
@@ -517,12 +531,12 @@
     // Stolz: kleines Funkeln
     el.sparkle.style.opacity = mood === 'proud' ? (0.5 + 0.5 * Math.sin(now / 120)).toFixed(2) : 0;
     // Lesebrille beim Lesen, Glühbirne wippt
-    $('accRead').classList.toggle('on', clickMode === 'read' && (mood === 'focus' || now < glassesUntil));
-    if (clickMode === 'simplify') el.bulbBob.setAttribute('transform', `translate(0 ${(Math.sin(now / 380) * 1.2).toFixed(2)})`);
+    updateAccessory(now);
+    if (shownAcc === 'simplify') el.bulbBob.setAttribute('transform', `translate(0 ${(Math.sin(now / 380) * 1.2).toFixed(2)})`);
   }
 
   // Nur über der Spinne (oder direkt am Faden) Mausereignisse annehmen, sonst durchklicken lassen
-  let wasInside = null;
+  let wasInside = null, hoverSince = 0;
   let lastNear = performance.now();
   function hitTest(now) {
     const d = Math.hypot(cursor.x - spiderPos.x, cursor.y - spiderPos.y);
@@ -543,6 +557,7 @@
       window.spider.rigHover(inside);
     }
     if (!dragging) hover = inside && d < 44;
+    if (hover) { if (!hoverSince) hoverSince = now; } else hoverSince = 0;
 
     // Aufwachen, wenn die Maus in die Nähe kommt; Winken, wenn sie neu auftaucht
     const near = d < 130;
@@ -656,7 +671,7 @@
   window.spider.onCocoonCopied((id) => { const i = itemIds.indexOf(id); if (i >= 0) flashCopied($('items').children[i]); });
   window.spider.onDropZone((on) => {
     if (on === 'unavailable') { noZoneHelper = true; return; }
-    dropZone = on; catching = on; if (on) wake(); updateHoldWeb();
+    dropZone = on; catching = on; if (on) wake(); updateHoldWeb(); kick();
   });
   const zoneRect = () => (dropZone ? { x: 0, y: 0, w: W, h: H } : null);
   const onWeb = (p) => itemIds.length > 0 && webIsOpen() && Math.hypot(p.x - HOLD.cx, (p.y - HOLD.cy) / 0.92) < HOLD.r + 6;
@@ -670,6 +685,7 @@
     const p = { x: e.clientX, y: e.clientY };
     down = { onWeb: onWeb(p) && Math.hypot(p.x - spiderPos.x, p.y - spiderPos.y) > 40 };
     wake();
+    window.spider.prewarm(); // Sprechblase lädt schon, während die Maustaste noch unten ist
     el.svg.setPointerCapture(e.pointerId);
     if (!down.onWeb) window.spider.rigDragStart(baseLen);
   });
@@ -707,13 +723,38 @@
   // ---------- Klick-Modus: Mausrad auf der Spinne ----------
   const MODES = [['read', 'Lesen', ''], ['translate', 'Übersetzen', '⇄'], ['simplify', 'Einfach', 'Aa'], ['reply', 'Antworten', '↩']];
   let clickMode = 'read', lastWheel = 0, tipTimer = null, glassesUntil = 0;
-  const ACC = { translate: 'accTranslate', simplify: 'accSimplify', reply: 'accReply' };
+  let taskMode = null, taskUntil = 0, shownAcc = null, talking = false;
+  const ACC = { read: 'accRead', translate: 'accTranslate', simplify: 'accSimplify', reply: 'accReply' };
+  // Welches Accessoire trägt die Spinne gerade? Läuft eine Aufgabe: deren Accessoire (Lesebrille, Mütze, Glühbirne, Brief),
+  // sonst das des Klick-Modus (im Lese-Modus ohne Brille – die gibt es nur beim Lesen)
+  function updateAccessory(now) {
+    if (busy && taskMode) taskUntil = now + 3000;
+    const m = now < taskUntil ? taskMode : now < glassesUntil ? 'read' : clickMode === 'read' ? null : clickMode;
+    if (m === shownAcc) return;
+    shownAcc = m;
+    for (const [mode, id] of Object.entries(ACC)) $(id).classList.toggle('on', mode === m);
+  }
+  window.spider.onRigTask((m) => { taskMode = m; taskUntil = performance.now() + 3000; wake(); });
+  window.spider.onRigTalk((on) => { talking = on; wake(); });
+  function showTip(text, ms = 1400) {
+    const tip = $('modeTip');
+    tip.textContent = text;
+    tip.style.left = `${spiderPos.x}px`; tip.style.top = `${spiderPos.y + 20}px`;
+    tip.classList.add('on');
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => tip.classList.remove('on'), ms);
+  }
+  // Längerer Text kopiert: kleiner Hinweis, die Spinne winkt
+  window.spider.onRigHint((t) => {
+    if (!t) { $('modeTip').classList.remove('on'); return; }
+    wake(); lastNear = performance.now();
+    if (!trick) doTrick('hello');
+    showTip(t, 8000);
+  });
   function setClickMode(m, announce) {
     clickMode = MODES.some(([id]) => id === m) ? m : 'read';
     const [, label] = MODES.find(([id]) => id === clickMode);
-    // Accessoire je Modus: Weltkugel-Mütze, Glühbirne, Brief – Lesebrille nur beim Lesen (und kurz beim Umschalten)
-    for (const [mode, id] of Object.entries(ACC)) $(id).classList.toggle('on', mode === clickMode);
-    if (clickMode === 'read') glassesUntil = performance.now() + 2500;
+    if (clickMode === 'read' && announce) glassesUntil = performance.now() + 2500;
     if (!announce) return;
     const tip = $('modeTip');
     tip.textContent = `Klick: ${label}`;
@@ -725,6 +766,8 @@
   el.svg.addEventListener('wheel', (e) => {
     e.preventDefault();
     const now = performance.now();
+    // Nur wenn die Maus schon kurz auf der Spinne ruht – beim Scrollen über sie hinweg ändert sich nichts
+    if (!hoverSince || now - hoverSince < 500) return;
     if (now - lastWheel < 220) return;
     lastWheel = now;
     wake();
@@ -737,12 +780,16 @@
   window.spider.onClickMode((m) => setClickMode(m, false));
 
   window.spider.onRigInit((d) => { minLen = d.minLen; maxLen = d.maxLen; baseLen = d.length; setClickMode(d.clickMode, false); });
-  window.spider.onCursor((p) => { cursor = p; });
+  window.spider.onCursor((p) => {
+    cursor = p;
+    if (Math.hypot(p.x - spiderPos.x, p.y - spiderPos.y) < 230 || webIsOpen()) kick();
+  });
   window.spider.onThreadLength((l) => { baseLen = l; });
   window.spider.onRigDragging((d) => { dragging = d; el.spider.classList.toggle('grabbing', d); });
   window.spider.onRigTrick((t) => { wake(); if (trick) endTrick(); doTrick(t); });
   window.spider.onBusy((b) => {
     busy = b;
+    kick();
     wake();
     if (b && trick) endTrick();
     if (!b) { doTrick('flip'); proudUntil = performance.now() + 2800; }

@@ -102,5 +102,44 @@ const onScreen = pop.evaluate(() => window.spider.showOnScreen({ screenAt: P.doc
 let seen = false;
 for (let i = 0; i < 40 && !seen; i++) { seen = await visible('overlay.html'); await sleep(100); }
 console.log('große Spinne läuft auf dem Bildschirm:', seen, '| Ergebnis:', await onScreen);
+
+// 7) Accessoire zeigt die laufende Aufgabe
+const send = (ch, v) => app.evaluate(({ BrowserWindow }, [ch, v]) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('bubble')).webContents.send(ch, v), [ch, v]);
+await send('rig-task', 'translate'); await send('busy', true); await sleep(400);
+console.log('Aufgabe Übersetzen → Accessoire:', await rig.evaluate(() => [...document.querySelectorAll('#acc > g.on')].map((g) => g.id).join(',')));
+await send('rig-task', 'read'); await sleep(300);
+console.log('Aufgabe Lesen → Accessoire:', await rig.evaluate(() => [...document.querySelectorAll('#acc > g.on')].map((g) => g.id).join(',')));
+await send('busy', false); await sleep(4000);
+console.log('nach der Aufgabe (Klick-Modus Lesen):', JSON.stringify(await rig.evaluate(() => [...document.querySelectorAll('#acc > g.on')].map((g) => g.id).join(','))));
+
+// 8) Kopierter Text: Hinweis an der Spinne, Klick liest ihn
+await send('rig-hint', 'Kopiert – Klick zum Lesen'); await sleep(300);
+console.log('Hinweis sichtbar:', await rig.evaluate(() => document.getElementById('modeTip').classList.contains('on') && document.getElementById('modeTip').textContent));
+await app.evaluate((_e, t) => { global.__silk.copiedOffer = { text: t, until: Date.now() + 9000 }; }, text);
+await app.evaluate(({ clipboard }) => clipboard.writeText(''));
+await app.evaluate(() => global.__silk.spiderTake());
+await pop.waitForSelector('#moreBtn', { timeout: 20000 });
+console.log('Klick liest kopierten Text:', await pop.textContent('#title'));
+
+// 9) Vorlesen (Mund bewegt sich) – ohne Stimmen unter Linux nur: kein Fehler
+await pop.click('[data-a="Vorlesen"]'); await sleep(600);
+console.log('Vorlesen geklickt, Fehler bisher:', errs.length);
+
+// 10) Umformen nachschärfen
+await app.evaluate(() => global.__silk.showPopupPayload({ kind: 'transform', mode: 'reply', title: 'Antwort-Entwurf', text: 'Hallo, können wir morgen telefonieren?' }));
+await pop.waitForSelector('[data-a="Kürzer"]', { timeout: 20000 });
+console.log('Antwort-Knöpfe:', await pop.evaluate(() => [...document.querySelectorAll('.actions .link span')].map((s) => s.textContent).join(' · ')));
+await pop.click('[data-a="Förmlicher"]');
+await pop.waitForSelector('[data-a="Kürzer"]', { timeout: 20000 });
+console.log('nachgeschärft:', await pop.evaluate(() => P.extra));
+
+// 11) Große Spinne wandert beim Scrollen mit dem Text mit
+const crawl = app.evaluate(() => global.__silk.runCrawlOverlay({ x: 300, y: 300 }, { words: [[200, 300, 60, 20], [270, 300, 60, 20], [340, 300, 60, 20]], dip: true }));
+const ov = await find('overlay.html');
+await sleep(900);
+await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('overlay')).webContents.send('overlay-shift', { dx: 0, dy: -120 }));
+await sleep(400);
+console.log('Overlay verschoben:', await ov.evaluate(() => document.getElementById('stage').style.transform));
+await crawl;
 console.log('errors:', errs);
 await app.close();

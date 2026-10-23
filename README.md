@@ -45,7 +45,10 @@ Ist das große Fenster offen, tollt die kleine Spinne darin herum (hüpft, schl�
 |---|---|
 | **Text markieren, dann auf die Spinne klicken** | Die kleine Spinne erschrickt und versteckt sich, eine große Spinne kriecht vom Bildschirmrand herein und liest Wort für Wort über den markierten Text (die genauen Wortpositionen erkennt die App an der Markierungsfarbe auf dem Bildschirm – das Bildschirmfoto bleibt nur kurz im Speicher; ersatzweise über Windows UI Automation). Danach erscheint unter der Spinne eine kleine Sprechblase, die Analyse startet sofort, und das Ergebnis erscheint direkt dort – das Wichtigste in einfachen Stichpunkten („Details“ öffnet das große Fenster mit markierten Fundstellen). Strg+C ist nicht nötig, deine Zwischenablage bleibt erhalten. Ist nichts markiert, erscheint eine kleine Blase: Text einfügen, Zwischenablage oder Datei lesen, zuletzt Gelesenes. |
 | **Auf eine Info im Ergebnis klicken** | Eine Lupe klappt auf und zeigt die Originalstelle. „Auf dem Bildschirm zeigen“: Die große Spinne läuft im Originalprogramm zu der Stelle |
-| **Mausrad auf der Spinne** | Klick-Modus wechseln: Lesen, Übersetzen, Einfach oder Antworten (kleines Abzeichen an der Spinne) |
+| **Mausrad auf der Spinne** (kurz auf ihr ruhen, dann drehen) | Klick-Modus wechseln: Lesen, Übersetzen, Einfach oder Antworten. Beim Scrollen über die Spinne hinweg ändert sich nichts |
+| **Längeren Text kopieren** (Strg+C) | Die Spinne winkt: „Kopiert – Klick zum Lesen“. Ein Klick auf sie liest den kopierten Text |
+| **„Vorlesen“ in der Sprechblase** | Die Spinne liest das Ergebnis mit der Windows-Stimme vor und bewegt dabei den Mund |
+| **„Kürzer“, „Förmlicher“, „Lockerer“** | Übersetzungen und Antwort-Entwürfe mit einem Klick nachschärfen |
 | **Datei oder Text zur Spinne ziehen** | Sobald man mit gedrückter Maustaste in die Nähe kommt, spannt sie ihr Netz auf („Hier ablegen“) – man muss die Spinne nicht treffen. Das Dokument klebt danach mit Vorschaubild im Netz. |
 | **Dateien oder Ordner im Explorer markieren, dann auf die Spinne oder das Netz klicken** | Werden im Netz festgehalten (mit dem echten Datei- bzw. Ordnersymbol) |
 | **Dokument im Netz anklicken** | In der Sprechblase lesen (schon gelesen und unverändert: sofort aus dem Notizbuch) |
@@ -60,7 +63,7 @@ Ist das große Fenster offen, tollt die kleine Spinne darin herum (hüpft, schl�
 | **📅 Frist in der Sprechblase** | Erkannte Termine mit einem Klick als Kalendereintrag (mit Erinnerung einen Tag vorher) |
 | **Rechtsklick auf ein Dokument im Netz → Vergleichen mit …** | Zwei Dokumente vergleichen: Unterschiede und Gemeinsamkeiten |
 
-Die kleine Spinne zeigt, was sie tut: konzentriert beim Lesen, stolz wenn sie fertig ist, verschlafen nach einer Weile, erschrocken wenn die große Spinne kommt. Je Klick-Modus trägt sie ein Accessoire: Lesebrille (beim Lesen), Weltkugel-Mütze (Übersetzen), Glühbirne (Einfach), Brief (Antworten).
+Die kleine Spinne zeigt, was sie tut: konzentriert beim Lesen, stolz wenn sie fertig ist, verschlafen nach einer Weile, erschrocken wenn die große Spinne kommt. Ihr Accessoire zeigt, was sie gerade tut: Lesebrille beim Lesen, Weltkugel-Mütze beim Übersetzen, Glühbirne bei „Einfach“, Brief beim Antworten. In Ruhe trägt sie das Accessoire ihres Klick-Modus. Die große Spinne kommt bei jeder Aufgabe und bleibt auf dem Text, auch wenn man die Seite scrollt (Windows).
 
 Die Spinne wird nach 30 Sekunden halb durchsichtig und kommt zurück, sobald die Maus in die Nähe kommt. Das Netz ist zusammengeklappt (nur ein kleiner Zähler) und öffnet sich, wenn die Maus darüber fährt.
 

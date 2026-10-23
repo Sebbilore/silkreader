@@ -22,6 +22,10 @@
     search: '<circle cx="-1.5" cy="-1.5" r="5.5"/><path d="M2.5 2.5l5 5"/>',
     send: '<path d="M-7 0h12M1 -5l5 5 -5 5"/>',
     screen: '<rect x="-8.5" y="-7" width="17" height="11" rx="1.5"/><path d="M-3 8h6M0 4v4"/>',
+    speak: '<path d="M-7 -3h3l4.5 -4v14l-4.5 -4h-3z"/><path d="M3.5 -3.5a5 5 0 0 1 0 7M6 -6a8.5 8.5 0 0 1 0 12"/>',
+    stop: '<rect x="-5" y="-5" width="10" height="10" rx="1.5"/>',
+    shorter: '<path d="M-7 -4h14M-7 0h9M-7 4h5"/>',
+    tone: '<path d="M-7 5c2 -6 4 -6 6 0s4 6 6 0M-7 -3h14"/>',
     trash: '<path d="M-6 -5h12M-4 -5l1 12h6l1 -12M-2 -5v-2h4v2"/>',
   };
   window.SILK_ICONS = P;
