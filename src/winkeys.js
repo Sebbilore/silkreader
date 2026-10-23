@@ -44,6 +44,8 @@ async function copy(hotkey) {
 }
 
 const leftDown = () => (load() ? down(0x01) : null);
+/** Ist noch Umschalt, Strg, Alt oder die Windows-Taste gedrückt? */
+const modifiersDown = () => (load() ? [0x10, 0x11, 0x12, 0x5b, 0x5c].some(down) : false);
 const clipboardSeq = () => (load() ? api.GetClipboardSequenceNumber() : null);
 
-module.exports = { load, copy, leftDown, clipboardSeq };
+module.exports = { load, copy, leftDown, modifiersDown, clipboardSeq };

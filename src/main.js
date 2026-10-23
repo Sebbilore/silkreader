@@ -14,6 +14,7 @@ const loadAnthropic = () => (Anthropic ??= require('@anthropic-ai/sdk').default)
 let autoUpdaterInstance = null;
 const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoUpdater);
 
+const winkeys = require('./winkeys');
 const { setLogger, grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
 const { CocoonStore } = require('./cocoons');
 const { scanSelection } = require('./selectionScan');
@@ -32,6 +33,7 @@ const SHORTCUTS = [
   { id: 'reply', keys: 'CommandOrControl+Alt+R', label: 'Strg+Alt+R', desc: 'Antwort auf markierte E-Mail entwerfen' },
   { id: 'region', keys: 'CommandOrControl+Alt+B', label: 'Strg+Alt+B', desc: 'Bildschirmbereich lesen lassen' },
   { id: 'notebook', keys: 'CommandOrControl+Alt+N', label: 'Strg+Alt+N', desc: 'Notizbuch (letzte Analysen)' },
+  { id: 'ring', keys: 'CommandOrControl+Alt+Space', label: 'Strg+Alt+Leertaste', desc: 'Spinnennetz-Ring am Mauszeiger (z. B. auf eine Maustaste legen)' },
 ];
 // Hinweis: Strg+Alt+E/Q/M/2/3/7–0 sind auf deutschen Tastaturen AltGr-Zeichen (€, @, µ …) und daher tabu.
 const HOTKEY = SHORTCUTS[0].keys;
@@ -49,8 +51,8 @@ const logError = (err) => logLine(`FEHLER ${err?.stack || err}`);
 process.on('uncaughtException', logError);
 process.on('unhandledRejection', logError);
 const shortcutActions = {
-  take: () => spiderTake({ fromHotkey: true }),
-  analyze: () => spiderTake({ fromHotkey: true, autoStart: true }),
+  take: () => spiderTake({ fromHotkey: true, mode: 'read' }),
+  analyze: () => spiderTake({ fromHotkey: true, autoStart: true, mode: 'read' }),
   cocoon: () => cocoonFromSelection(),
   cocoons: () => { bubbleWin.show(); Menu.buildFromTemplate(cocoonsMenuTemplate()).popup({ window: bubbleWin }); },
   toggle: () => (bubbleWin.isVisible() ? bubbleWin.hide() : bubbleWin.show()),
@@ -59,6 +61,7 @@ const shortcutActions = {
   reply: () => transformSelection('reply'),
   region: () => regionCapture(),
   notebook: () => showNotebook(),
+  ring: () => openRing({ viaHotkey: true }),
 };
 // Eigene Tastenkürzel aus den Einstellungen übernehmen und alle (neu) anmelden
 function registerShortcuts(notify = false) {
@@ -78,7 +81,7 @@ function registerShortcuts(notify = false) {
 function fireShortcut(sc) {
   logLine(`Kürzel gedrückt: ${sc.label}`);
   settingsWin?.webContents.send('shortcut-fired', sc.id);
-  if (sc.id !== 'toggle' && bubbleWin?.isVisible()) bubbleWin.webContents.send('rig-trick', 'yoyo');
+  if (!['toggle', 'ring'].includes(sc.id) && bubbleWin?.isVisible()) bubbleWin.webContents.send('rig-trick', 'yoyo');
   Promise.resolve().then(() => shortcutActions[sc.id]()).catch(logError);
 }
 const shortcutStatus = {};
@@ -178,7 +181,7 @@ function createBubble() {
   bubbleWin.setIgnoreMouseEvents(true, { forward: true });
   bubbleWin.loadFile(path.join(__dirname, 'bubble.html'));
   bubbleWin.webContents.on('did-finish-load', () => {
-    bubbleWin.webContents.send('rig-init', { length: s.rig?.length ?? 90, minLen: RIG.minLen, maxLen: RIG.maxLen });
+    bubbleWin.webContents.send('rig-init', { length: s.rig?.length ?? 90, minLen: RIG.minLen, maxLen: RIG.maxLen, clickMode: clickMode() });
     sendCocoons();
   });
 
@@ -330,8 +333,8 @@ function showPopupPayload(payload) {
   const sp = spiderScreenPos();
   const area = screen.getDisplayNearestPoint(sp).workArea;
   const x = Math.round(Math.min(Math.max(sp.x - POPUP.width / 2, area.x + 6), area.x + area.width - POPUP.width - 6));
-  const y = Math.round(Math.min(sp.y + 24, area.y + area.height - POPUP.height));
-  win.setPosition(x, y);
+  const y = Math.round(Math.min(sp.y + 24, area.y + area.height - 260));
+  win.setBounds({ x, y, width: POPUP.width, height: Math.min(POPUP.height, area.y + area.height - y) });
   const arrow = Math.round(Math.min(Math.max(sp.x - x, 34), POPUP.width - 34));
   const send = () => {
     win.webContents.send('popup-doc', { ...payload, arrow });
@@ -342,18 +345,147 @@ function showPopupPayload(payload) {
   else send();
 }
 
+// Die Blase wächst mit ihrem Inhalt (der durchsichtige Rest würde sonst Klicks schlucken)
+ipcMain.on('popup-size', (_e, h) => {
+  if (!popupWin || popupWin.isDestroyed()) return;
+  const [x, y] = popupWin.getPosition();
+  const area = screen.getDisplayNearestPoint({ x, y }).workArea;
+  const height = Math.round(Math.max(120, Math.min(Number(h) || POPUP.height, POPUP.height, area.y + area.height - y)));
+  if (popupWin.getSize()[1] !== height) popupWin.setBounds({ x, y, width: POPUP.width, height });
+});
+
+// Mini-Blase statt App: Text einfügen, Zwischenablage, Datei, zuletzt Gelesenes
+function showHome(opts = {}) {
+  showPopupPayload({ kind: 'home', mode: opts.mode || clickMode(), hint: opts.hint || '' });
+}
+
 // ---------- Übersetzen, leichte Sprache, Antwort-Entwurf (per Tastenkürzel) ----------
-async function transformSelection(mode) {
-  const grabbed = await grabSelection({ hotkey: true });
-  if (!grabbed.text) { bubbleWin?.webContents.send('rig-trick', 'shrug'); return; }
+async function transformSelection(mode, grabbed = null) {
+  grabbed = grabbed || await grabSelection({ hotkey: true });
+  if (!grabbed.text) {
+    bubbleWin?.webContents.send('rig-trick', 'shrug');
+    showHome({ mode, hint: 'Erst Text markieren – oder hier einfügen:' });
+    return;
+  }
   preloadBuiltinModel();
   showPopupPayload({ kind: 'transform', mode, title: TRANSFORMS[mode].title, text: grabbed.text });
 }
 
+// Notizbuch als Sprechblase (das große Fenster hat seins weiterhin unter Strg+H)
 function showNotebook() {
-  const w = showMain();
-  const send = () => w.webContents.send('show-notebook');
-  if (w.webContents.isLoading()) w.webContents.once('did-finish-load', send); else send();
+  showPopupPayload({ kind: 'notebook' });
+}
+
+// Was ein einfacher Klick auf die Spinne tut (mit dem Mausrad auf der Spinne umschaltbar)
+const CLICK_MODES = ['read', 'translate', 'simplify', 'reply'];
+const clickMode = () => (CLICK_MODES.includes(loadSettings().clickMode) ? loadSettings().clickMode : 'read');
+ipcMain.handle('set-click-mode', (_e, mode) => {
+  if (!CLICK_MODES.includes(mode)) return clickMode();
+  const st = loadSettings();
+  st.clickMode = mode;
+  saveSettings(st);
+  bubbleWin?.webContents.send('click-mode', mode);
+  return mode;
+});
+
+// ---------- Spinnennetz-Ring (wie ein Aktionsring, direkt am Mauszeiger) ----------
+const RING_SIZE = 300;
+let ringWin = null, ring = null;
+function createRing() {
+  if (ringWin && !ringWin.isDestroyed()) return ringWin;
+  ringWin = new BrowserWindow({
+    width: RING_SIZE, height: RING_SIZE, show: false, frame: false, transparent: true, resizable: false, movable: false,
+    alwaysOnTop: true, skipTaskbar: true, focusable: false, hasShadow: false, maximizable: false, minimizable: false,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+  });
+  ringWin.setAlwaysOnTop(true, 'screen-saver');
+  ringWin.loadFile(path.join(__dirname, 'ring.html'));
+  ringWin.on('closed', () => { ringWin = null; ring = null; });
+  ringWin.on('hide', () => scheduleFree(ringWin, 60 * 1000));
+  ringWin.on('show', () => clearTimeout(ringWin.__freeTimer));
+  return ringWin;
+}
+function openRing({ at = null, viaHotkey = false } = {}) {
+  if (ring) { closeRing(); return; } // nochmal drücken = zu
+  const win = createRing();
+  const c = at || screen.getCursorScreenPoint();
+  const area = screen.getDisplayNearestPoint(c).bounds;
+  const x = Math.round(Math.min(Math.max(c.x - RING_SIZE / 2, area.x), area.x + area.width - RING_SIZE));
+  const y = Math.round(Math.min(Math.max(c.y - RING_SIZE / 2, area.y), area.y + area.height - RING_SIZE));
+  win.setBounds({ x, y, width: RING_SIZE, height: RING_SIZE });
+  const r = ring = { hover: null, opened: Date.now(), center: { x: x + RING_SIZE / 2, y: y + RING_SIZE / 2 }, lastMove: Date.now(), lastCursor: c };
+  const show = () => { if (ring !== r) return; win.webContents.send('ring-open', { page: 0 }); win.showInactive(); };
+  if (win.webContents.isLoading()) win.webContents.once('did-finish-load', show); else show();
+  try { globalShortcut.register('Escape', closeRing); } catch {}
+  // Gedrückt halten → Richtung wählen → loslassen (nur Windows, braucht den Tastenstatus)
+  let holding = viaHotkey && winkeys.load();
+  r.timer = setInterval(() => {
+    if (ring !== r) return clearInterval(r.timer);
+    const p = screen.getCursorScreenPoint();
+    if (p.x !== r.lastCursor.x || p.y !== r.lastCursor.y) { r.lastMove = Date.now(); r.lastCursor = p; }
+    if (holding && !winkeys.modifiersDown()) {
+      holding = false;
+      if (Date.now() - r.opened > 300 && r.hover) win.webContents.send('ring-release');
+    }
+    // weit weggefahren (nachdem die Maus schon im Netz war) oder lange nichts getan → Netz einrollen
+    const dist = Math.hypot(p.x - r.center.x, p.y - r.center.y);
+    if (dist < RING_SIZE / 2) r.entered = true;
+    if ((r.entered && dist > RING_SIZE * 0.95) || Date.now() - r.lastMove > 12000) closeRing();
+  }, 40);
+}
+function closeRing() {
+  if (!ring) return;
+  clearInterval(ring.timer);
+  ring = null;
+  try { globalShortcut.unregister('Escape'); } catch {}
+  if (ringWin && !ringWin.isDestroyed()) ringWin.hide();
+}
+ipcMain.on('ring-hover', (_e, id) => { if (ring) ring.hover = id; });
+ipcMain.on('ring-action', (_e, id) => {
+  closeRing();
+  if (id) runRingAction(id).catch(logError);
+});
+async function runRingAction(id) {
+  logLine(`Ring: ${id}`);
+  switch (id) {
+    case 'read': return spiderTake({ fromHotkey: true, mode: 'read' });
+    case 'translate': case 'simplify': case 'reply': return transformSelection(id);
+    case 'region': return regionCapture();
+    case 'pin': {
+      const before = cocoons.list().length;
+      await cocoonFromSelection({ hotkey: true });
+      if (cocoons.list().length === before) bubbleWin?.webContents.send('rig-trick', 'shrug');
+      return;
+    }
+    case 'notebook': return showNotebook();
+    case 'file': return pickFileToBubble();
+    case 'clip': {
+      const text = String((await clipboard.readText()) || '').trim();
+      if (!text) return showHome({ hint: 'Die Zwischenablage ist leer – Text hier einfügen:' });
+      return showPopup({ title: 'Aus der Zwischenablage', source: 'clipboard', pages: [text] }, { autoStart: true });
+    }
+    case 'reader': return showMain();
+    case 'settings': return showPopupPayload({ kind: 'settings' });
+    case 'hide': return bubbleWin?.hide();
+  }
+}
+
+// Datei auswählen und direkt in der Sprechblase lesen
+async function pickFileToBubble() {
+  const r = await dialog.showOpenDialog({
+    title: 'Dokument lesen',
+    properties: ['openFile'],
+    filters: [{ name: 'Dokumente', extensions: ['pdf', 'docx', 'txt', 'md', 'csv', 'json', 'html', 'log'] }],
+  });
+  if (r.canceled || !r.filePaths[0]) return;
+  try { showPopup(await readFileDoc(r.filePaths[0]), { autoStart: true }); }
+  catch (e) { showPopupPayload({ kind: 'message', title: 'Datei konnte nicht gelesen werden', text: String(e.message || e) }); }
+}
+async function readFileDoc(filePath) {
+  const doc = await readDocument(filePath);
+  doc.path = filePath;
+  try { doc.mtime = fs.statSync(filePath).mtimeMs; } catch {}
+  return doc;
 }
 
 // ---------- Bildschirmbereich lesen (Texterkennung) ----------
@@ -430,7 +562,10 @@ function spiderScreenPos() {
 }
 
 let taking = false;
-async function spiderTake({ autoStart = false, fromHotkey = false } = {}) {
+// Wo stand der zuletzt gelesene markierte Text auf dem Bildschirm? (für „Auf dem Bildschirm zeigen“)
+let lastScreenSel = null;
+async function spiderTake({ autoStart = false, fromHotkey = false, mode = null } = {}) {
+  mode = mode || clickMode();
   // Falls ein früherer Durchgang hängen geblieben ist, nicht für immer blockieren
   if (taking && Date.now() - taking < 20000) return;
   taking = Date.now();
@@ -438,7 +573,7 @@ async function spiderTake({ autoStart = false, fromHotkey = false } = {}) {
     preloadBuiltinModel();
     const anchor = selectionAnchor(fromHotkey);
     // Bildschirmfoto der Markierung gleich mit aufnehmen (nur im Speicher), solange sie sichtbar ist
-    const wantAnimation = loadSettings().hatchAnimation !== false && bubbleWin?.isVisible();
+    const wantAnimation = mode === 'read' && loadSettings().hatchAnimation !== false && bubbleWin?.isVisible();
     const scanned = wantAnimation ? scanSelection(anchor).catch(() => null) : Promise.resolve(null);
     const grabbed = await grabSelection({ hotkey: fromHotkey });
     // Analysiert wird nur markierter Text. Markierte Dateien werden festgehalten.
@@ -449,9 +584,10 @@ async function spiderTake({ autoStart = false, fromHotkey = false } = {}) {
       return;
     }
     if (!grabbed.text) {
-      showMain(); // nichts markiert → einfach die App öffnen
+      showHome(); // nichts markiert → kleine Blase: einfügen, Zwischenablage, Datei, zuletzt Gelesenes
       return;
     }
+    if (mode !== 'read') return transformSelection(mode, grabbed);
     const doc = { title: 'Markierter Text', source: 'selection', pages: [grabbed.text] };
 
     if (wantAnimation) {
@@ -460,6 +596,11 @@ async function spiderTake({ autoStart = false, fromHotkey = false } = {}) {
       // Wortpositionen: 1. aus dem Bildschirmfoto (klappt überall), 2. von Windows (UI Automation)
       const fromScreen = await scanned;
       const rects = fromScreen?.length ? { words: fromScreen, dip: true } : await selectionRects();
+      const dipWords = rects?.dip ? rects.words : toDipRects(rects?.words);
+      if (dipWords?.length) {
+        lastScreenSel = { text: grabbed.text, words: dipWords, time: Date.now() };
+        doc.screenAt = lastScreenSel.time;
+      }
       await runCrawlOverlay(anchor, rects);
       bubbleWin.webContents.send('rig-trick', 'return');
     }
@@ -584,10 +725,10 @@ function cocoonMenu(id) {
   if (!it) return [];
   return [
     { label: 'Kopieren', click: async () => { if (await copyCocoon(id)) bubbleWin?.webContents.send('cocoon-copied', id); } },
-    ...(it.type === 'file' && isFolder(it.path) ? [{ label: 'Öffnen', click: () => shell.openPath(it.path) }] : [{ label: 'Analysieren', click: async () => {
-      if (it.type === 'text') showDocument({ title: 'Text aus dem Kokon', source: 'cocoon', pages: [it.text] });
-      else openFile(it.path);
-    } }]),
+    ...(it.type === 'file' && isFolder(it.path) ? [{ label: 'Öffnen', click: () => shell.openPath(it.path) }] : [
+      { label: 'Lesen', click: () => readCocoon(id) },
+      { label: 'Im Lesemodus öffnen', click: async () => showDocument(await cocoonDoc(it)) },
+    ]),
     ...(it.type === 'file' ? [{ label: 'Im Ordner zeigen', click: () => shell.showItemInFolder(it.path) }] : []),
     ...(cocoons.list().length > 1 && !(it.type === 'file' && isFolder(it.path)) ? [{ label: 'Vergleichen mit …', submenu: cocoons.list()
       .filter((o) => o.id !== id && !(o.type === 'file' && isFolder(o.path)))
@@ -598,8 +739,23 @@ function cocoonMenu(id) {
 }
 
 async function cocoonDoc(it) {
-  return it.type === 'text' ? { title: it.name, source: 'cocoon', pages: [it.text] } : readDocument(it.path);
+  return it.type === 'text' ? { title: it.name, source: 'cocoon', pages: [it.text] } : readFileDoc(it.path);
 }
+// Dokument im Netz anklicken: in der Sprechblase lesen (schon gelesen und unverändert → sofort aus dem Notizbuch)
+async function readCocoon(id) {
+  const it = cocoons.get(id);
+  if (!it) return;
+  if (it.type === 'file' && isFolder(it.path)) { shell.openPath(it.path); return; }
+  try {
+    const doc = await cocoonDoc(it);
+    const known = doc.path && loadHistory().find((h) => h.path === doc.path && h.mtime === doc.mtime);
+    if (known) showPopupPayload({ kind: 'analyze', doc, result: known.result });
+    else showPopup(doc, { autoStart: true });
+  } catch (e) {
+    showPopupPayload({ kind: 'message', title: 'Datei konnte nicht gelesen werden', text: String(e.message || e) });
+  }
+}
+ipcMain.handle('cocoon-read', (_e, id) => readCocoon(id));
 async function compareCocoons(idA, idB) {
   try {
     const [a, b] = await Promise.all([cocoonDoc(cocoons.get(idA)), cocoonDoc(cocoons.get(idB))]);
@@ -1308,7 +1464,7 @@ const historyFile = () => path.join(app.getPath('userData'), 'history.json');
 function loadHistory() { try { return JSON.parse(fs.readFileSync(historyFile(), 'utf8')); } catch { return []; } }
 function addHistory(doc, result) {
   const list = loadHistory().filter((h) => h.text !== doc.pages.join('\n\n').slice(0, 200000));
-  list.unshift({ id: `${Date.now()}`, date: Date.now(), title: result.title || doc.title, docTitle: doc.title, pages: doc.pages.map((p) => p.slice(0, 100000)), text: doc.pages.join('\n\n').slice(0, 200000), result });
+  list.unshift({ id: `${Date.now()}`, date: Date.now(), title: result.title || doc.title, docTitle: doc.title, path: doc.path, mtime: doc.mtime, pages: doc.pages.map((p) => p.slice(0, 100000)), text: doc.pages.join('\n\n').slice(0, 200000), result });
   fs.writeFileSync(historyFile(), JSON.stringify(list.slice(0, 20)));
 }
 ipcMain.handle('history-list', (_e, q = '') => {
@@ -1316,6 +1472,10 @@ ipcMain.handle('history-list', (_e, q = '') => {
   return loadHistory()
     .filter((h) => !needle || `${h.title} ${h.docTitle} ${h.result.summary} ${h.text.slice(0, 20000)}`.toLowerCase().includes(needle))
     .map((h) => ({ id: h.id, date: h.date, title: h.title, docTitle: h.docTitle, summary: h.result.summary }));
+});
+ipcMain.handle('history-get', (_e, id) => {
+  const h = loadHistory().find((x) => x.id === id);
+  return h ? { doc: { title: h.docTitle, source: 'history', pages: h.pages, path: h.path, mtime: h.mtime }, result: h.result } : null;
 });
 ipcMain.handle('history-open', (_e, id) => {
   const h = loadHistory().find((x) => x.id === id);
@@ -1373,6 +1533,34 @@ ipcMain.on('main-menu', (e) => {
   ]).popup({ window: BrowserWindow.fromWebContents(e.sender) });
 });
 ipcMain.handle('pin-selection', () => cocoonFromSelection({ hotkey: false }));
+ipcMain.handle('clipboard-text', async () => String((await clipboard.readText()) || ''));
+ipcMain.handle('pick-file-bubble', async () => {
+  const r = await dialog.showOpenDialog(popupWin && !popupWin.isDestroyed() ? popupWin : undefined, {
+    title: 'Dokument lesen', properties: ['openFile'],
+    filters: [{ name: 'Dokumente', extensions: ['pdf', 'docx', 'txt', 'md', 'csv', 'json', 'html', 'log'] }],
+  });
+  if (r.canceled || !r.filePaths[0]) return { ok: false };
+  try { return { ok: true, doc: await readFileDoc(r.filePaths[0]) }; } catch (e) { return { ok: false, error: String(e.message || e) }; }
+});
+ipcMain.handle('region-capture', () => { popupWin?.hide(); return regionCapture(); });
+ipcMain.handle('open-reader', (_e, doc, result, focus) => {
+  popupWin?.hide();
+  if (doc) showDocument(doc, { result, focus }); else showMain();
+});
+// Fundstelle direkt auf dem Bildschirm zeigen: die große Spinne läuft zu den Wörtern im Originalprogramm
+ipcMain.handle('show-on-screen', async (_e, { screenAt, start, end }) => {
+  const sel = lastScreenSel;
+  if (!sel || sel.time !== screenAt || Date.now() - sel.time > 5 * 60 * 1000) return false;
+  const words = (str) => (str.match(/\S+/g) || []).length;
+  const total = Math.max(1, words(sel.text));
+  const ratio = sel.words.length / total;
+  const a = Math.max(0, Math.floor(words(sel.text.slice(0, start)) * ratio));
+  const b = Math.min(sel.words.length, Math.max(a + 1, Math.ceil(words(sel.text.slice(0, end)) * ratio)));
+  bubbleWin?.webContents.send('rig-trick', 'scared');
+  await runCrawlOverlay({ x: sel.words[a][0], y: sel.words[a][1] }, { words: sel.words.slice(a, b), dip: true });
+  bubbleWin?.webContents.send('rig-trick', 'return');
+  return true;
+});
 ipcMain.handle('hide-main', () => mainWin?.hide());
 ipcMain.handle('popup-close', () => popupWin?.hide());
 ipcMain.handle('popup-details', (_e, doc, result, focus) => { popupWin?.hide(); showDocument(doc, { result, focus }); });
@@ -1425,6 +1613,7 @@ ipcMain.handle('get-settings', () => {
     hatchAnimation: s.hatchAnimation !== false,
     lowPower: !!s.lowPower,
     pinCopied: s.pinCopied !== false,
+    clickMode: clickMode(),
     hasKey: !!getApiKey(), models: MODELS, hotkey: SHORTCUTS[0].label,
   };
 });
@@ -1438,7 +1627,7 @@ ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await
 ipcMain.handle('ollama-models', async () => {
   try { return { ok: true, models: await ollamaModels() }; } catch { return { ok: false, models: [] }; }
 });
-ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied }) => {
+ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied, clickMode: cm }) => {
   if (apiKey) setApiKey(apiKey.trim());
   const s = loadSettings();
   if (['builtin', 'claude', 'ollama'].includes(provider)) s.provider = provider;
@@ -1447,6 +1636,7 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   if (typeof hatchAnimation === 'boolean') s.hatchAnimation = hatchAnimation;
   if (typeof lowPower === 'boolean') s.lowPower = lowPower;
   if (typeof pinCopied === 'boolean') s.pinCopied = pinCopied;
+  if (CLICK_MODES.includes(cm)) { s.clickMode = cm; bubbleWin?.webContents.send('click-mode', cm); }
   if (model && MODELS[model]) s.model = model;
   if (language) s.language = language;
   saveSettings(s);
@@ -1457,21 +1647,16 @@ ipcMain.handle('open-external', (_e, url) => {
   if (url.startsWith('https://')) shell.openExternal(url);
 });
 
-ipcMain.on('bubble-menu', () => {
-  Menu.buildFromTemplate([
-    { label: 'Markierten Text nehmen', accelerator: HOTKEY, click: () => spiderTake() },
-    { label: 'Spinnennetz', submenu: cocoonsMenuTemplate() },
+ipcMain.on('bubble-menu', () => openRing({ at: spiderScreenPos() }));
+// Altes Menü (noch über das Tray-Symbol erreichbar)
+function classicMenu() {
+  return Menu.buildFromTemplate([
     { label: 'Bildschirmbereich lesen', click: () => regionCapture() },
     { label: 'Notizbuch', click: () => showNotebook() },
-    { label: 'Datei öffnen …', click: pickFile },
-    { label: 'Analysefenster öffnen', click: () => showMain() },
-    { type: 'separator' },
-    { label: 'Einstellungen …', click: openSettings },
+    { label: 'Spinnennetz-Ring öffnen', click: () => openRing({ at: spiderScreenPos() }) },
     { label: 'Spinne ausblenden', click: () => bubbleWin.hide() },
-    { type: 'separator' },
-    { label: 'Beenden', click: () => app.quit() },
-  ]).popup({ window: bubbleWin });
-});
+  ]);
+}
 
 // Fenster-Ziehen für das transparente Icon (ohne Rahmen).
 // Nur über der Spinne Mausereignisse annehmen, sonst durchklicken lassen.
@@ -1605,8 +1790,10 @@ if (!app.requestSingleInstanceLock()) {
     tray.setToolTip(`Silkreader ${app.getVersion()}`);
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: 'Spinne anzeigen', click: () => bubbleWin.show() },
-      { label: 'Markierten Text nehmen', click: () => spiderTake() },
-      { label: 'Datei öffnen …', click: pickFile },
+      { label: 'Markierten Text lesen', click: () => spiderTake({ mode: 'read' }) },
+      { label: 'Datei lesen …', click: pickFileToBubble },
+      { label: 'Lesemodus öffnen', click: () => showMain() },
+      { label: 'Weitere Funktionen', submenu: classicMenu() },
       { label: 'Einstellungen …', click: openSettings },
       { label: `Nach Updates suchen (v${app.getVersion()})`, click: checkUpdatesNow },
       { label: 'Protokoll öffnen (für Fehlersuche)', click: () => shell.openPath(path.join(app.getPath('userData'), 'silkreader-errors.log')) },
@@ -1640,4 +1827,5 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 // Nur für automatische Tests: ein paar Funktionen erreichbar machen
-if (process.env.SPIDER_MOCK) global.__silk = { showPopupPayload, showNotebook, addHistory, compareCocoons, get cocoons() { return cocoons; } };
+if (process.env.SPIDER_MOCK) global.__silk = { showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
+  get cocoons() { return cocoons; }, get lastScreenSel() { return lastScreenSel; }, set lastScreenSel(v) { lastScreenSel = v; } };

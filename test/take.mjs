@@ -60,6 +60,9 @@ console.log('result →', await pop.textContent('#title'), '| findings:', await 
 execSync(`import -window root ${out}/popup.png`);
 await pop.getByText('Mehr ▾').click();
 await pop.click('.jump[data-index="1"]');
+await new Promise((r) => setTimeout(r, 300));
+console.log('Lupe in der Blase:', await pop.evaluate(() => document.querySelector('.lupe mark')?.textContent), '| „Auf dem Bildschirm zeigen“:', await pop.evaluate(() => !!document.querySelector('[data-l="screen"]')));
+await pop.click('[data-l="reader"]');
 await new Promise((r) => setTimeout(r, 5000));
 const main = app.windows().find((w) => w.url().includes('index.html'));
 console.log('focused item:', await main.evaluate(() => document.querySelector('.focus')?.textContent.trim()), '| highlighted words:', await main.evaluate(() => [...document.querySelectorAll('.w.flash')].map((e) => e.textContent).join(' ')));

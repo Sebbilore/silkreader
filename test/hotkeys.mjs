@@ -16,7 +16,8 @@ await rig.evaluate(() => { window.__t = []; window.spider.onRigTrick((t) => wind
 execSync('xdotool key ctrl+alt+n');
 await sleep(1500);
 console.log('Einstellungen zeigen:', await set.evaluate(() => document.querySelector('.fired[data-for="notebook"]')?.textContent));
-console.log('Notizbuch offen:', await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().includes('index.html') && w.isVisible())));
+console.log('Notizbuch offen:', await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().includes('popup.html') && w.isVisible())),
+  await app.windows().find((w) => w.url().includes('popup'))?.textContent('#title'));
 console.log('Spinne reagiert:', await rig.evaluate(() => window.__t.join(',')));
 const log = fs.readFileSync(`${home}/.config/Silkreader/silkreader-errors.log`, 'utf8');
 console.log('Protokoll:\n' + log.split('\n').filter((l) => /Kürzel gedrückt|BELEGT|Start/.test(l)).slice(-4).join('\n'));

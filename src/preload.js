@@ -61,5 +61,21 @@ contextBridge.exposeInMainWorld('spider', {
   onBusy: (cb) => ipcRenderer.on('busy', (_e, b) => cb(b)),
   onDocument: (cb) => ipcRenderer.on('document', (_e, d) => cb(d)),
   closeWindow: () => ipcRenderer.invoke('hide-main'),
+  // Spinnennetz-Ring
+  onRingOpen: (cb) => ipcRenderer.on('ring-open', (_e, d) => cb(d)),
+  onRingRelease: (cb) => ipcRenderer.on('ring-release', () => cb()),
+  ringHover: (id) => ipcRenderer.send('ring-hover', id),
+  ringAction: (id) => ipcRenderer.send('ring-action', id),
+  // Sprechblase als Bedienzentrale
+  popupSize: (h) => ipcRenderer.send('popup-size', h),
+  historyGet: (id) => ipcRenderer.invoke('history-get', id),
+  clipboardText: () => ipcRenderer.invoke('clipboard-text'),
+  pickFileBubble: () => ipcRenderer.invoke('pick-file-bubble'),
+  regionCapture: () => ipcRenderer.invoke('region-capture'),
+  openReader: (doc, result, focus) => ipcRenderer.invoke('open-reader', doc, result, focus),
+  showOnScreen: (range) => ipcRenderer.invoke('show-on-screen', range),
+  cocoonRead: (id) => ipcRenderer.invoke('cocoon-read', id),
+  setClickMode: (mode) => ipcRenderer.invoke('set-click-mode', mode),
+  onClickMode: (cb) => ipcRenderer.on('click-mode', (_e, m) => cb(m)),
   onProgress: (cb) => ipcRenderer.on('progress', (_e, n) => cb(n)),
 });

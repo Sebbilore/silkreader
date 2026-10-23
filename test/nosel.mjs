@@ -8,5 +8,7 @@ await rig.evaluate(() => window.spider.spiderTake());
 await new Promise((r) => setTimeout(r, 400));
 console.log('trick:', await rig.evaluate(() => trick));
 await new Promise((r) => setTimeout(r, 2000));
-console.log('window opened without selection:', await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().includes('index.html') && w.isVisible())));
+const vis = (p) => app.evaluate(({ BrowserWindow }, p) => BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().includes(p) && w.isVisible()), p);
+console.log('ohne Markierung → großes Fenster:', await vis('index.html'), '| Mini-Blase:', await vis('popup.html'),
+  '|', await app.windows().find((w) => w.url().includes('popup'))?.textContent('#title'));
 await app.close();

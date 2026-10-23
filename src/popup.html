@@ -56,12 +56,44 @@
     padding: 6px 0; outline: none; } .ask:focus { border-bottom-color: var(--pink); } .ask::placeholder { color: #5f5f6e; }
   .actions { display: flex; gap: 16px; } .actions .link { color: var(--muted); } .actions .link:hover { color: var(--pink); }
   .hidden { display: none !important; }
+  /* Zurück-Pfeil im Kopf */
+  .back { -webkit-app-region: no-drag; background: none; border: none; color: var(--muted); font: inherit; font-size: 14px; cursor: pointer; padding: 0 2px 0 0; }
+  .back:hover { color: var(--pink); }
+  /* Lupe: Originalstelle direkt in der Blase */
+  .lupe { margin: 4px 0 10px; padding: 8px 10px; background: var(--card); border-radius: 10px; font-size: 12.5px; color: var(--muted); }
+  .lupe mark { background: rgba(255,45,138,.18); color: var(--text); border-radius: 3px; padding: 0 2px; }
+  .lupe .row { display: flex; gap: 14px; margin-top: 6px; }
+  .lupe .none { font-style: italic; }
+  /* Mini-Blase: einfügen, Zwischenablage, Datei */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
+  .chip { background: none; border: 1px solid var(--line); color: var(--muted); font: inherit; font-size: 11.5px; border-radius: 999px; padding: 2px 10px; cursor: pointer; }
+  .chip:hover { color: var(--text); } .chip.on { border-color: var(--pink); color: #fff; }
+  textarea.in { width: 100%; resize: none; background: var(--card); border: 1px solid var(--line); border-radius: 10px; color: var(--text);
+    font: inherit; font-size: 13px; padding: 8px 10px; outline: none; height: 64px; }
+  textarea.in:focus { border-color: var(--pink); }
+  .quick { display: flex; flex-wrap: wrap; gap: 14px; margin: 8px 0 2px; }
+  .quick .link { color: var(--text); } .quick .link:hover { color: var(--pink); }
+  .clip { font-size: 12px; color: var(--muted); margin-top: 8px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .clip:hover { color: var(--text); }
+  .entry { padding: 6px 0; cursor: pointer; display: flex; gap: 10px; align-items: baseline; border-top: 1px solid var(--line); }
+  .entry:first-child { border-top: none; }
+  .entry .t { flex: 1; min-width: 0; } .entry b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry span { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry small { color: var(--muted); font-size: 11px; }
+  .entry:hover b { color: var(--pink); }
+  .entry .del { background: none; border: none; color: var(--muted); cursor: pointer; visibility: hidden; padding: 0 2px; }
+  .entry:hover .del { visibility: visible; } .entry .del:hover { color: var(--pink); }
+  /* Einstellungen in der Blase */
+  .set { margin: 0 0 12px; } .set > .h { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .set select { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; padding: 3px 6px; }
+  .tog { display: flex; align-items: center; gap: 8px; font-size: 12.5px; margin: 6px 0; cursor: pointer; }
+  .tog input { accent-color: #ff2d8a; }
 </style>
 </head>
 <body>
 <div id="bubble">
   <div id="arrow"></div>
-  <header><span class="t" id="title">Silkreader</span><button class="x" id="close" title="Schließen (Esc)">✕</button></header>
+  <header><button class="back hidden" id="back" title="Zurück">‹</button><span class="t" id="title">Silkreader</span><button class="x" id="close" title="Schließen (Esc)">✕</button></header>
   <main id="main"></main>
   <footer id="foot" class="hidden"></footer>
 </div>
@@ -143,14 +175,14 @@
       $('moreBtn').textContent = open ? 'Weniger ▴' : 'Mehr ▾';
     });
     $('main').querySelectorAll('.jump').forEach((row) => row.addEventListener('click', () =>
-      window.spider.popupDetails(P.doc, result, { type: row.dataset.type, index: Number(row.dataset.index) })));
+      toggleLupe(row, { type: row.dataset.type, index: Number(row.dataset.index) })));
     $('main').querySelectorAll('[data-dl]').forEach((btn) => btn.addEventListener('click', async () => {
       const d = deadlines[Number(btn.dataset.dl)];
       const ok = await window.spider.addCalendar({ title: `Frist: ${r.title || P.doc.title}`, date: d.iso, note: d.sentence });
       btn.textContent = ok ? '✓ geöffnet' : 'nicht möglich';
     }));
     $('main').scrollTop = 0;
-    footer({ ask: true, actions: [['Details', () => window.spider.popupDetails(P.doc, result, null)], ['Kopieren', copyResult], ['Festhalten', keepResult]] });
+    footer({ ask: true, actions: [['Kopieren', copyResult], ['Festhalten', keepResult], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)]] });
   }
 
   // ---------- Frage an den Text ----------
@@ -165,7 +197,7 @@
     if (!res.ok) { a.className = 'a error'; a.textContent = res.error; return; }
     a.className = 'a';
     a.innerHTML = emph(res.answer) + (res.quote ? ` <button class="link">Stelle zeigen →</button>` : '');
-    a.querySelector('.link')?.addEventListener('click', () => window.spider.popupDetails(P.doc, result, { type: 'quote', quote: res.quote }));
+    a.querySelector('.link')?.addEventListener('click', (e) => toggleLupe(box, { type: 'quote', quote: res.quote }, e.target));
     box.scrollIntoView({ block: 'nearest' });
   }
 
@@ -202,6 +234,189 @@
     footer({ actions: [['Kopieren', async () => { await navigator.clipboard.writeText(text); flash('Kopieren', '✓ Kopiert'); }]] });
   }
 
+  // ---------- Lupe: wo steht das im Text? ----------
+  function queryFor(focus) {
+    if (focus.type === 'figure') { const f = result.figures[focus.index]; return f ? (f.quote || `${f.label} ${f.value}`) : ''; }
+    if (focus.type === 'point') return result.key_points[focus.index] || '';
+    if (focus.type === 'finding') { const f = result.findings[focus.index]; return f ? `${f.title} ${f.detail}` : ''; }
+    return focus.quote || '';
+  }
+  const tokens = (q) => (q.toLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N},.%€-]*/gu) || [])
+    .map((t) => t.replace(/[.,]+$/, '')).filter((t) => t.length > 3 || /\d/.test(t));
+  const numKey = (t) => t.replace(/[.\s]/g, '').replace(',', '.');
+  function findSource(query, text) {
+    if (!query.trim()) return null;
+    // 1. wörtlich (Zitat), Leerräume egal
+    const words = query.trim().split(/\s+/);
+    if (words.length >= 3) {
+      const re = new RegExp(words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'), 'i');
+      const m = re.exec(text);
+      if (m) return around(text, m.index, m.index + m[0].length);
+    }
+    // 2. Satz mit den meisten gemeinsamen Wörtern (Zahlen zählen dreifach)
+    const want = tokens(query);
+    if (!want.length) return null;
+    const sents = [...text.matchAll(/[^.!?\n]+(?:[.!?]+|\n|$)/g)];
+    let best = null, bestScore = 0;
+    for (const m of sents) {
+      const have = new Set(tokens(m[0]).map((t) => (/\d/.test(t) ? numKey(t) : t)));
+      let score = 0;
+      for (const t of want) if (have.has(/\d/.test(t) ? numKey(t) : t)) score += /\d/.test(t) ? 3 : 1;
+      if (score > bestScore) { bestScore = score; best = m; }
+    }
+    if (!best || bestScore < 2) return null;
+    const lead = best[0].length - best[0].trimStart().length;
+    return around(text, best.index + lead, best.index + best[0].trimEnd().length);
+  }
+  function around(text, start, end) {
+    let a = Math.max(0, text.lastIndexOf('.', start - 2) + 1, start - 160);
+    let b = text.indexOf('.', end + 1); b = Math.min(b < 0 ? text.length : b + 1, end + 160);
+    return { start, end, before: text.slice(a, start).replace(/\s+/g, ' ').trimStart(), hit: text.slice(start, end), after: text.slice(end, b).replace(/\s+/g, ' ').trimEnd(), cutA: a > 0, cutB: b < text.length };
+  }
+  function toggleLupe(anchor, focus, afterEl = null) {
+    const next = (afterEl || anchor).nextElementSibling;
+    if (next?.classList.contains('lupe')) { next.remove(); return; }
+    document.querySelectorAll('.lupe').forEach((l) => l.remove());
+    const text = P.doc.pages.join('\n\n');
+    const src = findSource(queryFor(focus), text);
+    const box = document.createElement('div');
+    box.className = 'lupe';
+    box.innerHTML = src
+      ? `${src.cutA ? '… ' : ''}${esc(src.before)}<mark>${emph(src.hit)}</mark>${esc(src.after)}${src.cutB ? ' …' : ''}`
+      : '<span class="none">Diese Stelle steht so nicht wörtlich im Text.</span>';
+    const row = document.createElement('div');
+    row.className = 'row';
+    if (src && P.doc.screenAt) row.innerHTML += '<button class="link" data-l="screen">Auf dem Bildschirm zeigen</button>';
+    row.innerHTML += '<button class="link" data-l="reader">Im Lesemodus</button>';
+    box.appendChild(row);
+    row.querySelector('[data-l="screen"]')?.addEventListener('click', async (e) => {
+      const ok = await window.spider.showOnScreen({ screenAt: P.doc.screenAt, start: src.start, end: src.end });
+      if (!ok) e.target.textContent = 'nicht mehr auf dem Bildschirm';
+    });
+    row.querySelector('[data-l="reader"]').addEventListener('click', () => window.spider.openReader(P.doc, result, focus));
+    (afterEl ? afterEl.closest('.answer') || anchor : anchor).after(box);
+    box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  // ---------- Mini-Blase: Was soll ich lesen? ----------
+  const MODES = [['read', 'Lesen'], ['translate', 'Übersetzen'], ['simplify', 'Einfach'], ['reply', 'Antworten']];
+  const TITLES = { translate: 'Übersetzung', simplify: 'Einfach erklärt', reply: 'Antwort-Entwurf' };
+  async function home() {
+    state = 'done';
+    let mode = P.mode || 'read';
+    $('title').textContent = 'Was soll ich lesen?';
+    $('main').innerHTML = `
+      <div class="chips" id="modes">${MODES.map(([id, l]) => `<button class="chip${id === mode ? ' on' : ''}" data-m="${id}">${l}</button>`).join('')}</div>
+      ${P.hint ? `<div class="muted" style="margin-bottom:6px">${esc(P.hint)}</div>` : ''}
+      <textarea class="in" id="homeIn" placeholder="Text einfügen … (Enter)"></textarea>
+      <div class="clip hidden" id="clip"></div>
+      <div class="quick">
+        <button class="link" id="qFile">Datei lesen …</button>
+        <button class="link" id="qRegion">Bereich lesen</button>
+      </div>
+      <div class="sec hidden" id="recentSec"><div class="h">Zuletzt</div><div id="recent"></div></div>`;
+    $('modes').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-m]'); if (!b) return;
+      mode = b.dataset.m;
+      $('modes').querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', c === b));
+      $('homeIn').focus();
+    });
+    const go = (text) => { if (text.trim()) runText(text.trim(), mode); };
+    $('homeIn').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(e.target.value); } });
+    $('qFile').addEventListener('click', async () => {
+      busyDialog = true;
+      const r = await window.spider.pickFileBubble();
+      busyDialog = false;
+      if (r.ok) { setBack(home); P = { kind: 'analyze', doc: r.doc }; $('title').textContent = r.doc.title; analyze(); }
+      else if (r.error) $('main').insertAdjacentHTML('afterbegin', `<p class="error">${esc(r.error)}</p>`);
+    });
+    $('qRegion').addEventListener('click', () => window.spider.regionCapture());
+    footer({ actions: [['Notizbuch', () => { setBack(home); notebook(); }], ['Einstellungen', () => { setBack(home); settings(); }], ['Lesemodus', () => window.spider.openReader(null)]] });
+    setTimeout(() => $('homeIn')?.focus(), 60);
+    // Zwischenablage als Vorschlag
+    const clip = (await window.spider.clipboardText()).trim();
+    if (clip && $('clip')) {
+      $('clip').textContent = `⧉ Zwischenablage lesen: „${clip.replace(/\s+/g, ' ').slice(0, 60)}${clip.length > 60 ? '…' : ''}“`;
+      $('clip').classList.remove('hidden');
+      $('clip').addEventListener('click', () => go(clip));
+    }
+    const recent = (await window.spider.historyList('')).slice(0, 3);
+    if (recent.length && $('recent')) {
+      $('recentSec').classList.remove('hidden');
+      $('recent').innerHTML = recent.map(entryHtml).join('');
+      bindEntries($('recent'), home);
+    }
+  }
+  function runText(text, mode) {
+    setBack(home);
+    if (mode === 'read') { P = { kind: 'analyze', doc: { title: 'Eingefügter Text', source: 'text', pages: [text] } }; $('title').textContent = P.doc.title; analyze(); }
+    else { P = { kind: 'transform', mode, title: TITLES[mode], text }; $('title').textContent = P.title; transform(); }
+  }
+
+  // ---------- Notizbuch ----------
+  const entryHtml = (h) => `<div class="entry" data-id="${esc(h.id)}"><div class="t"><b>${esc(h.title || h.docTitle)}</b><span>${esc(bullets(h.summary)[0] || '')}</span></div>
+    <small>${new Date(h.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</small><button class="del" title="Löschen">✕</button></div>`;
+  function bindEntries(box, backTo) {
+    box.querySelectorAll('.entry').forEach((el) => el.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('del')) { await window.spider.historyDelete(el.dataset.id); el.remove(); return; }
+      const h = await window.spider.historyGet(el.dataset.id);
+      if (!h) return;
+      setBack(backTo);
+      P = { kind: 'analyze', doc: h.doc, result: h.result };
+      result = h.result;
+      showResult();
+    }));
+  }
+  async function notebook() {
+    state = 'done';
+    $('title').textContent = 'Notizbuch';
+    $('main').innerHTML = `<input class="ask" id="nbQ" placeholder="Suchen …" style="margin-bottom:8px"><div id="nbList"></div>`;
+    const load = async () => {
+      const list = await window.spider.historyList($('nbQ')?.value || '');
+      if (!$('nbList')) return;
+      $('nbList').innerHTML = list.length ? list.map(entryHtml).join('') : `<div class="muted">${$('nbQ').value ? 'Nichts gefunden.' : 'Noch nichts gelesen – die Spinne merkt sich hier die letzten 20 Texte.'}</div>`;
+      bindEntries($('nbList'), notebook);
+    };
+    $('nbQ').addEventListener('input', load);
+    $('foot').classList.add('hidden');
+    await load();
+    $('nbQ').focus();
+  }
+
+  // ---------- Einstellungen (das Wichtigste) ----------
+  async function settings() {
+    state = 'done';
+    $('title').textContent = 'Einstellungen';
+    const s = await window.spider.getSettings();
+    const chips = (name, list, cur) => `<div class="chips" data-set="${name}">${list.map(([v, l]) => `<button class="chip${v === cur ? ' on' : ''}" data-v="${esc(v)}">${l}</button>`).join('')}</div>`;
+    $('main').innerHTML = `
+      <div class="set"><div class="h">KI</div>${chips('provider', [['builtin', 'Eingebaut'], ['claude', 'Claude'], ['ollama', 'Ollama']], s.provider || 'builtin')}
+        <div class="muted ${s.provider === 'claude' && !s.hasKey ? '' : 'hidden'}" id="keyHint">Für Claude fehlt noch der Schlüssel – <button class="link" id="keyLink">eintragen …</button></div></div>
+      <div class="set"><div class="h">Klick auf die Spinne</div>${chips('clickMode', MODES, s.clickMode || 'read')}</div>
+      <div class="set"><div class="h">Sprache der Ergebnisse</div><select id="lang">${['Deutsch', 'Englisch', 'Französisch', 'Spanisch', 'Italienisch'].map((l) => `<option${l === s.language ? ' selected' : ''}>${l}</option>`).join('')}
+        <option value="der Sprache des Dokuments"${s.language === 'der Sprache des Dokuments' ? ' selected' : ''}>Wie das Dokument</option></select></div>
+      <label class="tog"><input type="checkbox" id="hatch"${s.hatchAnimation ? ' checked' : ''}> Große Spinne liest mit</label>
+      <label class="tog"><input type="checkbox" id="pinCopied"${s.pinCopied ? ' checked' : ''}> Kopierte Dateien ins Netz</label>
+      <label class="tog"><input type="checkbox" id="lowPower"${s.lowPower ? ' checked' : ''}> Sparmodus <span class="muted">(nach Neustart)</span></label>`;
+    $('main').querySelectorAll('[data-set]').forEach((g) => g.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-v]'); if (!b) return;
+      g.querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', c === b));
+      await window.spider.saveSettings({ [g.dataset.set]: b.dataset.v });
+      if (g.dataset.set === 'provider') $('keyHint').classList.toggle('hidden', !(b.dataset.v === 'claude' && !s.hasKey));
+    }));
+    $('keyLink').addEventListener('click', () => window.spider.openSettings());
+    $('lang').addEventListener('change', (e) => window.spider.saveSettings({ language: e.target.value }));
+    for (const id of ['hatch', 'pinCopied', 'lowPower']) {
+      $(id).addEventListener('change', (e) => window.spider.saveSettings({ [id === 'hatch' ? 'hatchAnimation' : id]: e.target.checked }));
+    }
+    footer({ actions: [['Tastenkürzel & mehr …', () => window.spider.openSettings()], ['Lesemodus', () => window.spider.openReader(null)]] });
+  }
+
+  // ---------- Zurück ----------
+  let backFn = null;
+  function setBack(fn) { backFn = fn; $('back').classList.toggle('hidden', !fn); }
+  $('back').addEventListener('click', () => { const fn = backFn; setBack(null); run++; document.querySelectorAll('.lupe').forEach((l) => l.remove()); if (fn) { P = { kind: fn.name, mode: P.mode }; fn(); } });
+
   // ---------- Hilfen ----------
   function footer({ ask: withAsk = false, actions = [] }) {
     const f = $('foot');
@@ -236,13 +451,39 @@
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && state === 'done' && P.kind === 'analyze' && !getSelection().toString() && document.activeElement?.id !== 'askIn') { e.preventDefault(); copyResult(); }
   });
 
+  // Fenstergröße an den Inhalt anpassen (sonst schluckt der leere Rest Klicks)
+  let sizeQueued = false;
+  function reportSize() {
+    if (sizeQueued) return;
+    sizeQueued = true;
+    requestAnimationFrame(() => {
+      sizeQueued = false;
+      const head = document.querySelector('header').offsetHeight;
+      const foot = $('foot').classList.contains('hidden') ? 0 : $('foot').offsetHeight;
+      window.spider.popupSize(14 + head + $('main').scrollHeight + foot + 14);
+    });
+  }
+  new MutationObserver(reportSize).observe($('bubble'), { childList: true, subtree: true, characterData: true, attributes: true });
+  // Kleine Bedien-Blasen schließen sich, wenn man woanders hinklickt
+  let busyDialog = false;
+  window.addEventListener('blur', () => setTimeout(() => {
+    if (busyDialog || document.hasFocus() || !P || !['home', 'notebook', 'settings'].includes(P.kind)) return;
+    if ($('homeIn')?.value.trim()) return;
+    close();
+  }, 250));
+
   window.spider.onPopupDoc((payload) => {
     P = payload; result = null; run++;
+    setBack(null);
     document.documentElement.style.setProperty('--arrow', `${payload.arrow}px`);
     $('bubble').classList.remove('closing');
     $('bubble').style.animation = 'none'; void $('bubble').offsetWidth; $('bubble').style.animation = '';
     $('foot').classList.add('hidden');
-    if (P.kind === 'analyze') { $('title').textContent = P.doc.title; analyze(); }
+    if (P.kind === 'analyze' && P.result) { result = P.result; showResult(); }
+    else if (P.kind === 'analyze') { $('title').textContent = P.doc.title; analyze(); }
+    else if (P.kind === 'home') home();
+    else if (P.kind === 'notebook') notebook();
+    else if (P.kind === 'settings') settings();
     else if (P.kind === 'transform') { $('title').textContent = P.title; transform(); }
     else if (P.kind === 'compare') { $('title').textContent = P.title; compare(); }
     else { state = 'done'; $('title').textContent = P.title; $('main').innerHTML = `<p>${esc(P.text)}</p>`; footer({ actions: [['OK', close]] }); }

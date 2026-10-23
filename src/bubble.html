@@ -70,6 +70,12 @@
   #count { position: absolute; top: 6px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: #16161d; border: 1.5px solid #ff2d8a;
     color: #fff; font: 700 9px/13px "Segoe UI", sans-serif; text-align: center; display: none; transition: opacity .3s; }
   body.webClosed.hasItems #count { display: block; }
+  /* Klick-Modus (Mausrad auf der Spinne): kleines Abzeichen + kurzer Hinweis */
+  #badge circle { fill: #16161d; stroke: #ff2d8a; stroke-width: 1.2; }
+  #badge text { fill: #fff; font: 700 7px "Segoe UI", sans-serif; text-anchor: middle; }
+  #modeTip { position: absolute; transform: translateX(-50%); font: 600 10px "Segoe UI", sans-serif; color: #fff; background: #16161d;
+    border: 1px solid #ff2d8a; padding: 2px 8px; border-radius: 9px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .2s; }
+  #modeTip.on { opacity: 1; }
 </style>
 </head>
 <body>
@@ -95,11 +101,13 @@
     <path id="mouth" d=""/>
   </g>
   <text id="zzz" x="0" y="0" opacity="0">z</text>
+  <g id="badge" style="display:none"><circle r="6.5"/><text y="2.5" id="badgeTx"></text></g>
 </svg>
 <div id="zoneGlow"></div>
 <div id="items"></div>
 <div id="zoneHint">Hier ablegen</div>
 <div id="count"></div>
+<div id="modeTip"></div>
 
 <script>
   const NS = 'http://www.w3.org/2000/svg';
@@ -341,6 +349,7 @@
       el.zzz.setAttribute('opacity', (1 - zp * 0.6).toFixed(2));
     }
 
+    if (clickMode !== 'read') $('badge').setAttribute('transform', `translate(${(sx + 12).toFixed(1)} ${(sy + 10).toFixed(1)})`);
     drawLegs(t);
     drawFace(now);
     hitTest(now);
@@ -521,14 +530,14 @@
       const isPhoto = false; // immer das echte Datei-/Ordnersymbol zeigen
       c.className = `item ${it.type}${isPhoto ? ' photo' : ''}${it.missing ? ' missing' : ''}${knownIds.has(it.id) ? '' : ' new'}`;
       c.style.left = `${x}px`; c.style.top = `${y}px`; c.style.setProperty('--rot', `${SPOTS[i].rot}deg`);
-      c.title = `${it.name}${it.missing ? ' (Datei fehlt)' : ''}\nKlick: kopieren · Ziehen: ablegen · Rechtsklick: mehr`;
+      c.title = `${it.name}${it.missing ? ' (Datei fehlt)' : ''}\nKlick: lesen · Ziehen: ablegen · Rechtsklick: kopieren und mehr`;
       c.draggable = true;
       const ext = it.type === 'file' && !it.folder ? (it.name.includes('.') ? it.name.split('.').pop().slice(0, 4).toUpperCase() : '') : '';
       const short = it.type === 'file' ? it.name.replace(/\.[^.]+$/, '') : it.name;
       const icon = it.type === 'text' ? '<div class="ic">📝</div>'
         : `<div class="ic" style="${it.icon ? `background-image:url('${it.icon}')` : ''}">${it.icon ? '' : it.folder ? '📁' : '📄'}</div>`;
       c.innerHTML = `<div class="card">${icon}</div>${ext ? `<span class="ext">${ext}</span>` : ''}<span class="nm">${short.replace(/[<>&]/g, '')}</span>`;
-      c.addEventListener('click', async () => { if (await window.spider.cocoonCopy(it.id)) flashCopied(c); });
+      c.addEventListener('click', () => { doTrick('yoyo'); window.spider.cocoonRead(it.id); });
       c.addEventListener('dragstart', (e) => { e.preventDefault(); window.spider.cocoonDrag(it.id); });
       c.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); window.spider.cocoonMenu(it.id); });
       box.appendChild(c);
@@ -596,7 +605,37 @@
     else window.spider.cocoonAddText(text);
   });
 
-  window.spider.onRigInit((d) => { minLen = d.minLen; maxLen = d.maxLen; baseLen = d.length; });
+  // ---------- Klick-Modus: Mausrad auf der Spinne ----------
+  const MODES = [['read', 'Lesen', ''], ['translate', 'Übersetzen', '⇄'], ['simplify', 'Einfach', 'Aa'], ['reply', 'Antworten', '↩']];
+  let clickMode = 'read', lastWheel = 0, tipTimer = null;
+  function setClickMode(m, announce) {
+    clickMode = MODES.some(([id]) => id === m) ? m : 'read';
+    const [, label, glyph] = MODES.find(([id]) => id === clickMode);
+    $('badge').style.display = clickMode === 'read' ? 'none' : '';
+    $('badgeTx').textContent = glyph;
+    if (!announce) return;
+    const tip = $('modeTip');
+    tip.textContent = `Klick: ${label}`;
+    tip.style.left = `${spiderPos.x}px`; tip.style.top = `${spiderPos.y + 20}px`;
+    tip.classList.add('on');
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => tip.classList.remove('on'), 1400);
+  }
+  el.svg.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const now = performance.now();
+    if (now - lastWheel < 220) return;
+    lastWheel = now;
+    wake();
+    const i = MODES.findIndex(([id]) => id === clickMode);
+    const next = MODES[(i + (e.deltaY > 0 ? 1 : MODES.length - 1)) % MODES.length][0];
+    setClickMode(next, true);
+    doTrick('flip');
+    window.spider.setClickMode(next);
+  }, { passive: false });
+  window.spider.onClickMode((m) => setClickMode(m, false));
+
+  window.spider.onRigInit((d) => { minLen = d.minLen; maxLen = d.maxLen; baseLen = d.length; setClickMode(d.clickMode, false); });
   window.spider.onCursor((p) => { cursor = p; });
   window.spider.onThreadLength((l) => { baseLen = l; });
   window.spider.onRigDragging((d) => { dragging = d; el.spider.classList.toggle('grabbing', d); });

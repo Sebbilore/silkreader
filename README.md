@@ -43,16 +43,17 @@ Ist das große Fenster offen, tollt die kleine Spinne darin herum (hüpft, schl�
 
 | Aktion | Ergebnis |
 |---|---|
-| **Text markieren, dann auf die Spinne klicken** | Die kleine Spinne erschrickt und versteckt sich, eine große Spinne kriecht vom Bildschirmrand herein und liest Wort für Wort über den markierten Text (die genauen Wortpositionen erkennt die App an der Markierungsfarbe auf dem Bildschirm – das Bildschirmfoto bleibt nur kurz im Speicher; ersatzweise über Windows UI Automation). Danach erscheint unter der Spinne eine kleine Sprechblase, die Analyse startet sofort, und das Ergebnis erscheint direkt dort – das Wichtigste in einfachen Stichpunkten („Details“ öffnet das große Fenster mit markierten Fundstellen). Strg+C ist nicht nötig, deine Zwischenablage bleibt erhalten. Ist nichts markiert, öffnet ein Klick einfach die App. |
-| **Auf eine Info im Ergebnis klicken** | Die Leseansicht öffnet sich und die Spinne läuft zu der Stelle im Text, wo die Info steht |
+| **Text markieren, dann auf die Spinne klicken** | Die kleine Spinne erschrickt und versteckt sich, eine große Spinne kriecht vom Bildschirmrand herein und liest Wort für Wort über den markierten Text (die genauen Wortpositionen erkennt die App an der Markierungsfarbe auf dem Bildschirm – das Bildschirmfoto bleibt nur kurz im Speicher; ersatzweise über Windows UI Automation). Danach erscheint unter der Spinne eine kleine Sprechblase, die Analyse startet sofort, und das Ergebnis erscheint direkt dort – das Wichtigste in einfachen Stichpunkten („Details“ öffnet das große Fenster mit markierten Fundstellen). Strg+C ist nicht nötig, deine Zwischenablage bleibt erhalten. Ist nichts markiert, erscheint eine kleine Blase: Text einfügen, Zwischenablage oder Datei lesen, zuletzt Gelesenes. |
+| **Auf eine Info im Ergebnis klicken** | Eine Lupe klappt auf und zeigt die Originalstelle. „Auf dem Bildschirm zeigen“: Die große Spinne läuft im Originalprogramm zu der Stelle |
+| **Mausrad auf der Spinne** | Klick-Modus wechseln: Lesen, Übersetzen, Einfach oder Antworten (kleines Abzeichen an der Spinne) |
 | **Datei oder Text zur Spinne ziehen** | Sobald man mit gedrückter Maustaste in die Nähe kommt, spannt sie ihr Netz auf („Hier ablegen“) – man muss die Spinne nicht treffen. Das Dokument klebt danach mit Vorschaubild im Netz. |
 | **Dateien oder Ordner im Explorer markieren, dann auf die Spinne oder das Netz klicken** | Werden im Netz festgehalten (mit dem echten Datei- bzw. Ordnersymbol) |
-| **Dokument im Netz anklicken** | In die Zwischenablage kopieren (Dateien lassen sich im Explorer mit Strg+V einfügen) |
+| **Dokument im Netz anklicken** | In der Sprechblase lesen (schon gelesen und unverändert: sofort aus dem Notizbuch) |
 | **Dokument aus dem Netz ziehen** | Datei direkt auf den Desktop, in einen Ordner oder in eine Mail ziehen |
-| **Rechtsklick auf ein Dokument im Netz** | Kopieren, Analysieren, Im Ordner zeigen, Entfernen |
+| **Rechtsklick auf ein Dokument im Netz** | Kopieren (dann im Explorer mit Strg+V einfügen), Lesen, Im Lesemodus öffnen, Im Ordner zeigen, Vergleichen, Entfernen |
 | **Spinne seitwärts ziehen** | Sie wandert am oberen Rand entlang (und schaukelt dabei ordentlich) |
 | **Spinne hoch/runter ziehen** | Faden kürzer oder länger machen |
-| **Rechtsklick** auf die Spinne | Menü mit Kokon-Ablage, Datei öffnen, Einstellungen … |
+| **Rechtsklick** auf die Spinne | Spinnennetz-Ring mit allen Aktionen (siehe unten) |
 | **Datei im Explorer mit Strg+C kopieren** | Landet automatisch im Netz (abschaltbar in den Einstellungen) |
 | **„Mehr ▾“ in der Sprechblase** | Kernaussagen, Erkenntnisse und Zahlen – die Sprechblase zeigt sonst nur das Wichtigste |
 | **„Frag den Text …“ in der Sprechblase** | Frage eintippen, Enter – die Spinne antwortet und zeigt auf Wunsch die Stelle im Text |
@@ -60,6 +61,19 @@ Ist das große Fenster offen, tollt die kleine Spinne darin herum (hüpft, schl�
 | **Rechtsklick auf ein Dokument im Netz → Vergleichen mit …** | Zwei Dokumente vergleichen: Unterschiede und Gemeinsamkeiten |
 
 Die Spinne wird nach 30 Sekunden halb durchsichtig und kommt zurück, sobald die Maus in die Nähe kommt. Das Netz ist zusammengeklappt (nur ein kleiner Zähler) und öffnet sich, wenn die Maus darüber fährt.
+
+### Spinnennetz-Ring
+
+Alles, was die Spinne kann, liegt in einem runden Netz – wie ein Aktionsring: **Strg+Alt+Leertaste** öffnet es direkt am Mauszeiger, ein Rechtsklick auf die Spinne um die Spinne herum.
+
+- **Kurz tippen:** Das Netz bleibt offen, Aktion anklicken.
+- **Gedrückt halten:** Maus in Richtung der Aktion bewegen und loslassen (Windows).
+- Erste Seite: Lesen, Übersetzen, Einfach, Antworten, Bereich, Ins Netz, Notizbuch, Mehr. Unter „Mehr“: Datei lesen, Zwischenablage, Lesemodus, Einstellungen, Verstecken.
+- Esc, Klick in die Mitte oder Wegfahren schließt das Netz.
+
+**Tipp für Logitech-Mäuse (z. B. MX Master):** In Logi Options+ eine Taste – oder einen Platz im Aktionsring – auf den Tastendruck *Strg+Alt+Leertaste* legen. Dann öffnet diese Maustaste das Spinnennetz.
+
+Das große Fenster ist nur noch ein optionaler **Lesemodus** für lange Dokumente (über den Ring unter „Mehr“ oder „Lesemodus“ in der Sprechblase).
 
 ### Tastenkürzel
 
@@ -76,7 +90,8 @@ Alle globalen Kürzel lassen sich in den Einstellungen ändern (anklicken, neue 
 | **Strg+Alt+L** | Markierten Text in einfache Sprache umschreiben |
 | **Strg+Alt+R** | Antwort-Entwurf auf eine markierte E-Mail |
 | **Strg+Alt+B** | Bildschirmbereich aufziehen und lesen lassen (Windows-Texterkennung) |
-| **Strg+Alt+N** | Notizbuch: die letzten 20 Analysen mit Suche |
+| **Strg+Alt+N** | Notizbuch: die letzten 20 Analysen mit Suche (als Sprechblase) |
+| **Strg+Alt+Leertaste** | Spinnennetz-Ring am Mauszeiger |
 
 Zum Ausprobieren: Einstellungen öffnen und ein Kürzel drücken – dahinter erscheint „✓ erkannt“, und die Spinne hüpft kurz. Klappt etwas nicht, steht im Protokoll (Rechtsklick aufs Tray-Symbol → „Protokoll öffnen“), ob das Kürzel ankam und ob markierter Text gefunden wurde.
 
@@ -126,7 +141,8 @@ Aufbau:
 - `src/settings.html`: Einstellungen
 - `src/overlay.html`: die große Spinne, die über den markierten Text auf dem Bildschirm kriecht
 - `src/mascot.js`: die kleine Spinne, die im Analysefenster herumtollt
-- `src/popup.html`: Ergebnis-Sprechblase unter der Spinne
+- `src/popup.html`: Sprechblase unter der Spinne (Ergebnis, Lupe, Mini-Blase, Notizbuch, Einstellungen)
+- `src/ring.html`: Spinnennetz-Ring
 - `src/grab.js`: markierten Text aus anderen Programmen holen (zuerst direkt über UI Automation, sonst per Strg+C)
 - `src/winkeys.js`: Tastendrücke direkt über die Windows-API (ohne PowerShell)
 - `src/selectionScan.js`: markierte Wörter auf dem Bildschirm finden (über die Markierungsfarbe)
