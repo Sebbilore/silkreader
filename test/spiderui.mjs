@@ -74,7 +74,7 @@ await pop.click('[data-set="provider"] [data-v="builtin"]');
 await pop.click('[data-set="clickMode"] [data-v="translate"]');
 await sleep(300);
 const rig = await find('bubble.html');
-console.log('Klick-Modus gespeichert:', JSON.parse(fs.readFileSync(`${home}/.config/Silkreader/settings.json`, 'utf8')).clickMode, '| Abzeichen:', await rig.evaluate(() => document.getElementById('badge').style.display !== 'none' && document.getElementById('badgeTx').textContent));
+console.log('Klick-Modus gespeichert:', JSON.parse(fs.readFileSync(`${home}/.config/Silkreader/settings.json`, 'utf8')).clickMode, '| Accessoire:', await rig.evaluate(() => [...document.querySelectorAll('#acc > g.on')].map((g) => g.id).join(',')));
 await pop.click('[data-set="clickMode"] [data-v="read"]');
 
 // Ring schließt mit Wegfahren

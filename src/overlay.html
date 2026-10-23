@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
 <title>Silkreader</title>
+<link rel="stylesheet" href="theme.css">
 <style>
   :root { --pink: #ff2d8a; --yellow: #ffe14d; }
   html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
@@ -18,14 +19,6 @@
   }
   .w.read { animation: read 2.4s ease-out forwards; }
   @keyframes read { 0% { background: rgba(255,45,138,.22); } 100% { background: rgba(255,45,138,0); } }
-  .spider-layer { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; transition: opacity .3s; z-index: 5; }
-  .spider-leg { fill: none; stroke: var(--pink); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round;
-    filter: drop-shadow(0 0 2px rgba(255,45,138,.7)); }
-  .spider-foot { fill: #fff; stroke: var(--pink); stroke-width: .8; }
-  .spider-abdomen, .spider-thorax { fill: #111; stroke: var(--pink); stroke-width: 1.4; }
-  .spider-mark { fill: var(--pink); }
-  .spider-eye { fill: #fff; }
-  .spider-glow { fill: rgba(255,45,138,.12); }
 </style>
 </head>
 <body>

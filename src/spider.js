@@ -26,11 +26,25 @@ export class Spider {
     this.svg.classList.add('spider-layer');
     content.appendChild(this.svg);
 
+    // Verläufe für Glanz und Beine (Aussehen in theme.css)
+    const defs = document.createElementNS(SVG_NS, 'defs');
+    defs.innerHTML = `
+      <radialGradient id="sbBody" cx="35%" cy="25%" r="85%"><stop offset="0" stop-color="#4a4a5c"/><stop offset=".4" stop-color="#191922"/><stop offset="1" stop-color="#07070a"/></radialGradient>
+      <linearGradient id="sbLeg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff2d8a"/><stop offset="1" stop-color="#ff6aa9"/></linearGradient>`;
+    this.svg.appendChild(defs);
+    // Schatten auf dem Untergrund
+    this.shadow = document.createElementNS(SVG_NS, 'ellipse');
+    this.shadow.setAttribute('class', 'spider-shadow');
+    this.shadow.setAttribute('rx', '15'); this.shadow.setAttribute('ry', '24');
+    this.svg.appendChild(this.shadow);
+    this.prints = document.createElementNS(SVG_NS, 'g');
+    this.svg.appendChild(this.prints);
+    // Beine mit Gelenk: Oberschenkel, Unterschenkel, Knie
     this.legEls = LEG_ANGLES.map(() => {
-      const p = document.createElementNS(SVG_NS, 'polyline');
-      p.setAttribute('class', 'spider-leg');
-      this.svg.appendChild(p);
-      return p;
+      const mk = (tag, cls) => { const e = document.createElementNS(SVG_NS, tag); e.setAttribute('class', cls); this.svg.appendChild(e); return e; };
+      const femur = mk('line', 'spider-femur'), tibia = mk('line', 'spider-tibia'), knee = mk('circle', 'spider-knee');
+      knee.setAttribute('r', '1.9');
+      return { femur, tibia, knee };
     });
     this.footEls = LEG_ANGLES.map(() => {
       const c = document.createElementNS(SVG_NS, 'circle');
@@ -44,9 +58,15 @@ export class Spider {
       <ellipse class="spider-glow" cx="0" cy="6" rx="22" ry="36"/>
       <ellipse class="spider-abdomen" cx="0" cy="16" rx="10" ry="21"/>
       <rect class="spider-mark" x="-2" y="6" width="4" height="16" rx="2"/>
+      <ellipse class="spider-shine" cx="-4" cy="5" rx="2.6" ry="7" transform="rotate(12 -4 5)"/>
       <ellipse class="spider-thorax" cx="0" cy="-9" rx="7.5" ry="9"/>
-      <circle class="spider-eye" cx="-2.6" cy="-15" r="1.4"/>
-      <circle class="spider-eye" cx="2.6" cy="-15" r="1.4"/>`;
+      <ellipse class="spider-shine" cx="-2.8" cy="-12.5" rx="1.8" ry="3" transform="rotate(18 -2.8 -12.5)"/>
+      <circle class="spider-eye" cx="-2.6" cy="-15" r="1.5"/>
+      <circle class="spider-eye" cx="2.6" cy="-15" r="1.5"/>
+      <circle class="spider-eye small" cx="-4.6" cy="-13" r=".8"/>
+      <circle class="spider-eye small" cx="4.6" cy="-13" r=".8"/>
+      <circle class="spider-glint" cx="-3" cy="-15.5" r=".5"/>
+      <circle class="spider-glint" cx="2.2" cy="-15.5" r=".5"/>`;
     this.svg.appendChild(this.body);
 
     this.feet = LEG_ANGLES.map((a) => {
@@ -144,7 +164,10 @@ export class Spider {
         const e = 1 - (1 - f.t) ** 2;
         f.x = lerp(f.fx, f.tx, e);
         f.y = lerp(f.fy, f.ty, e) - Math.sin(f.t * Math.PI) * 10;
-        if (f.t === 1 && f.word && dist(f.x, f.y, f.word.x, f.word.y) < 30) this.touch(f.word);
+        if (f.t === 1) {
+          this.print(f.x, f.y);
+          if (f.word && dist(f.x, f.y, f.word.x, f.word.y) < 30) this.touch(f.word);
+        }
         return;
       }
       const [ix, iy] = this.ideal(LEG_ANGLES[i]);
@@ -175,6 +198,16 @@ export class Spider {
     requestAnimationFrame(this.tick);
   };
 
+  // Leuchtender Fußabdruck, der sich ausbreitet und verblasst
+  print(x, y) {
+    if (this.hidden || this.prints.childElementCount > 24) return;
+    const c = document.createElementNS(SVG_NS, 'circle');
+    c.setAttribute('class', 'spider-print');
+    c.setAttribute('cx', x.toFixed(1)); c.setAttribute('cy', y.toFixed(1)); c.setAttribute('r', '3');
+    this.prints.appendChild(c);
+    setTimeout(() => c.remove(), 750);
+  }
+
   touch(w) {
     if (!w || this.hidden) return;
     const el = w.el;
@@ -186,6 +219,7 @@ export class Spider {
   draw() {
     const bob = Math.sin(performance.now() / 160) * 1.2;
     this.body.setAttribute('transform', `translate(${this.x.toFixed(1)} ${(this.y + bob).toFixed(1)}) scale(${this.bodyScale.toFixed(2)})`);
+    this.shadow.setAttribute('cx', (this.x + 7).toFixed(1)); this.shadow.setAttribute('cy', (this.y + 16).toFixed(1));
     this.feet.forEach((f, i) => {
       const right = i < 4;
       const hx = this.x + (right ? 5 : -5);
@@ -201,7 +235,10 @@ export class Spider {
       if (-py + 0.6 * side * px < py - 0.6 * side * px) { px = -px; py = -py; } // die nach außen/oben zeigende nehmen
       const kx = hx + (dx / dd) * half + px * bend;
       const ky = hy + (dy / dd) * half + py * bend;
-      this.legEls[i].setAttribute('points', `${hx},${hy} ${kx},${ky} ${f.x},${f.y}`);
+      const L2 = this.legEls[i];
+      L2.femur.setAttribute('x1', hx); L2.femur.setAttribute('y1', hy); L2.femur.setAttribute('x2', kx); L2.femur.setAttribute('y2', ky);
+      L2.tibia.setAttribute('x1', kx); L2.tibia.setAttribute('y1', ky); L2.tibia.setAttribute('x2', f.x); L2.tibia.setAttribute('y2', f.y);
+      L2.knee.setAttribute('cx', kx); L2.knee.setAttribute('cy', ky);
       this.footEls[i].setAttribute('cx', f.x);
       this.footEls[i].setAttribute('cy', f.y);
     });

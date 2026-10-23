@@ -60,6 +60,8 @@ Ist das große Fenster offen, tollt die kleine Spinne darin herum (hüpft, schl�
 | **📅 Frist in der Sprechblase** | Erkannte Termine mit einem Klick als Kalendereintrag (mit Erinnerung einen Tag vorher) |
 | **Rechtsklick auf ein Dokument im Netz → Vergleichen mit …** | Zwei Dokumente vergleichen: Unterschiede und Gemeinsamkeiten |
 
+Die kleine Spinne zeigt, was sie tut: konzentriert beim Lesen, stolz wenn sie fertig ist, verschlafen nach einer Weile, erschrocken wenn die große Spinne kommt. Je Klick-Modus trägt sie ein Accessoire: Lesebrille (beim Lesen), Weltkugel-Mütze (Übersetzen), Glühbirne (Einfach), Brief (Antworten).
+
 Die Spinne wird nach 30 Sekunden halb durchsichtig und kommt zurück, sobald die Maus in die Nähe kommt. Das Netz ist zusammengeklappt (nur ein kleiner Zähler) und öffnet sich, wenn die Maus darüber fährt.
 
 ### Spinnennetz-Ring
@@ -143,6 +145,7 @@ Aufbau:
 - `src/mascot.js`: die kleine Spinne, die im Analysefenster herumtollt
 - `src/popup.html`: Sprechblase unter der Spinne (Ergebnis, Lupe, Mini-Blase, Notizbuch, Einstellungen)
 - `src/ring.html`: Spinnennetz-Ring
+- `src/theme.css` und `src/icons.js`: gemeinsame Farben, Schrift, Formen, Bewegungen und Symbole („Mitternachtsseide“)
 - `src/grab.js`: markierten Text aus anderen Programmen holen (zuerst direkt über UI Automation, sonst per Strg+C)
 - `src/winkeys.js`: Tastendrücke direkt über die Windows-API (ohne PowerShell)
 - `src/selectionScan.js`: markierte Wörter auf dem Bildschirm finden (über die Markierungsfarbe)

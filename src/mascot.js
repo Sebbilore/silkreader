@@ -36,11 +36,17 @@ export class Mascot {
     this.root.innerHTML = `
       <svg class="m-thread" width="2" height="2"><line x1="1" y1="0" x2="1" y2="0"/></svg>
       <svg class="m-spider" viewBox="-36 -36 72 72" width="90" height="90">
+        <defs>
+          <radialGradient id="mBody" cx="35%" cy="28%" r="80%"><stop offset="0" stop-color="#4a4a5c"/><stop offset=".35" stop-color="#1d1d27"/><stop offset="1" stop-color="#08080c"/></radialGradient>
+          <radialGradient id="mEye" cx="40%" cy="30%" r="75%"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#dcdce8"/></radialGradient>
+        </defs>
         <g class="m-rig"><g class="m-legs"></g>
           <circle class="m-body" r="11"/>
+          <ellipse class="m-shine" cx="-4.6" cy="-6.6" rx="3.6" ry="1.9" transform="rotate(-28 -4.6 -6.6)"/>
           <circle class="m-cheek" cx="-7.2" cy="4.2" r="1.8"/><circle class="m-cheek" cx="7.2" cy="4.2" r="1.8"/>
           <ellipse class="m-eye" cx="-4.4" cy="-1.6" rx="3.9" ry="4.4"/><ellipse class="m-eye" cx="4.4" cy="-1.6" rx="3.9" ry="4.4"/>
           <circle class="m-pupil" cx="-4.4" cy="-1.6" r="1.9"/><circle class="m-pupil" cx="4.4" cy="-1.6" r="1.9"/>
+          <circle class="m-glint" r=".75"/><circle class="m-glint" r=".75"/>
           <path class="m-mouth" d=""/>
         </g>
       </svg>
@@ -54,11 +60,13 @@ export class Mascot {
     this.eyes = [...this.root.querySelectorAll('.m-eye')];
     this.pupils = [...this.root.querySelectorAll('.m-pupil')];
     this.mouth = this.root.querySelector('.m-mouth');
+    this.glints = [...this.root.querySelectorAll('.m-glint')];
+    // Beine mit Gelenken – wie die kleine Spinne am Bildschirmrand
     this.legEls = LEGS.map(() => {
-      const p = document.createElementNS(NS, 'polyline');
-      p.setAttribute('class', 'm-leg');
-      this.root.querySelector('.m-legs').appendChild(p);
-      return p;
+      const mk = (tag, cls) => { const e = document.createElementNS(NS, tag); e.setAttribute('class', cls); this.root.querySelector('.m-legs').appendChild(e); return e; };
+      const femur = mk('line', 'm-femur'), tibia = mk('polyline', 'm-tibia'), knee = mk('circle', 'm-joint'), ankle = mk('circle', 'm-joint');
+      knee.setAttribute('r', '1.35'); ankle.setAttribute('r', '.9');
+      return { femur, tibia, knee, ankle };
     });
     this.svg.addEventListener('click', () => this.poked());
   }
@@ -232,7 +240,11 @@ export class Mascot {
       if (air) { fy -= 9; ky -= 7; fx *= 1.15; }
       if (this.mood === 'sleep') { fx *= 0.7; fy = fy * 0.5 + 5; kx *= 0.8; }
       if (this.state === 'abseil' && l.i === 0 && l.side === 1) { kx = 16; ky = -22; fx = 22 + Math.sin(t * 14) * 6; fy = -32; } // winken
-      this.legEls[n].setAttribute('points', `${hx},${hy} ${kx},${ky} ${fx},${fy}`);
+      const ax = kx + (fx - kx) * 0.68, ay = ky + (fy - ky) * 0.68 - 1.6, L = this.legEls[n];
+      L.femur.setAttribute('x1', hx); L.femur.setAttribute('y1', hy); L.femur.setAttribute('x2', kx); L.femur.setAttribute('y2', ky);
+      L.tibia.setAttribute('points', `${kx},${ky} ${ax},${ay} ${fx},${fy}`);
+      L.knee.setAttribute('cx', kx); L.knee.setAttribute('cy', ky);
+      L.ankle.setAttribute('cx', ax); L.ankle.setAttribute('cy', ay);
     });
 
     // Gesicht
@@ -243,9 +255,12 @@ export class Mascot {
     const lx = Math.max(-1.8, Math.min(1.8, (this.cursor.x - this.x) / 60));
     const ly = Math.max(-1.6, Math.min(1.6, (this.cursor.y - this.y) / 60));
     this.pupils.forEach((p, i) => {
-      p.setAttribute('cx', (i ? 4.4 : -4.4) + (walking ? this.face * 1.6 : lx));
-      p.setAttribute('cy', -1.6 + (walking ? 0 : ly));
+      const px = (i ? 4.4 : -4.4) + (walking ? this.face * 1.6 : lx), py = -1.6 + (walking ? 0 : ly);
+      p.setAttribute('cx', px); p.setAttribute('cy', py);
       p.style.opacity = closed ? 0 : 1;
+      // Lichtreflex oben links im Auge
+      this.glints[i].setAttribute('cx', px - 1.05); this.glints[i].setAttribute('cy', py - 1.15);
+      this.glints[i].style.opacity = closed ? 0 : 1;
     });
     const mouth = this.mood === 'sleep' ? 'M-2 6 Q0 6.8 2 6'
       : big ? 'M-1.6 6.4 a1.6 1.6 0 1 0 3.2 0 a1.6 1.6 0 1 0 -3.2 0'

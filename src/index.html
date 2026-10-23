@@ -4,16 +4,17 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
 <title>Silkreader</title>
+<link rel="stylesheet" href="theme.css">
 <style>
   :root {
-    --bg: #0b0b10; --panel: #111118; --card: #17171f; --line: #26263a;
-    --text: #ececf3; --muted: #8b8ba3; --pink: #ff2d8a; --pink-soft: rgba(255,45,138,.18);
+    --bg: #0c0c11; --panel: #121219; --card: #1a1a23; --line: rgba(255,255,255,.08);
+    --text: #f1f1f6; --muted: #9494a6; --pink: #ff2d8a; --pink-soft: rgba(255,45,138,.16);
     --yellow: #ffe14d; --paper: #ffffff; --paper-bg: #e9e7e2; --ink: #1b1b1f;
     --mono: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
-    font: 14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; overflow: hidden; }
+    font: 14px/1.5 var(--font); overflow: hidden; }
   button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line);
     background: var(--card); color: var(--text); padding: 7px 14px; }
   button:hover { border-color: var(--pink); }
@@ -59,14 +60,6 @@
   .w.hit.flash { animation: flash 1s ease-out; }
   @keyframes flash { 0% { background: var(--pink); color: #fff; } 100% { background: rgba(255,45,138,.28); } }
 
-  .spider-layer { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; transition: opacity .4s; z-index: 5; }
-  .spider-leg { fill: none; stroke: var(--pink); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round;
-    filter: drop-shadow(0 0 2px rgba(255,45,138,.7)); }
-  .spider-foot { fill: #fff; stroke: var(--pink); stroke-width: .8; }
-  .spider-abdomen, .spider-thorax { fill: #111; stroke: var(--pink); stroke-width: 1.4; }
-  .spider-mark { fill: var(--pink); }
-  .spider-eye { fill: #fff; }
-  .spider-glow { fill: rgba(255,45,138,.12); }
 
   /* Ergebnispanel */
   #panel { width: 430px; flex-shrink: 0; background: var(--panel); border-left: 1px solid var(--line);
@@ -126,15 +119,19 @@
   .mascot .m-spider { position: absolute; left: 0; top: 0; overflow: visible; will-change: transform; }
   .mascot .m-thread { position: absolute; left: 0; top: 0; overflow: visible; }
   .mascot .m-thread line { stroke: rgba(240,240,250,.9); stroke-width: 1; }
-  .mascot .m-leg { stroke: #ff2d8a; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-  .mascot .m-body { fill: #16161d; stroke: #ff2d8a; stroke-width: 1.6; pointer-events: all; cursor: pointer; }
-  .mascot .m-cheek { fill: rgba(255,45,138,.45); pointer-events: none; }
-  .mascot .m-eye { fill: #fff; stroke: #16161d; stroke-width: .5; pointer-events: none; }
-  .mascot .m-pupil { fill: #111; pointer-events: none; }
+  .mascot .m-femur { stroke: var(--pink); stroke-width: 2.6; fill: none; stroke-linecap: round; }
+  .mascot .m-tibia { stroke: var(--pink-2); stroke-width: 1.7; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .mascot .m-joint { fill: #c41c69; stroke: #ff7db6; stroke-width: .5; }
+  .mascot .m-body { fill: url(#mBody); stroke: var(--pink); stroke-width: 1.4; pointer-events: all; cursor: pointer; }
+  .mascot .m-shine { fill: rgba(255,255,255,.42); pointer-events: none; }
+  .mascot .m-cheek { fill: rgba(255,45,138,.5); pointer-events: none; }
+  .mascot .m-eye { fill: url(#mEye); stroke: #0c0c11; stroke-width: .5; pointer-events: none; }
+  .mascot .m-pupil { fill: #0c0c11; pointer-events: none; }
+  .mascot .m-glint { fill: #fff; pointer-events: none; }
   .mascot .m-mouth { stroke: #ff2d8a; stroke-width: 1.3; fill: none; stroke-linecap: round; pointer-events: none; }
   .mascot .m-fx span { position: absolute; font-size: 16px; animation: floatUp 1.3s ease-out forwards; }
   @keyframes floatUp { from { transform: translate(0, 0) scale(.6); opacity: 1; } to { transform: translate(var(--dx), -70px) scale(1.2); opacity: 0; } }
-  .mascot.sleeping::after { content: 'z z Z'; position: absolute; left: var(--zx); top: var(--zy); font: 700 12px "Segoe UI", sans-serif; color: #ff2d8a;
+  .mascot.sleeping::after { content: 'z z Z'; position: absolute; left: var(--zx); top: var(--zy); font: 700 12px var(--font); color: var(--pink);
     animation: zz 2s ease-in-out infinite; }
   @keyframes zz { 0% { opacity: 0; transform: translateY(6px); } 50% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }
   .jump { cursor: pointer; border-radius: 6px; transition: background .15s; }

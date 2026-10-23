@@ -44,9 +44,12 @@ console.log('compare:', await pop.evaluate(() => document.body.innerText.include
 
 // 4) Notizbuch
 await app.evaluate((_e, [t, r]) => global.__silk.addHistory({ title: 'Bericht', source: 'text', pages: [t] }, r), [text, mock]);
-await app.evaluate(() => global.__silk.showNotebook());
+// Notizbuch im Lesemodus (Strg+H)
+await app.evaluate(() => global.__silk.runRingAction('reader'));
 const main = await find('index.html');
 await sleep(1500);
+await main.keyboard.press('Control+h');
+await sleep(500);
 await main.screenshot({ path: `${out}/notebook.png` });
 console.log('notebook items:', await main.evaluate(() => document.querySelectorAll('.nbItem').length));
 await main.fill('#nbSearch', 'xyzunbekannt'); await sleep(300);

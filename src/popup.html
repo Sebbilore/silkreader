@@ -4,36 +4,45 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
 <title>Silkreader</title>
+<link rel="stylesheet" href="theme.css">
+<script src="icons.js"></script>
 <style>
-  :root { --bg: #111116; --card: #18181f; --line: #26262f; --text: #ececf1; --muted: #8d8d9c; --pink: #ff2d8a; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font: 13.5px/1.6 "Segoe UI", system-ui, sans-serif; color: var(--text); }
-  #bubble { position: absolute; left: 10px; right: 10px; top: 14px; max-height: calc(100% - 24px); background: var(--bg); border: 1px solid var(--pink);
-    border-radius: 16px; box-shadow: 0 12px 32px rgba(0,0,0,.45); display: flex; flex-direction: column;
-    transform-origin: var(--arrow, 50%) 0; animation: popIn .32s cubic-bezier(.2,1.4,.4,1); }
-  @keyframes popIn { from { transform: scale(.2); opacity: 0; } to { transform: none; opacity: 1; } }
-  #bubble.closing { animation: popOut .18s ease-in forwards; }
-  @keyframes popOut { to { transform: scale(.2); opacity: 0; } }
-  #arrow { position: absolute; top: -8px; left: calc(var(--arrow, 50%) - 8px); width: 14px; height: 14px; background: var(--bg);
-    border-left: 1px solid var(--pink); border-top: 1px solid var(--pink); transform: rotate(45deg); }
-  header { display: flex; align-items: baseline; gap: 8px; padding: 14px 18px 4px; -webkit-app-region: drag; }
-  header .t { font-weight: 600; font-size: 12px; color: var(--muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .x { -webkit-app-region: no-drag; background: none; border: none; color: var(--muted); font-size: 15px; cursor: pointer; padding: 0; line-height: 1; }
-  .x:hover { color: var(--text); }
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font: 13.5px/1.6 var(--font); color: var(--text); }
+  /* Die Blase hängt an einem Seidenfaden unter der Spinne */
+  #bubble { position: absolute; left: 10px; right: 10px; top: 16px; max-height: calc(100% - 26px); border-radius: var(--r-l);
+    display: flex; flex-direction: column; transform-origin: var(--arrow, 50%) 0; animation: silk-pop var(--t-slow) var(--ease-spring); }
+  #bubble.closing { animation: silk-out .18s ease-in forwards; }
+  #bubble::before { content: ''; position: absolute; left: 18%; right: 18%; top: -1px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--pink), transparent); opacity: .7; }
+  #thread { position: absolute; top: 0; left: calc(var(--arrow, 50%) - 6px); width: 12px; height: 20px; overflow: visible; pointer-events: none; }
+  #thread line { stroke: var(--silk); stroke-width: 1; }
+  #thread circle { fill: var(--dew); filter: drop-shadow(0 0 2px rgba(255,255,255,.8)); }
+  header { display: flex; align-items: center; gap: 8px; padding: 14px 16px 4px 18px; -webkit-app-region: drag; }
+  header .t { font: 600 11.5px var(--font); letter-spacing: .2px; color: var(--muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .x { -webkit-app-region: no-drag; background: none; border: none; color: var(--faint); cursor: pointer; padding: 2px; line-height: 0; border-radius: 6px;
+    transition: color var(--t-fast), background var(--t-fast); }
+  .x:hover { color: var(--text); background: var(--line); }
+  .x .icon { width: 14px; height: 14px; }
   main { overflow: auto; padding: 4px 18px 6px; min-height: 40px; }
   main::-webkit-scrollbar { width: 6px; } main::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
   b { color: #fff; font-weight: 650; }
+  .rise { animation: silk-rise .42s var(--ease-out) both; }
   ul { margin: 0; padding-left: 16px; } li { margin: 0 0 8px; } li::marker { color: var(--pink); }
   .lead li { font-size: 14px; }
   .muted { color: var(--muted); font-size: 12px; }
-  .stage { color: var(--muted); padding: 6px 0 10px; }
-  .bar { height: 2px; background: var(--line); border-radius: 1px; overflow: hidden; margin-bottom: 10px; }
-  .bar i { display: block; height: 100%; width: 8%; background: var(--pink); transition: width .4s; }
-  .bar.indet i { width: 30%; animation: indet 1.2s ease-in-out infinite; }
-  @keyframes indet { from { margin-left: -30%; } to { margin-left: 100%; } }
+  .weave { display: flex; align-items: center; gap: 10px; padding: 6px 0 12px; }
+  .weave svg { width: 26px; height: 26px; flex: none; overflow: visible; }
+  .weave .sp { stroke: var(--silk); stroke-width: .7; opacity: .55; }
+  .weave .spiral { fill: none; stroke: var(--pink); stroke-width: 1.1; stroke-linecap: round; filter: drop-shadow(0 0 2px var(--pink-glow));
+    stroke-dasharray: var(--len); stroke-dashoffset: var(--len); transition: stroke-dashoffset .5s var(--ease-out); }
+  .weave.indet svg { animation: silk-spin 6s linear infinite; }
+  .weave.indet .spiral { animation: weaveLoop 1.8s var(--ease-out) infinite; }
+  @keyframes weaveLoop { 0% { stroke-dashoffset: var(--len); opacity: 1; } 70% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+  .stage { color: var(--muted); font-size: 12.5px; }
   .cur { color: var(--pink); animation: blink 1s steps(2) infinite; } @keyframes blink { 50% { opacity: 0; } }
   /* "Mehr ▾": alles Weitere ausgeklappt */
-  .more { background: none; border: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; padding: 2px 0; }
+  .more { background: none; border: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; padding: 2px 0; transition: color var(--t-fast); }
   .more:hover { color: var(--pink); }
   #details { display: none; padding-top: 6px; } #details.open { display: block; }
   .sec { margin: 10px 0 0; } .sec > .h { font-size: 11px; color: var(--muted); letter-spacing: .3px; margin-bottom: 4px; }
@@ -47,33 +56,42 @@
   .dl .when { font-weight: 650; white-space: nowrap; } .dl .what { color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .link { background: none; border: none; color: var(--pink); font: inherit; font-size: 12px; cursor: pointer; padding: 0; white-space: nowrap; }
   .link:hover { text-decoration: underline; }
-  .answer { margin: 10px 0 2px; padding: 10px 12px; background: var(--card); border-radius: 10px; }
+  .answer { margin: 10px 0 2px; padding: 10px 12px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: var(--r-m); animation: silk-rise .35s var(--ease-out); }
   .answer .q { color: var(--muted); font-size: 12px; margin-bottom: 2px; }
   .out { white-space: pre-wrap; }
   .error { color: #ffc2d8; }
-  footer { padding: 8px 18px 14px; display: flex; flex-direction: column; gap: 8px; }
-  .ask { width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--line); color: var(--text); font: inherit; font-size: 13px;
-    padding: 6px 0; outline: none; } .ask:focus { border-bottom-color: var(--pink); } .ask::placeholder { color: #5f5f6e; }
-  .actions { display: flex; gap: 16px; } .actions .link { color: var(--muted); } .actions .link:hover { color: var(--pink); }
+  footer { padding: 8px 18px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .ask { width: 100%; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: var(--r-pill); color: var(--text); font: inherit; font-size: 12.5px;
+    padding: 6px 14px; outline: none; transition: border-color var(--t-fast), box-shadow var(--t-fast); }
+  .ask:focus { border-color: var(--pink); box-shadow: 0 0 0 3px var(--pink-soft); } .ask::placeholder { color: var(--faint); }
+  .actions { display: flex; gap: 16px; flex-wrap: wrap; }
+  .actions .link { color: var(--muted); display: inline-flex; align-items: center; gap: 5px; transition: color var(--t-fast); }
+  .actions .link .icon { width: 13px; height: 13px; }
+  .actions .link:hover { color: var(--pink); text-decoration: none; }
   .hidden { display: none !important; }
   /* Zurück-Pfeil im Kopf */
-  .back { -webkit-app-region: no-drag; background: none; border: none; color: var(--muted); font: inherit; font-size: 14px; cursor: pointer; padding: 0 2px 0 0; }
   .back:hover { color: var(--pink); }
   /* Lupe: Originalstelle direkt in der Blase */
-  .lupe { margin: 4px 0 10px; padding: 8px 10px; background: var(--card); border-radius: 10px; font-size: 12.5px; color: var(--muted); }
-  .lupe mark { background: rgba(255,45,138,.18); color: var(--text); border-radius: 3px; padding: 0 2px; }
+  .lupe { margin: 4px 0 10px; padding: 9px 12px; background: rgba(255,255,255,.035); border: 1px solid var(--line); border-left: 2px solid var(--pink);
+    border-radius: var(--r-s) var(--r-m) var(--r-m) var(--r-s); font-size: 12.5px; color: var(--muted); animation: silk-rise .3s var(--ease-out); }
+  .lupe mark { background: var(--pink-soft); color: var(--text); border-radius: 3px; padding: 0 2px; box-shadow: inset 0 -1.5px 0 var(--pink); }
   .lupe .row { display: flex; gap: 14px; margin-top: 6px; }
+  .figs .lupe { grid-column: 1 / -1; }
   .lupe .none { font-style: italic; }
   /* Mini-Blase: einfügen, Zwischenablage, Datei */
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
-  .chip { background: none; border: 1px solid var(--line); color: var(--muted); font: inherit; font-size: 11.5px; border-radius: 999px; padding: 2px 10px; cursor: pointer; }
-  .chip:hover { color: var(--text); } .chip.on { border-color: var(--pink); color: #fff; }
-  textarea.in { width: 100%; resize: none; background: var(--card); border: 1px solid var(--line); border-radius: 10px; color: var(--text);
-    font: inherit; font-size: 13px; padding: 8px 10px; outline: none; height: 64px; }
-  textarea.in:focus { border-color: var(--pink); }
+  .chip { background: rgba(255,255,255,.03); border: 1px solid var(--line); color: var(--muted); font: inherit; font-size: 11.5px; border-radius: var(--r-pill);
+    padding: 2px 11px; cursor: pointer; transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast); }
+  .chip:hover { color: var(--text); border-color: var(--line-2); } .chip.on { border-color: var(--pink); color: #fff; background: var(--pink-soft); }
+  textarea.in { width: 100%; resize: none; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: var(--r-m); color: var(--text);
+    font: inherit; font-size: 13px; padding: 9px 12px; outline: none; height: 64px; transition: border-color var(--t-fast), box-shadow var(--t-fast); }
+  textarea.in:focus { border-color: var(--pink); box-shadow: 0 0 0 3px var(--pink-soft); }
+  textarea.in::placeholder { color: var(--faint); }
+  .quick .link { display: inline-flex; align-items: center; gap: 6px; } .quick .link .icon { width: 14px; height: 14px; color: var(--muted); }
   .quick { display: flex; flex-wrap: wrap; gap: 14px; margin: 8px 0 2px; }
   .quick .link { color: var(--text); } .quick .link:hover { color: var(--pink); }
   .clip { font-size: 12px; color: var(--muted); margin-top: 8px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .clip .icon { width: 13px; height: 13px; vertical-align: -2px; }
   .clip:hover { color: var(--text); }
   .entry { padding: 6px 0; cursor: pointer; display: flex; gap: 10px; align-items: baseline; border-top: 1px solid var(--line); }
   .entry:first-child { border-top: none; }
@@ -85,15 +103,15 @@
   .entry:hover .del { visibility: visible; } .entry .del:hover { color: var(--pink); }
   /* Einstellungen in der Blase */
   .set { margin: 0 0 12px; } .set > .h { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
-  .set select { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; padding: 3px 6px; }
+  .set select { background: rgba(255,255,255,.04); color: var(--text); border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; padding: 3px 6px; }
   .tog { display: flex; align-items: center; gap: 8px; font-size: 12.5px; margin: 6px 0; cursor: pointer; }
   .tog input { accent-color: #ff2d8a; }
 </style>
 </head>
 <body>
-<div id="bubble">
-  <div id="arrow"></div>
-  <header><button class="back hidden" id="back" title="Zurück">‹</button><span class="t" id="title">Silkreader</span><button class="x" id="close" title="Schließen (Esc)">✕</button></header>
+<svg id="thread" viewBox="0 0 12 20"><line x1="6" y1="0" x2="6" y2="16"/><circle cx="6" cy="16" r="1.6"/></svg>
+<div id="bubble" class="glass">
+  <header><button class="back x hidden" id="back" title="Zurück"></button><span class="t" id="title">Silkreader</span><button class="x" id="close" title="Schließen (Esc)"></button></header>
   <main id="main"></main>
   <footer id="foot" class="hidden"></footer>
 </div>
@@ -109,6 +127,19 @@
   }
 
   let P = null, result = null, state = 'idle', run = 0;
+  $('close').innerHTML = silkIcon('close');
+  $('back').innerHTML = silkIcon('back');
+
+  // Fortschritt als Spinnennetz, das gewebt wird (ohne Schritte: in Dauerschleife)
+  const SPIRAL = (() => { let d = '', n = 8 * 3.2; for (let k = 0; k <= n; k++) { const a = (k / 8) * Math.PI * 2 - Math.PI / 2, r = 2 + (k / n) * 9; d += `${k ? 'L' : 'M'}${(Math.cos(a) * r).toFixed(2)} ${(Math.sin(a) * r).toFixed(2)}`; } return d; })();
+  const weave = (label) => `<div class="weave indet" id="weave"><svg viewBox="-12 -12 24 24" style="--len:190">
+    ${Array.from({ length: 8 }, (_, i) => { const a = i / 8 * Math.PI * 2 - Math.PI / 2; return `<line class="sp" x1="0" y1="0" x2="${(Math.cos(a) * 11.5).toFixed(2)}" y2="${(Math.sin(a) * 11.5).toFixed(2)}"/>`; }).join('')}
+    <path class="spiral" d="${SPIRAL}"/></svg><span class="stage" id="stage">${label}</span></div>`;
+  function weaveProgress(p) {
+    const w = $('weave'); if (!w) return;
+    w.classList.remove('indet');
+    w.querySelector('.spiral').style.strokeDashoffset = (190 * (1 - Math.max(0.04, Math.min(1, p)))).toFixed(1);
+  }
 
   // ---------- Fristen im Text finden (für den Kalender) ----------
   const MONTHS = { januar: 1, februar: 2, märz: 3, maerz: 3, april: 4, mai: 5, juni: 6, juli: 7, august: 8, september: 9, oktober: 10, november: 11, dezember: 12 };
@@ -138,7 +169,7 @@
     state = 'running';
     const myRun = ++run;
     $('foot').classList.add('hidden');
-    $('main').innerHTML = `<div class="stage" id="stage">Die Spinne liest …</div><div class="bar indet" id="bar"><i></i></div><div id="live"></div>`;
+    $('main').innerHTML = `${weave('Die Spinne liest …')}<div id="live"></div>`;
     const res = await window.spider.analyze(P.doc);
     if (myRun !== run) return;
     if (!res.ok) return showError(res, analyze);
@@ -149,7 +180,7 @@
   window.spider.onProgress(({ summary, stage }) => {
     if (state !== 'running' || !$('stage')) return;
     if (stage?.stage) $('stage').textContent = stage.stage;
-    if (stage?.steps) { $('bar').classList.remove('indet'); $('bar').firstElementChild.style.width = `${Math.round((stage.step / stage.steps) * 100)}%`; }
+    if (stage?.steps) weaveProgress(stage.step / stage.steps);
     if (summary) $('live').innerHTML = `<ul class="lead">${bullets(summary).map((b) => `<li>${emph(b)}</li>`).join('')}</ul><span class="cur">▍</span>`;
   });
 
@@ -160,7 +191,7 @@
     const deadlines = findDeadlines(P.doc.pages.join('\n'));
     const figs = r.figures.slice(0, 8);
     $('main').innerHTML = `
-      <ul class="lead">${bullets(r.summary).map((b) => `<li>${emph(b)}</li>`).join('')}</ul>
+      <ul class="lead">${bullets(r.summary).map((b, i) => `<li class="rise" style="animation-delay:${i * 70}ms">${emph(b)}</li>`).join('')}</ul>
       ${deadlines.map((d, i) => `<div class="dl"><span class="when">📅 ${d.date.toLocaleDateString('de-DE')}</span><span class="what" title="${esc(d.sentence)}">${esc(d.sentence)}</span><button class="link" data-dl="${i}">+ Kalender</button></div>`).join('')}
       <button class="more" id="moreBtn">Mehr ▾</button>
       <div id="details">
@@ -206,21 +237,21 @@
     state = 'running';
     const myRun = ++run;
     $('foot').classList.add('hidden');
-    $('main').innerHTML = `<div class="bar indet"><i></i></div><div class="out" id="out"></div>`;
+    $('main').innerHTML = `${weave('Die Spinne schreibt …')}<div class="out" id="out"></div>`;
     const res = await window.spider.transform(P.mode, P.text);
     if (myRun !== run) return;
     if (!res.ok) return showError(res, transform);
     state = 'done';
-    $('main').innerHTML = `<div class="out">${esc(res.text)}</div>${res.truncated ? '<div class="muted" style="margin-top:8px">Nur der Anfang wurde bearbeitet (eingebautes Modell).</div>' : ''}`;
+    $('main').innerHTML = `<div class="out rise">${esc(res.text)}</div>${res.truncated ? '<div class="muted" style="margin-top:8px">Nur der Anfang wurde bearbeitet (eingebautes Modell).</div>' : ''}`;
     footer({ actions: [['Kopieren', async () => { await navigator.clipboard.writeText(res.text); flash('Kopieren', '✓ Kopiert'); }]] });
   }
-  window.spider.onTransformProgress((text) => { if (state === 'running' && $('out')) $('out').innerHTML = `${esc(text)}<span class="cur">▍</span>`; });
+  window.spider.onTransformProgress((text) => { if (state === 'running' && $('out')) { $('weave')?.remove(); $('out').innerHTML = `${esc(text)}<span class="cur">▍</span>`; } });
 
   // ---------- Vergleichen ----------
   async function compare() {
     state = 'running';
     const myRun = ++run;
-    $('main').innerHTML = `<div class="stage">Die Spinne vergleicht …</div><div class="bar indet"><i></i></div>`;
+    $('main').innerHTML = weave('Die Spinne vergleicht …');
     const res = await window.spider.compare(P.a, P.b);
     if (myRun !== run) return;
     if (!res.ok) return showError(res, compare);
@@ -274,6 +305,8 @@
     return { start, end, before: text.slice(a, start).replace(/\s+/g, ' ').trimStart(), hit: text.slice(start, end), after: text.slice(end, b).replace(/\s+/g, ' ').trimEnd(), cutA: a > 0, cutB: b < text.length };
   }
   function toggleLupe(anchor, focus, afterEl = null) {
+    // In der Zahlentabelle hinter dem Wert einfügen (über beide Spalten)
+    if (anchor.parentElement?.classList.contains('figs')) anchor = anchor.nextElementSibling;
     const next = (afterEl || anchor).nextElementSibling;
     if (next?.classList.contains('lupe')) { next.remove(); return; }
     document.querySelectorAll('.lupe').forEach((l) => l.remove());
@@ -311,8 +344,8 @@
       <textarea class="in" id="homeIn" placeholder="Text einfügen … (Enter)"></textarea>
       <div class="clip hidden" id="clip"></div>
       <div class="quick">
-        <button class="link" id="qFile">Datei lesen …</button>
-        <button class="link" id="qRegion">Bereich lesen</button>
+        <button class="link" id="qFile">${silkIcon('file')}Datei lesen …</button>
+        <button class="link" id="qRegion">${silkIcon('region')}Bereich lesen</button>
       </div>
       <div class="sec hidden" id="recentSec"><div class="h">Zuletzt</div><div id="recent"></div></div>`;
     $('modes').addEventListener('click', (e) => {
@@ -336,7 +369,7 @@
     // Zwischenablage als Vorschlag
     const clip = (await window.spider.clipboardText()).trim();
     if (clip && $('clip')) {
-      $('clip').textContent = `⧉ Zwischenablage lesen: „${clip.replace(/\s+/g, ' ').slice(0, 60)}${clip.length > 60 ? '…' : ''}“`;
+      $('clip').innerHTML = `${silkIcon('clip')} Zwischenablage lesen: „${esc(clip.replace(/\s+/g, ' ').slice(0, 60))}${clip.length > 60 ? '…' : ''}“`;
       $('clip').classList.remove('hidden');
       $('clip').addEventListener('click', () => go(clip));
     }
@@ -420,14 +453,15 @@
   // ---------- Hilfen ----------
   function footer({ ask: withAsk = false, actions = [] }) {
     const f = $('foot');
-    f.innerHTML = `${withAsk ? '<input class="ask" id="askIn" placeholder="Frag den Text … (Enter)">' : ''}<div class="actions">${actions.map(([l]) => `<button class="link" data-a="${l}">${l}</button>`).join('')}</div>`;
+    f.innerHTML = `${withAsk ? '<input class="ask" id="askIn" placeholder="Frag den Text … (Enter)">' : ''}<div class="actions">${actions.map(([l]) => `<button class="link" data-a="${l}">${ACTION_ICONS[l] ? silkIcon(ACTION_ICONS[l]) : ''}<span>${l}</span></button>`).join('')}</div>`;
     actions.forEach(([l, fn]) => f.querySelector(`[data-a="${l}"]`).addEventListener('click', fn));
     $('askIn')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && e.target.value.trim()) { ask(e.target.value.trim()); e.target.value = ''; }
     });
     f.classList.remove('hidden');
   }
-  function flash(label, text) { const b = $('foot').querySelector(`[data-a="${label}"]`); if (!b) return; b.textContent = text; setTimeout(() => (b.textContent = label), 1300); }
+  const ACTION_ICONS = { Kopieren: 'copy', Festhalten: 'keep', Lesemodus: 'reader', Notizbuch: 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Erneut versuchen': 'send' };
+  function flash(label, text) { const b = $('foot').querySelector(`[data-a="${label}"] span`); if (!b) return; b.textContent = text; setTimeout(() => (b.textContent = label), 1300); }
   function showError(res, retry) {
     state = 'error';
     $('main').innerHTML = `<p class="error">${esc(res.error)}</p>`;

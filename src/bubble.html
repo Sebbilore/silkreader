@@ -4,83 +4,118 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:">
 <title>Silkreader</title>
+<link rel="stylesheet" href="theme.css">
 <style>
   html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; user-select: none; }
   svg { display: block; width: 100%; height: 100%; }
   #webSvg { position: absolute; inset: 0; pointer-events: none; will-change: transform; }
   #svg { position: absolute; inset: 0; }
-  #thread { stroke: rgba(245,245,250,.95); stroke-width: 1; }
-  #threadShadow { stroke: rgba(20,20,30,.45); stroke-width: 2.4; }
+  #thread { stroke: var(--silk); stroke-width: 1; }
+  #threadShadow { stroke: rgba(10,10,18,.5); stroke-width: 2.4; }
   #web { transition: opacity 4s; }
   #web line, #web polyline { fill: none; stroke: rgba(245,245,250,.9); stroke-width: .9; stroke-linecap: round; stroke-linejoin: round;
     filter: drop-shadow(0 0 .8px rgba(20,20,30,.7)); }
-  .leg { stroke: #ff2d8a; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-  #body { fill: #16161d; stroke: #ff2d8a; stroke-width: 1.6; }
-  .catch #body { stroke: #fff; stroke-width: 2.2; }
-  .eye { fill: #fff; stroke: #16161d; stroke-width: .5; }
-  .pupil { fill: #111; }
-  .cheek { fill: rgba(255,45,138,.45); }
-  #mouth { stroke: #ff2d8a; stroke-width: 1.3; fill: none; stroke-linecap: round; }
+  /* Beine mit Gelenken: Oberschenkel kräftig, Unterschenkel feiner, Gelenke als kleine Knöpfe */
+  .femur { stroke: url(#gLeg); stroke-width: 2.6; fill: none; stroke-linecap: round; }
+  .tibia { stroke: var(--pink-2); stroke-width: 1.7; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .joint { fill: #c41c69; stroke: #ff7db6; stroke-width: .5; }
+  #body { fill: url(#gBody); stroke: var(--pink); stroke-width: 1.4; }
+  #shine { fill: rgba(255,255,255,.42); }
+  #shine2 { fill: rgba(255,255,255,.18); }
+  .catch #body { stroke: #fff; stroke-width: 2; }
+  .eye { fill: url(#gEye); stroke: #0c0c11; stroke-width: .5; }
+  .pupil { fill: #0c0c11; }
+  .glint { fill: #fff; }
+  .cheek { fill: rgba(255,45,138,.5); }
+  .brow { stroke: #f1f1f6; stroke-width: 1.1; fill: none; stroke-linecap: round; opacity: 0; transition: opacity .2s; }
+  .happyEye { stroke: #fff; stroke-width: 1.5; fill: none; stroke-linecap: round; opacity: 0; }
+  #mouth { stroke: var(--pink); stroke-width: 1.3; fill: none; stroke-linecap: round; }
+  #sparkle { fill: #fff; opacity: 0; }
+  /* Accessoires je Klick-Modus */
+  #acc > g { opacity: 0; transition: opacity .3s; }
+  #acc > g.on { opacity: 1; }
+  .glasses circle { fill: rgba(255,255,255,.1); stroke: #fff; stroke-width: .9; }
+  .glasses path { stroke: #fff; stroke-width: .9; fill: none; stroke-linecap: round; }
+  .beanie .cap { fill: var(--pink); stroke: #c41c69; stroke-width: .5; }
+  .beanie .band { fill: #fff; }
+  .beanie .globe { fill: none; stroke: #fff; stroke-width: .6; }
+  .beanie .pom { fill: #fff; }
+  .bulb .glass { fill: #fff; filter: drop-shadow(0 0 3px rgba(255,255,255,.9)) drop-shadow(0 0 6px var(--pink-glow)); }
+  .bulb .base { fill: #9494a6; }
+  .bulb .ray { stroke: #fff; stroke-width: .8; stroke-linecap: round; }
+  .letter .env { fill: #fff; stroke: #c9c9d6; stroke-width: .4; }
+  .letter .flap { fill: none; stroke: var(--pink); stroke-width: .8; stroke-linejoin: round; }
+  .letter .heart { fill: var(--pink); }
   #spider { cursor: grab; }
   #spider.grabbing { cursor: grabbing; }
   #fly .wing { fill: rgba(220,235,255,.85); stroke: rgba(40,40,60,.6); stroke-width: .4; }
   #fly .fbody { fill: #2b2b33; }
-  #zzz { font: 700 11px "Segoe UI", system-ui, sans-serif; fill: #ff2d8a; paint-order: stroke; stroke: rgba(255,255,255,.85); stroke-width: 2.4px; }
+  #zzz { font: 700 11px var(--font); fill: var(--pink); paint-order: stroke; stroke: rgba(255,255,255,.85); stroke-width: 2.4px; }
   /* Ablage-Netz: festgehaltene Dokumente kleben als kleine Karten im Spinnennetz */
   #holdWeb { transition: opacity .4s; }
-  #holdWeb .silk { fill: none; stroke: rgba(255,255,255,.92); stroke-width: .75; stroke-linecap: round;
+  #holdWeb .silk { fill: none; stroke: var(--silk); stroke-width: .75; stroke-linecap: round;
     filter: drop-shadow(0 0 .8px rgba(15,15,25,.85)); }
-  #holdWeb .dew { fill: rgba(255,255,255,.95); filter: drop-shadow(0 0 1px rgba(120,180,255,.9)); }
+  #holdWeb .dew { fill: var(--dew); filter: drop-shadow(0 0 1.5px rgba(255,255,255,.9)); animation: dew-glint 3s ease-in-out infinite; }
   #holdWeb.zone .silk { stroke: #ff2d8a; stroke-width: 1; filter: drop-shadow(0 0 1.5px rgba(255,45,138,.8)); }
   /* Leuchtende Ablagefläche – zugleich nötig, damit Windows auch zwischen den Fäden ablegen lässt */
   #zoneGlow { position: absolute; inset: 0; background: rgba(255,45,138,.025); display: none; }
   #zoneGlow::before { content: ''; position: absolute; left: calc(50% - 82px); top: -18px; width: 164px; height: 164px; border-radius: 50%;
     background: radial-gradient(circle, rgba(255,45,138,.28), rgba(255,45,138,.06) 62%, transparent 72%); animation: breathe 1.2s ease-in-out infinite; }
   @keyframes breathe { 50% { transform: scale(1.08); } }
-  .item { position: absolute; width: 36px; height: 44px; margin: -18px 0 0 -18px; cursor: grab; transform: rotate(var(--rot, 0deg));
-    transition: transform .18s; }
-  .item .card { position: absolute; left: 3px; top: 0; width: 30px; height: 30px; border-radius: 7px; background: #fff;
-    box-shadow: 0 3px 7px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.08); overflow: hidden; }
-  .item .ic { position: absolute; inset: 3px; background: center/contain no-repeat; display: flex; align-items: center; justify-content: center; font-size: 15px; }
-  .item.photo .ic { inset: 0; background-size: cover; }
-  .item.text .card { background: #fff6fb; }
-  .item.missing .card { opacity: .45; filter: grayscale(1); }
-  .item .ext { position: absolute; right: -1px; top: 20px; font: 800 7px "Segoe UI", sans-serif; color: #16161d; background: #fff; border: 1px solid #16161d;
-    padding: 0 3px; border-radius: 3px; line-height: 11px; z-index: 2; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
-  /* Spinnenseide, mit der das Dokument festgeklebt ist */
-  .item .card::after { content: ''; position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(32deg, transparent 47%, rgba(255,255,255,.95) 48%, rgba(255,255,255,.95) 50.5%, transparent 51.5%),
-                linear-gradient(-28deg, transparent 60%, rgba(255,255,255,.9) 61%, rgba(255,255,255,.9) 63%, transparent 64%),
-                linear-gradient(80deg, transparent 22%, rgba(255,255,255,.7) 23%, rgba(255,255,255,.7) 24.5%, transparent 25.5%); }
-  .item .nm { position: absolute; top: 31px; left: 50%; transform: translateX(-50%); max-width: 46px; overflow: hidden; text-overflow: ellipsis;
-    white-space: nowrap; font: 600 8px "Segoe UI", sans-serif; color: #fff; text-shadow: 0 0 2px #000, 0 0 3px #000, 0 1px 2px #000; }
-  .item:hover { transform: rotate(0deg) scale(1.35) translateY(2px); z-index: 3; }
-  .item b { position: absolute; top: 44px; left: 50%; transform: translateX(-50%); font: 700 9px "Segoe UI", sans-serif; color: #ff2d8a;
-    background: #fff; padding: 1px 4px; border-radius: 4px; white-space: nowrap; animation: pop 1.2s forwards; z-index: 4; }
-  .item.new { animation: stick .6s cubic-bezier(.2,1.5,.4,1); }
-  @keyframes stick { 0% { transform: translateY(40px) scale(.3) rotate(-40deg); opacity: 0; } 60% { opacity: 1; } 100% { transform: rotate(var(--rot, 0deg)); } }
+  /* Dokumente hängen als eingesponnene Kokons im Netz; das echte Symbol schaut oben heraus */
+  .item { position: absolute; width: 36px; height: 50px; margin: -16px 0 0 -18px; cursor: grab; }
+  .item .sway { position: absolute; inset: 0; transform-origin: 50% 0; animation: sway 3.6s ease-in-out infinite; animation-delay: var(--ph, 0s);
+    transition: transform var(--t-mid) var(--ease-spring); }
+  @keyframes sway { 0%, 100% { transform: rotate(calc(var(--rot, 0deg) - 3deg)); } 50% { transform: rotate(calc(var(--rot, 0deg) + 3deg)); } }
+  .item .hang { position: absolute; left: 17.5px; top: -7px; width: 1px; height: 9px; background: var(--silk); }
+  .item .coc { position: absolute; left: 4px; top: 1px; width: 28px; height: 36px; border-radius: 50% 50% 46% 46% / 42% 42% 58% 58%;
+    background: radial-gradient(60% 50% at 35% 28%, #fff, rgba(236,236,244,.94) 60%, rgba(196,196,210,.92));
+    box-shadow: 0 4px 9px rgba(0,0,0,.4), inset 0 -3px 6px rgba(0,0,0,.12); overflow: hidden; }
+  .item .ic { position: absolute; left: 5px; top: 3px; width: 18px; height: 18px; background: center/contain no-repeat;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .item .strands { position: absolute; inset: 0; width: 28px; height: 36px; pointer-events: none; }
+  .item .strands path { fill: none; stroke: rgba(255,255,255,.95); stroke-width: 1.1; stroke-linecap: round;
+    filter: drop-shadow(0 .5px .4px rgba(0,0,0,.25)); }
+  .item.text .coc { background: radial-gradient(60% 50% at 35% 28%, #fff, #ffe9f3 60%, #f3c9dc); }
+  .item.missing .coc { opacity: .45; filter: grayscale(1); }
+  .item .ext { position: absolute; right: -2px; top: 24px; font: 800 7px var(--font); color: #fff; background: var(--ink); border: 1px solid var(--pink);
+    padding: 0 3px; border-radius: 4px; line-height: 10px; z-index: 2; }
+  .item .nm { position: absolute; top: 39px; left: 50%; transform: translateX(-50%); max-width: 50px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; font: 600 8px var(--font); color: #fff; text-shadow: 0 0 2px #000, 0 0 3px #000, 0 1px 2px #000; }
+  .item:hover .sway { animation-play-state: paused; transform: scale(1.3) translateY(2px); z-index: 3; }
+  .item b { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); font: 700 9px var(--font); color: #fff;
+    background: var(--ink); border: 1px solid var(--pink); padding: 1px 5px; border-radius: 6px; white-space: nowrap; animation: pop 1.2s forwards; z-index: 4; }
+  .item.new { animation: stick .6s var(--ease-spring); }
+  @keyframes stick { 0% { transform: translateY(40px) scale(.3) rotate(-40deg); opacity: 0; } 60% { opacity: 1; } 100% { transform: none; } }
   @keyframes pop { 0% { opacity: 0; transform: translate(-50%, 4px); } 20%, 70% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
-  #zoneHint { position: absolute; left: 50%; transform: translateX(-50%); font: 700 10px "Segoe UI", sans-serif; color: #fff; background: #16161d; border: 1px solid #ff2d8a;
+  #zoneHint { position: absolute; left: 50%; transform: translateX(-50%); font: 700 10px var(--font); color: #fff; background: var(--ink); border: 1px solid var(--pink);
     padding: 3px 9px; border-radius: 10px; white-space: nowrap; display: none; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
   body.faded #svg, body.faded #items, body.faded #webSvg, body.faded #count { opacity: .4; }
   #svg, #items, #webSvg, #count { transition: opacity .8s; }
   /* Eingeklapptes Netz: nur ein kleiner Zähler am Faden */
   #items { transition: opacity .3s, transform .3s; transform-origin: 50% 20%; }
   body.webClosed #items { opacity: 0; transform: scale(.4); pointer-events: none; }
-  #count { position: absolute; top: 6px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: #16161d; border: 1.5px solid #ff2d8a;
-    color: #fff; font: 700 9px/13px "Segoe UI", sans-serif; text-align: center; display: none; transition: opacity .3s; }
+  body.webClosed .item .sway, body.webClosed #holdWeb .dew, body.faded .item .sway { animation: none; } /* zugeklappt: nichts animieren (spart Leistung) */
+  #count { position: absolute; top: 6px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--ink); border: 1.5px solid var(--pink);
+    color: #fff; font: 700 9px/13px var(--font); text-align: center; display: none; transition: opacity .3s; box-shadow: 0 0 8px var(--pink-glow); }
   body.webClosed.hasItems #count { display: block; }
   /* Klick-Modus (Mausrad auf der Spinne): kleines Abzeichen + kurzer Hinweis */
-  #badge circle { fill: #16161d; stroke: #ff2d8a; stroke-width: 1.2; }
-  #badge text { fill: #fff; font: 700 7px "Segoe UI", sans-serif; text-anchor: middle; }
-  #modeTip { position: absolute; transform: translateX(-50%); font: 600 10px "Segoe UI", sans-serif; color: #fff; background: #16161d;
-    border: 1px solid #ff2d8a; padding: 2px 8px; border-radius: 9px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .2s; }
+  #modeTip { position: absolute; transform: translateX(-50%); font: 600 10px var(--font); color: #fff; background: var(--ink);
+    border: 1px solid var(--pink); padding: 2px 9px; border-radius: var(--r-pill); white-space: nowrap; pointer-events: none; opacity: 0;
+    transition: opacity var(--t-mid) var(--ease-out); box-shadow: 0 0 10px var(--pink-glow); }
   #modeTip.on { opacity: 1; }
 </style>
 </head>
 <body>
 <svg id="webSvg"><g id="holdWeb" opacity="0"></g></svg>
 <svg id="svg">
+  <defs>
+    <radialGradient id="gBody" cx="35%" cy="28%" r="80%">
+      <stop offset="0" stop-color="#4a4a5c"/><stop offset=".35" stop-color="#1d1d27"/><stop offset="1" stop-color="#08080c"/>
+    </radialGradient>
+    <radialGradient id="gEye" cx="40%" cy="30%" r="75%"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#dcdce8"/></radialGradient>
+    <linearGradient id="gLeg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff2d8a"/><stop offset="1" stop-color="#ff6aa9"/></linearGradient>
+  </defs>
   <g id="web" opacity="0"></g>
   <line id="threadShadow" x1="0" y1="0" x2="0" y2="0"/>
   <line id="thread" x1="0" y1="0" x2="0" y2="0"/>
@@ -92,16 +127,32 @@
   <g id="spider">
     <g id="legs"></g>
     <circle id="body" cx="0" cy="0" r="11"/>
+    <ellipse id="shine" cx="-4.6" cy="-6.6" rx="3.6" ry="1.9" transform="rotate(-28 -4.6 -6.6)"/>
+    <ellipse id="shine2" cx="5.5" cy="7.5" rx="2.4" ry="1" transform="rotate(-35 5.5 7.5)"/>
     <circle class="cheek" cx="-7.2" cy="4.2" r="1.8"/>
     <circle class="cheek" cx="7.2" cy="4.2" r="1.8"/>
     <ellipse class="eye" id="eyeL" cx="-4.4" cy="-1.6" rx="3.9" ry="4.4"/>
     <ellipse class="eye" id="eyeR" cx="4.4" cy="-1.6" rx="3.9" ry="4.4"/>
     <circle class="pupil" id="pupilL" cx="-4.4" cy="-1.6" r="1.9"/>
     <circle class="pupil" id="pupilR" cx="4.4" cy="-1.6" r="1.9"/>
+    <circle class="glint" id="glintL" r=".75"/>
+    <circle class="glint" id="glintR" r=".75"/>
+    <path class="happyEye" id="happyL" d="M-7 -1 q2.6 -3.4 5.2 0"/>
+    <path class="happyEye" id="happyR" d="M1.8 -1 q2.6 -3.4 5.2 0"/>
+    <path class="brow" id="browL" d=""/>
+    <path class="brow" id="browR" d=""/>
     <path id="mouth" d=""/>
+    <g id="acc">
+      <g class="glasses" id="accRead"><circle cx="-4.4" cy="-1.4" r="4.4"/><circle cx="4.4" cy="-1.4" r="4.4"/><path d="M-1.2 -2.2q1.2 -1 2.4 0M-8.8 -2.4l-2.4 -1.2M8.8 -2.4l2.4 -1.2"/></g>
+      <g class="beanie" id="accTranslate"><path class="cap" d="M-9.6 -6.4a9.6 8.6 0 0 1 19.2 0z"/><rect class="band" x="-10.2" y="-7.6" width="20.4" height="2.6" rx="1.3"/>
+        <g transform="translate(3.6 -11)"><circle class="globe" r="2.4"/><path class="globe" d="M-2.4 0h4.8M0 -2.4c1.2 1 1.2 3.8 0 4.8M0 -2.4c-1.2 1 -1.2 3.8 0 4.8"/></g><circle class="pom" cx="0" cy="-15.6" r="2"/></g>
+      <g class="bulb" id="accSimplify"><g id="bulbBob"><path class="glass" d="M0 -27a4.6 4.6 0 0 1 2.8 8.2c-.6.5 -.8 1 -.8 1.8h-4c0 -.8 -.2 -1.3 -.8 -1.8A4.6 4.6 0 0 1 0 -27z"/>
+        <rect class="base" x="-2" y="-16.6" width="4" height="2.4" rx=".8"/><path class="ray" d="M-7.5 -23h-2M7.5 -23h2M-5.5 -28.5l-1.4 -1.4M5.5 -28.5l1.4 -1.4M0 -30v-2"/></g></g>
+      <g class="letter" id="accReply" transform="translate(15 9) rotate(-14)"><rect class="env" x="-5.5" y="-4" width="11" height="8" rx="1"/><path class="flap" d="M-5.5 -4l5.5 4.2 5.5 -4.2"/><path class="heart" d="M0 1.6l-1.4 -1.3a.8.8 0 0 1 1.4 -.8a.8.8 0 0 1 1.4 .8z"/></g>
+    </g>
+    <path id="sparkle" d="M14 -14l1 -3 1 3 3 1 -3 1 -1 3 -1 -3 -3 -1z"/>
   </g>
   <text id="zzz" x="0" y="0" opacity="0">z</text>
-  <g id="badge" style="display:none"><circle r="6.5"/><text y="2.5" id="badgeTx"></text></g>
 </svg>
 <div id="zoneGlow"></div>
 <div id="items"></div>
@@ -117,6 +168,8 @@
     svg: $('svg'), thread: $('thread'), shadow: $('threadShadow'), spider: $('spider'), web: $('web'),
     eyeL: $('eyeL'), eyeR: $('eyeR'), pupilL: $('pupilL'), pupilR: $('pupilR'), mouth: $('mouth'),
     fly: $('fly'), wingL: $('wingL'), wingR: $('wingR'), zzz: $('zzz'),
+    glintL: $('glintL'), glintR: $('glintR'), happyL: $('happyL'), happyR: $('happyR'), browL: $('browL'), browR: $('browR'),
+    sparkle: $('sparkle'), bulbBob: $('bulbBob'),
   };
   const W = window.innerWidth, H = window.innerHeight;
   const AX = W / 2; // Aufhängepunkt oben in der Mitte
@@ -128,11 +181,12 @@
     { hx: 10, hy: 3, kx: 20, ky: 2, fx: 26, fy: 13 },
     { hx: 8, hy: 7, kx: 16, ky: 9, fx: 20, fy: 20 },
   ].flatMap((l, i) => [{ ...l, side: 1, i }, { ...l, hx: -l.hx, kx: -l.kx, fx: -l.fx, side: -1, i }]);
+  // Jedes Bein: Oberschenkel, Unterschenkel mit Fußglied, zwei Gelenke
   const legEls = LEGS.map(() => {
-    const p = document.createElementNS(NS, 'polyline');
-    p.setAttribute('class', 'leg');
-    $('legs').appendChild(p);
-    return p;
+    const mk = (tag, cls) => { const e = document.createElementNS(NS, tag); e.setAttribute('class', cls); $('legs').appendChild(e); return e; };
+    const femur = mk('line', 'femur'), tibia = mk('polyline', 'tibia'), knee = mk('circle', 'joint'), ankle = mk('circle', 'joint');
+    knee.setAttribute('r', '1.35'); ankle.setAttribute('r', '.9');
+    return { femur, tibia, knee, ankle };
   });
 
   // ---------- Zustand ----------
@@ -349,7 +403,6 @@
       el.zzz.setAttribute('opacity', (1 - zp * 0.6).toFixed(2));
     }
 
-    if (clickMode !== 'read') $('badge').setAttribute('transform', `translate(${(sx + 12).toFixed(1)} ${(sy + 10).toFixed(1)})`);
     drawLegs(t);
     drawFace(now);
     hitTest(now);
@@ -391,39 +444,81 @@
         kx = 16; ky = -22; fx = 22 + w; fy = -32;
       }
       if (trick === 'bungee' && len > baseLen + 40) { fy -= 10; ky -= 8; } // Beine hoch im freien Fall
-      legEls[n].setAttribute('points', `${hx},${hy} ${kx},${ky} ${fx},${fy}`);
+      // Fußgelenk: kurz vor dem Fuß, leicht nach oben geknickt
+      const ax = kx + (fx - kx) * 0.68, ay = ky + (fy - ky) * 0.68 - 1.6;
+      const L = legEls[n];
+      L.femur.setAttribute('x1', hx); L.femur.setAttribute('y1', hy); L.femur.setAttribute('x2', kx); L.femur.setAttribute('y2', ky);
+      L.tibia.setAttribute('points', `${kx},${ky} ${ax},${ay} ${fx},${fy}`);
+      L.knee.setAttribute('cx', kx); L.knee.setAttribute('cy', ky);
+      L.ankle.setAttribute('cx', ax); L.ankle.setAttribute('cy', ay);
     });
   }
 
+  // Stimmung: konzentriert (liest), stolz (fertig), verschlafen, erschrocken, überrascht, fröhlich
+  let proudUntil = 0;
+  function moodNow(now) {
+    if (trick === 'scared' || trick === 'return' || trick === 'shrug') return 'scared';
+    if (busy) return 'focus';
+    if (now < proudUntil) return 'proud';
+    if (sleeping) return 'sleep';
+    if (now - lastActivity > 60000) return 'sleepy';
+    if (now < surprisedUntil || catching) return 'surprised';
+    return 'happy';
+  }
+  const BROWS = {
+    focus: ['M-7.4 -7.4 L-2.2 -6.2', 'M2.2 -6.2 L7.4 -7.4'],
+    scared: ['M-7.2 -7.6 Q-4.6 -9.6 -2 -7.8', 'M2 -7.8 Q4.6 -9.6 7.2 -7.6'],
+  };
   function drawFace(now) {
-    if (now > nextBlink) { blinkUntil = now + 130; nextBlink = now + 2500 + Math.random() * 4000; }
-    const surprised = now < surprisedUntil;
-    const closed = sleeping || now < blinkUntil;
-    const ry = closed ? 0.5 : (catching || busy || surprised ? 5 : 4.4);
+    const mood = moodNow(now);
+    if (now > nextBlink) { blinkUntil = now + 130; nextBlink = now + (mood === 'sleepy' ? 1600 : 2500) + Math.random() * 4000; }
+    const closed = mood === 'sleep' || now < blinkUntil;
+    const happyEyes = mood === 'proud';
+    const ry = closed ? 0.5 : mood === 'focus' ? 3 : mood === 'sleepy' ? 2 : mood === 'scared' ? 5.1 : mood === 'surprised' ? 5 : 4.4;
     el.eyeL.setAttribute('ry', ry); el.eyeR.setAttribute('ry', ry);
-    // Pupillen schauen zum Mauszeiger – oder zur Fliege
-    const look = trick === 'fly' && fly.on && el.fly.style.display !== 'none' ? fly : cursor;
+    el.eyeL.style.opacity = el.eyeR.style.opacity = happyEyes ? 0 : 1;
+    el.happyL.style.opacity = el.happyR.style.opacity = happyEyes ? 1 : 0;
+    // Augenbrauen nur bei Konzentration und Schreck
+    const brows = BROWS[mood];
+    el.browL.style.opacity = el.browR.style.opacity = brows ? 1 : 0;
+    if (brows) { el.browL.setAttribute('d', brows[0]); el.browR.setAttribute('d', brows[1]); }
+    // Pupillen schauen zum Mauszeiger – oder zur Fliege; beim Lesen nach unten auf den Text
+    const look = trick === 'fly' && fly.on && el.fly.style.display !== 'none' ? fly : mood === 'focus' ? { x: spiderPos.x, y: spiderPos.y + 80 } : cursor;
     const ang = (-theta * 57.3 + spin) * Math.PI / 180;
-    for (const [p, ex] of [[el.pupilL, -4.4], [el.pupilR, 4.4]]) {
+    const pr = mood === 'scared' ? 1.05 : mood === 'surprised' ? 1.3 : mood === 'sleepy' ? 1.5 : 1.9;
+    for (const [p, g, ex] of [[el.pupilL, el.glintL, -4.4], [el.pupilR, el.glintR, 4.4]]) {
       const wx = spiderPos.x + ex, wy = spiderPos.y - 1.6;
       const dx = look.x - wx, dy = look.y - wy;
       const rx = dx * Math.cos(-ang) - dy * Math.sin(-ang);
       const ry2 = dx * Math.sin(-ang) + dy * Math.cos(-ang);
       const d = Math.hypot(rx, ry2) || 1;
-      const m = Math.min(1.8, d / 30);
-      p.setAttribute('cx', ex + (rx / d) * m);
-      p.setAttribute('cy', -1.6 + (ry2 / d) * m * 1.2);
-      p.style.opacity = closed ? 0 : 1;
-      p.setAttribute('r', surprised ? 1.3 : 1.9);
+      const m = Math.min(mood === 'sleepy' ? 0.8 : 1.8, d / 30);
+      const px = ex + (rx / d) * m, py = -1.6 + (ry2 / d) * m * (ry / 4.4) * 1.2 + (mood === 'sleepy' ? 0.8 : 0);
+      p.setAttribute('cx', px); p.setAttribute('cy', py);
+      p.setAttribute('r', pr);
+      // Lichtreflex: immer oben links im Auge, wandert nur ein wenig mit
+      g.setAttribute('cx', px - pr * 0.45 - 0.2); g.setAttribute('cy', py - pr * 0.5 - 0.2);
+      const show = closed || happyEyes ? 0 : 1;
+      p.style.opacity = show; g.style.opacity = show;
     }
     const chewing = now < chewUntil;
-    const mouth = sleeping ? 'M-2 6 Q0 6.8 2 6'
+    const mouth = mood === 'sleep' ? 'M-2 6 Q0 6.8 2 6'
       : chewing ? (Math.sin(now / 70) > 0 ? 'M-2.4 5.4 Q0 8.4 2.4 5.4' : 'M-2.4 6.4 L2.4 6.4')
-      : busy || surprised ? 'M-1.6 6.4 a1.6 1.6 0 1 0 3.2 0 a1.6 1.6 0 1 0 -3.2 0'
+      : mood === 'proud' ? 'M-3.8 4.8 Q0 10.4 3.8 4.8 Z'
+      : mood === 'focus' ? 'M-1.8 6.3 L1.8 6.3'
+      : mood === 'scared' ? 'M-2.6 6.6 q1.3 -1.4 2.6 0 q1.3 1.4 2.6 0'
+      : mood === 'sleepy' ? 'M-1.8 6 Q0 6.6 1.8 6'
+      : mood === 'surprised' ? 'M-1.6 6.4 a1.6 1.6 0 1 0 3.2 0 a1.6 1.6 0 1 0 -3.2 0'
       : catching ? 'M-3 5.5 Q0 10 3 5.5'
       : hover ? 'M-3.4 5.2 Q0 9 3.4 5.2'
       : 'M-2.4 5.6 Q0 7.6 2.4 5.6';
     if (el.mouth.getAttribute('d') !== mouth) el.mouth.setAttribute('d', mouth);
+    el.mouth.style.fill = mood === 'proud' ? 'rgba(255,45,138,.35)' : 'none';
+    // Stolz: kleines Funkeln
+    el.sparkle.style.opacity = mood === 'proud' ? (0.5 + 0.5 * Math.sin(now / 120)).toFixed(2) : 0;
+    // Lesebrille beim Lesen, Glühbirne wippt
+    $('accRead').classList.toggle('on', clickMode === 'read' && (mood === 'focus' || now < glassesUntil));
+    if (clickMode === 'simplify') el.bulbBob.setAttribute('transform', `translate(0 ${(Math.sin(now / 380) * 1.2).toFixed(2)})`);
   }
 
   // Nur über der Spinne (oder direkt am Faden) Mausereignisse annehmen, sonst durchklicken lassen
@@ -519,6 +614,8 @@
     $('zoneHint').style.display = dropZone ? 'block' : 'none';
     $('zoneHint').style.top = `${HOLD.cy + HOLD.r + 4}px`;
   }
+  const STRANDS = ['M0 15 Q14 20 28 13', 'M0 21 Q14 27 28 19', 'M1 27 Q14 33 27 25', 'M4 32 Q14 36 24 31', 'M2 11 Q13 25 27 29', 'M26 10 Q15 22 3 31']
+    .map((d) => `<path d="${d}"/>`).join('');
   function renderItems(list) {
     const box = $('items');
     box.innerHTML = '';
@@ -529,14 +626,16 @@
       const c = document.createElement('div');
       const isPhoto = false; // immer das echte Datei-/Ordnersymbol zeigen
       c.className = `item ${it.type}${isPhoto ? ' photo' : ''}${it.missing ? ' missing' : ''}${knownIds.has(it.id) ? '' : ' new'}`;
-      c.style.left = `${x}px`; c.style.top = `${y}px`; c.style.setProperty('--rot', `${SPOTS[i].rot}deg`);
+      c.style.left = `${x}px`; c.style.top = `${y}px`; c.style.setProperty('--rot', `${SPOTS[i].rot}deg`); c.style.setProperty('--ph', `${-i * 0.7}s`);
       c.title = `${it.name}${it.missing ? ' (Datei fehlt)' : ''}\nKlick: lesen · Ziehen: ablegen · Rechtsklick: kopieren und mehr`;
       c.draggable = true;
       const ext = it.type === 'file' && !it.folder ? (it.name.includes('.') ? it.name.split('.').pop().slice(0, 4).toUpperCase() : '') : '';
       const short = it.type === 'file' ? it.name.replace(/\.[^.]+$/, '') : it.name;
       const icon = it.type === 'text' ? '<div class="ic">📝</div>'
         : `<div class="ic" style="${it.icon ? `background-image:url('${it.icon}')` : ''}">${it.icon ? '' : it.folder ? '📁' : '📄'}</div>`;
-      c.innerHTML = `<div class="card">${icon}</div>${ext ? `<span class="ext">${ext}</span>` : ''}<span class="nm">${short.replace(/[<>&]/g, '')}</span>`;
+      // Kokon: Seidenfäden wickeln sich um das Dokument, oben schaut das Symbol heraus
+      c.innerHTML = `<div class="sway"><span class="hang"></span><div class="coc">${icon}<svg class="strands" viewBox="0 0 28 36">${STRANDS}</svg></div>`
+        + `${ext ? `<span class="ext">${ext}</span>` : ''}<span class="nm">${short.replace(/[<>&]/g, '')}</span></div>`;
       c.addEventListener('click', () => { doTrick('yoyo'); window.spider.cocoonRead(it.id); });
       c.addEventListener('dragstart', (e) => { e.preventDefault(); window.spider.cocoonDrag(it.id); });
       c.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); window.spider.cocoonMenu(it.id); });
@@ -607,12 +706,14 @@
 
   // ---------- Klick-Modus: Mausrad auf der Spinne ----------
   const MODES = [['read', 'Lesen', ''], ['translate', 'Übersetzen', '⇄'], ['simplify', 'Einfach', 'Aa'], ['reply', 'Antworten', '↩']];
-  let clickMode = 'read', lastWheel = 0, tipTimer = null;
+  let clickMode = 'read', lastWheel = 0, tipTimer = null, glassesUntil = 0;
+  const ACC = { translate: 'accTranslate', simplify: 'accSimplify', reply: 'accReply' };
   function setClickMode(m, announce) {
     clickMode = MODES.some(([id]) => id === m) ? m : 'read';
-    const [, label, glyph] = MODES.find(([id]) => id === clickMode);
-    $('badge').style.display = clickMode === 'read' ? 'none' : '';
-    $('badgeTx').textContent = glyph;
+    const [, label] = MODES.find(([id]) => id === clickMode);
+    // Accessoire je Modus: Weltkugel-Mütze, Glühbirne, Brief – Lesebrille nur beim Lesen (und kurz beim Umschalten)
+    for (const [mode, id] of Object.entries(ACC)) $(id).classList.toggle('on', mode === clickMode);
+    if (clickMode === 'read') glassesUntil = performance.now() + 2500;
     if (!announce) return;
     const tip = $('modeTip');
     tip.textContent = `Klick: ${label}`;
@@ -644,7 +745,7 @@
     busy = b;
     wake();
     if (b && trick) endTrick();
-    if (!b) doTrick('flip');
+    if (!b) { doTrick('flip'); proudUntil = performance.now() + 2800; }
   });
 
   requestAnimationFrame(frame);
