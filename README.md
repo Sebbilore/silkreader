@@ -78,6 +78,8 @@ Alle globalen Kürzel lassen sich in den Einstellungen ändern (anklicken, neue 
 | **Strg+Alt+B** | Bildschirmbereich aufziehen und lesen lassen (Windows-Texterkennung) |
 | **Strg+Alt+N** | Notizbuch: die letzten 20 Analysen mit Suche |
 
+Zum Ausprobieren: Einstellungen öffnen und ein Kürzel drücken – dahinter erscheint „✓ erkannt“, und die Spinne hüpft kurz. Klappt etwas nicht, steht im Protokoll (Rechtsklick aufs Tray-Symbol → „Protokoll öffnen“), ob das Kürzel ankam und ob markierter Text gefunden wurde.
+
 Hinweis: Kürzel mit Strg+Umschalt werden oft schon von Word oder Chrome belegt, und auf deutschen Tastaturen ist Strg+Alt gleich AltGr – deshalb meiden die Standardkürzel Buchstaben wie E, Q, M und Ziffern.
 
 | Im Analysefenster | |
@@ -125,7 +127,8 @@ Aufbau:
 - `src/overlay.html`: die große Spinne, die über den markierten Text auf dem Bildschirm kriecht
 - `src/mascot.js`: die kleine Spinne, die im Analysefenster herumtollt
 - `src/popup.html`: Ergebnis-Sprechblase unter der Spinne
-- `src/grab.js`: markierten Text aus anderen Programmen holen
+- `src/grab.js`: markierten Text aus anderen Programmen holen (zuerst direkt über UI Automation, sonst per Strg+C)
+- `src/winkeys.js`: Tastendrücke direkt über die Windows-API (ohne PowerShell)
 - `src/selectionScan.js`: markierte Wörter auf dem Bildschirm finden (über die Markierungsfarbe)
 - `src/cocoons.js`: Kokon-Ablage
 - `src/ocr.js` und `src/region.html`: Bildschirmbereich auswählen und mit der Windows-Texterkennung lesen

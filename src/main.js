@@ -14,7 +14,7 @@ const loadAnthropic = () => (Anthropic ??= require('@anthropic-ai/sdk').default)
 let autoUpdaterInstance = null;
 const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoUpdater);
 
-const { grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
+const { setLogger, grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
 const { CocoonStore } = require('./cocoons');
 const { scanSelection } = require('./selectionScan');
 const { recognizeText } = require('./ocr');
@@ -38,12 +38,14 @@ const HOTKEY = SHORTCUTS[0].keys;
 
 // Kleine Aussetzer (z. B. ein Timer nach dem Schließen eines Fensters) sollen kein
 // Fehlerfenster aufpoppen lassen – stattdessen in silkreader-errors.log festhalten.
-function logError(err) {
+function logLine(msg) {
   try {
     const file = path.join(app.getPath('userData'), 'silkreader-errors.log');
-    fs.appendFileSync(file, `${new Date().toISOString()} ${err?.stack || err}\n`);
+    if (fs.existsSync(file) && fs.statSync(file).size > 300000) fs.renameSync(file, `${file}.old`);
+    fs.appendFileSync(file, `${new Date().toISOString()} ${msg}\n`);
   } catch {}
 }
+const logError = (err) => logLine(`FEHLER ${err?.stack || err}`);
 process.on('uncaughtException', logError);
 process.on('unhandledRejection', logError);
 const shortcutActions = {
@@ -59,14 +61,25 @@ const shortcutActions = {
   notebook: () => showNotebook(),
 };
 // Eigene Tastenkürzel aus den Einstellungen übernehmen und alle (neu) anmelden
-function registerShortcuts() {
+function registerShortcuts(notify = false) {
   const custom = loadSettings().shortcuts || {};
   globalShortcut.unregisterAll();
   for (const sc of SHORTCUTS) {
     if (custom[sc.id]) { sc.keys = custom[sc.id].keys; sc.label = custom[sc.id].label; }
-    try { shortcutStatus[sc.id] = globalShortcut.register(sc.keys, shortcutActions[sc.id]); } catch { shortcutStatus[sc.id] = false; }
-    if (!shortcutStatus[sc.id]) console.warn('Tastenkürzel belegt:', sc.label);
+    try { shortcutStatus[sc.id] = globalShortcut.register(sc.keys, () => fireShortcut(sc)); } catch { shortcutStatus[sc.id] = false; }
+    logLine(`Kürzel ${sc.label} (${sc.keys}): ${shortcutStatus[sc.id] ? 'angemeldet' : 'BELEGT – von einem anderen Programm benutzt'}`);
   }
+  const busy = SHORTCUTS.filter((sc) => !shortcutStatus[sc.id]);
+  if (notify && busy.length && tray && !tray.isDestroyed()) {
+    try { tray.displayBalloon({ title: 'Silkreader', content: `Diese Tastenkürzel benutzt schon ein anderes Programm: ${busy.map((b) => b.label).join(', ')}. In den Einstellungen kannst du andere wählen.` }); } catch {}
+  }
+}
+// Jeder Tastendruck: sofort sichtbare Rückmeldung (Spinne hüpft), Protokoll, dann die Aktion
+function fireShortcut(sc) {
+  logLine(`Kürzel gedrückt: ${sc.label}`);
+  settingsWin?.webContents.send('shortcut-fired', sc.id);
+  if (sc.id !== 'toggle' && bubbleWin?.isVisible()) bubbleWin.webContents.send('rig-trick', 'yoyo');
+  Promise.resolve().then(() => shortcutActions[sc.id]()).catch(logError);
 }
 const shortcutStatus = {};
 let cocoons = null;
@@ -270,7 +283,10 @@ function openSettings() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
   });
   settingsWin.loadFile(path.join(__dirname, 'settings.html'));
-  settingsWin.on('closed', () => { settingsWin = null; });
+  settingsWin.on('closed', () => {
+    settingsWin = null;
+    if (recordingShortcut) { recordingShortcut = false; registerShortcuts(); } // Aufnahme abgebrochen
+  });
 }
 
 // Öffnet das Analysefenster und übergibt ihm ein Dokument. Analysiert wird erst nach Enter
@@ -415,8 +431,9 @@ function spiderScreenPos() {
 
 let taking = false;
 async function spiderTake({ autoStart = false, fromHotkey = false } = {}) {
-  if (taking) return;
-  taking = true;
+  // Falls ein früherer Durchgang hängen geblieben ist, nicht für immer blockieren
+  if (taking && Date.now() - taking < 20000) return;
+  taking = Date.now();
   try {
     preloadBuiltinModel();
     const anchor = selectionAnchor(fromHotkey);
@@ -1387,10 +1404,14 @@ ipcMain.on('cocoon-drag', (e, id) => {
   e.sender.startDrag({ file, icon: nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png')) });
 });
 ipcMain.handle('shortcuts', () => SHORTCUTS.map((s) => ({ id: s.id, label: s.label, desc: s.desc, ok: shortcutStatus[s.id] !== false })));
+// Während in den Einstellungen ein neues Kürzel aufgenommen wird, dürfen die alten es nicht abfangen
+let recordingShortcut = false;
+ipcMain.on('shortcut-recording', (_e, on) => { recordingShortcut = on; if (on) globalShortcut.unregisterAll(); else registerShortcuts(); });
 ipcMain.handle('set-shortcut', (_e, id, keys, label) => {
   const st = loadSettings();
   st.shortcuts = { ...(st.shortcuts || {}), [id]: { keys, label } };
   saveSettings(st);
+  recordingShortcut = false;
   registerShortcuts();
   return shortcutStatus[id] !== false;
 });
@@ -1588,6 +1609,7 @@ if (!app.requestSingleInstanceLock()) {
       { label: 'Datei öffnen …', click: pickFile },
       { label: 'Einstellungen …', click: openSettings },
       { label: `Nach Updates suchen (v${app.getVersion()})`, click: checkUpdatesNow },
+      { label: 'Protokoll öffnen (für Fehlersuche)', click: () => shell.openPath(path.join(app.getPath('userData'), 'silkreader-errors.log')) },
       {
         label: 'Mit Windows starten', type: 'checkbox',
         checked: app.getLoginItemSettings().openAtLogin,
@@ -1598,7 +1620,9 @@ if (!app.requestSingleInstanceLock()) {
     ]));
     tray.on('click', () => bubbleWin.show());
 
-    registerShortcuts();
+    setLogger(logLine);
+    logLine(`Start Silkreader ${app.getVersion()} (${process.platform} ${require('os').release()})`);
+    registerShortcuts(true);
     // Analysefenster unsichtbar vorbereiten, damit es später sofort da ist
     // (Fenster werden erst bei Bedarf erzeugt und nach einer Weile im Hintergrund wieder freigegeben – spart RAM)
     setupUpdates();

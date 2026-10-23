@@ -1,7 +1,7 @@
 {
   "name": "silkreader",
   "productName": "Silkreader",
-  "version": "1.10.1",
+  "version": "1.11.0",
   "description": "Silkreader – eine schwebende Spinne, die Texte und Dokumente mit KI liest, zusammenfasst und analysiert",
   "main": "src/main.js",
   "author": "Silkreader",
@@ -21,7 +21,10 @@
       "package.json",
       "!node_modules/@node-llama-cpp/*-cuda*/**",
       "!node_modules/@node-llama-cpp/*arm*/**",
-      "!node_modules/node-llama-cpp/llama/**/*.{h,c,cpp,hpp,cu,cuh,txt,md}"
+      "!node_modules/node-llama-cpp/llama/**/*.{h,c,cpp,hpp,cu,cuh,txt,md}",
+      "!node_modules/koffi/build/koffi/{darwin,freebsd,linux,musl,openbsd}_*/**",
+      "!node_modules/koffi/src/**",
+      "!node_modules/koffi/vendor/**"
     ],
     "icon": "build/icon.png",
     "nsis": {
@@ -62,12 +65,14 @@
     },
     "asarUnpack": [
       "node_modules/node-llama-cpp/**",
-      "node_modules/@node-llama-cpp/**"
+      "node_modules/@node-llama-cpp/**",
+      "node_modules/koffi/**"
     ]
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.1.0",
     "electron-updater": "^6.8.9",
+    "koffi": "2.16.3",
     "mammoth": "^1.13.0",
     "node-llama-cpp": "^3.22.1",
     "unpdf": "^1.9.1"

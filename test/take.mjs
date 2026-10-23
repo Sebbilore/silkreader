@@ -58,7 +58,8 @@ console.log('clipboard restored:', JSON.stringify(await app.evaluate(async ({ cl
 await pop.waitForSelector('#foot:not(.hidden)', { timeout: 30000 });
 console.log('result →', await pop.textContent('#title'), '| findings:', await pop.evaluate(() => document.querySelectorAll('.finding').length), '| chips:', await pop.evaluate(() => document.querySelectorAll('.chip').length), '| bullets:', await pop.evaluate(() => document.querySelectorAll('ul.sum li').length));
 execSync(`import -window root ${out}/popup.png`);
-await pop.click('li.jump[data-index="1"]');
+await pop.getByText('Mehr ▾').click();
+await pop.click('.jump[data-index="1"]');
 await new Promise((r) => setTimeout(r, 5000));
 const main = app.windows().find((w) => w.url().includes('index.html'));
 console.log('focused item:', await main.evaluate(() => document.querySelector('.focus')?.textContent.trim()), '| highlighted words:', await main.evaluate(() => [...document.querySelectorAll('.w.flash')].map((e) => e.textContent).join(' ')));

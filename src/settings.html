@@ -34,6 +34,7 @@
   .keys kbd { font: 11px Consolas, monospace; color: var(--text); background: var(--card); border: 1px solid var(--line); border-bottom-width: 2px;
     border-radius: 4px; padding: 1px 6px; min-width: 112px; text-align: center; }
   .keys em { color: #ff7a9c; font-style: normal; }
+  .keys .fired { color: var(--pink); font-weight: 600; }
   .keys kbd.rec { cursor: pointer; } .keys kbd.rec:hover { border-color: var(--pink); }
   .keys kbd.on { border-color: var(--pink); color: var(--pink); } .bad { color: #ff7a9c; }
   ol { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 12px; } ol li { margin-bottom: 4px; }
@@ -200,17 +201,26 @@
   $('refresh').addEventListener('click', loadOllama);
   function loadShortcuts() { return window.spider.shortcuts().then((list) => {
     const extra = [['Enter', 'Im Fenster: Analyse starten'], ['Esc', 'Im Fenster: schließen'], ['Strg+O', 'Im Fenster: Datei öffnen'],
-      ['Strg+K', 'Im Fenster: Text in Kokon packen'], ['Strg+Umschalt+C', 'Im Fenster: Ergebnis kopieren']];
-    $('shortcuts').innerHTML = list.map((k) => `<div><kbd class="rec" data-id="${k.id}" title="Klicken und neue Tasten drücken">${k.label}</kbd><span>${k.desc}${k.ok ? '' : ' <em>(von anderem Programm belegt – bitte ändern)</em>'}</span></div>`).join('')
+      ['Strg+H', 'Im Fenster: Notizbuch'], ['Strg+K', 'Im Fenster: Text in Kokon packen'], ['Strg+Umschalt+C', 'Im Fenster: Ergebnis kopieren']];
+    $('shortcuts').innerHTML = list.map((k) => `<div><kbd class="rec" data-id="${k.id}" title="Klicken und neue Tasten drücken">${k.label}</kbd><span>${k.desc}${k.ok ? '' : ' <em>(von anderem Programm belegt – bitte ändern)</em>'}<b class="fired" data-for="${k.id}"></b></span></div>`).join('')
       + extra.map(([k, d]) => `<div><kbd>${k}</kbd><span>${d}</span></div>`).join('');
     document.querySelectorAll('kbd.rec').forEach((el) => el.addEventListener('click', () => record(el)));
   }); }
   loadShortcuts();
+  // Zum Ausprobieren: gedrückte Kürzel leuchten hier kurz auf
+  window.spider.onShortcutFired((id) => {
+    const el = document.querySelector(`.fired[data-for="${id}"]`);
+    if (!el) return;
+    el.textContent = ' ✓ erkannt';
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.textContent = ''; }, 2500);
+  });
 
   // Neues Tastenkürzel aufnehmen: Strg/Alt/Umschalt + eine weitere Taste
   let recording = null;
   function record(el) {
     if (recording) recording.el.classList.remove('on');
+    window.spider.shortcutRecording(true);
     recording = { el, old: el.textContent };
     el.classList.add('on');
     el.textContent = 'Tasten drücken …';
@@ -218,7 +228,7 @@
   window.addEventListener('keydown', async (e) => {
     if (!recording) return;
     e.preventDefault();
-    if (e.key === 'Escape') { recording.el.textContent = recording.old; recording.el.classList.remove('on'); recording = null; return; }
+    if (e.key === 'Escape') { recording.el.textContent = recording.old; recording.el.classList.remove('on'); recording = null; window.spider.shortcutRecording(false); return; }
     if (['Control', 'Alt', 'Shift', 'Meta', 'AltGraph'].includes(e.key)) return;
     if (!e.ctrlKey && !e.altKey && !e.metaKey) { recording.el.textContent = 'Mit Strg oder Alt!'; return; }
     const keyName = e.code.startsWith('Key') ? e.code.slice(3) : e.code.startsWith('Digit') ? e.code.slice(5)

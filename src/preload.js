@@ -26,6 +26,8 @@ contextBridge.exposeInMainWorld('spider', {
   onDropZone: (cb) => ipcRenderer.on('drop-zone', (_e, on) => cb(on)),
   onPopupDoc: (cb) => ipcRenderer.on('popup-doc', (_e, d) => cb(d)),
   shortcuts: () => ipcRenderer.invoke('shortcuts'),
+  shortcutRecording: (on) => ipcRenderer.send('shortcut-recording', on),
+  onShortcutFired: (cb) => ipcRenderer.on('shortcut-fired', (_e, id) => cb(id)),
   cocoonList: () => ipcRenderer.invoke('cocoon-list'),
   cocoonAddFiles: (files) => ipcRenderer.invoke('cocoon-add-files', files.map((f) => webUtils.getPathForFile(f))),
   cocoonAddText: (text) => ipcRenderer.invoke('cocoon-add-text', text),

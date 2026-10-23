@@ -7,8 +7,11 @@ const { execFile, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const winkeys = require('./winkeys');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let log = () => {};
+const setLogger = (fn) => { log = fn; };
 
 function run(cmd, args, timeout = 4000) {
   return new Promise((resolve) => {
@@ -62,15 +65,33 @@ public static class SilkText {
   static string R(System.Windows.Rect rc) {
     return string.Format(CultureInfo.InvariantCulture, "[{0:0},{1:0},{2:0},{3:0}]", rc.X, rc.Y, rc.Width, rc.Height);
   }
+  static TextPattern Find() {
+    AutomationElement el = AutomationElement.FocusedElement;
+    TextPattern tp = null;
+    for (int i = 0; el != null && i < 8 && tp == null; i++) {
+      object p;
+      if (el.TryGetCurrentPattern(TextPattern.Pattern, out p)) tp = (TextPattern)p;
+      else el = TreeWalker.ControlViewWalker.GetParent(el);
+    }
+    return tp;
+  }
+  // Markierten Text direkt vom Programm erfragen – ganz ohne Tastendruck (Base64, "-" = nichts)
+  public static string SelectedText(int max) {
+    try {
+      TextPattern tp = Find();
+      if (tp == null) return "-";
+      TextPatternRange[] sels = tp.GetSelection();
+      if (sels == null || sels.Length == 0) return "-";
+      StringBuilder sb = new StringBuilder();
+      foreach (TextPatternRange s in sels) { sb.Append(s.GetText(max)); if (sb.Length >= max) break; }
+      string t = sb.ToString();
+      if (t.Trim().Length == 0) return "-";
+      return Convert.ToBase64String(Encoding.UTF8.GetBytes(t));
+    } catch { return "-"; }
+  }
   public static string Selection(int max) {
     try {
-      AutomationElement el = AutomationElement.FocusedElement;
-      TextPattern tp = null;
-      for (int i = 0; el != null && i < 8 && tp == null; i++) {
-        object p;
-        if (el.TryGetCurrentPattern(TextPattern.Pattern, out p)) tp = (TextPattern)p;
-        else el = TreeWalker.ControlViewWalker.GetParent(el);
-      }
+      TextPattern tp = Find();
       if (tp == null) return "{}";
       TextPatternRange[] sels = tp.GetSelection();
       if (sels == null || sels.Length == 0) return "{}";
@@ -105,6 +126,7 @@ while ($true) {
   try {
     if ($line -eq 'copy') { [SilkKeys]::Copy(); [Console]::Out.WriteLine('ok') }
     elseif ($line -eq 'hotcopy') { [SilkKeys]::MaskMenu(); [SilkKeys]::WaitModifiersUp(2000); Start-Sleep -Milliseconds 40; [SilkKeys]::Copy(); [Console]::Out.WriteLine('ok') }
+    elseif ($line -eq 'seltext') { if ($uia) { [Console]::Out.WriteLine([SilkText]::SelectedText(300000)) } else { [Console]::Out.WriteLine('-') } }
     elseif ($line -eq 'seq') { [Console]::Out.WriteLine([SilkKeys]::Seq()) }
     elseif ($line -eq 'files') { $l = [System.Windows.Forms.Clipboard]::GetFileDropList(); [Console]::Out.WriteLine((@($l) -join '|')) }
     elseif ($line -eq 'rects') { if ($uia) { [Console]::Out.WriteLine([SilkText]::Selection(160)) } else { [Console]::Out.WriteLine('{}') } }
@@ -127,13 +149,19 @@ function startWindowsHelper() {
     while ((nl = h.buf.indexOf('\n')) >= 0) {
       const line = h.buf.slice(0, nl).trim();
       h.buf = h.buf.slice(nl + 1);
-      if (line === 'ready') h.ready = true;
+      if (line === 'ready') { h.ready = true; log('PowerShell-Helfer bereit'); }
       else if (line) h.waiting.shift()?.(line);
     }
   });
-  const reset = () => { h.waiting.splice(0).forEach((r) => r()); if (helper === h) helper = null; };
-  proc.on('exit', reset);
-  proc.on('error', reset);
+  let errText = '';
+  proc.stderr?.on('data', (d) => { if (errText.length < 600) errText += d; });
+  const reset = (why) => {
+    log(`PowerShell-Helfer beendet (${why}) ${errText.replace(/\s+/g, ' ').slice(0, 500)}`);
+    h.waiting.splice(0).forEach((r) => r());
+    if (helper === h) helper = null;
+  };
+  proc.on('exit', (code) => reset(`Code ${code}`));
+  proc.on('error', (e) => reset(e.message));
   helper = h;
   return h;
 }
@@ -168,6 +196,7 @@ async function selectionRects() {
 /** Ist die linke Maustaste gerade gedrückt? (null = unbekannt, z. B. nicht Windows) */
 async function isMouseDown() {
   if (process.platform !== 'win32') return null;
+  if (winkeys.load()) return winkeys.leftDown();
   if (!helper) { startWindowsHelper(); return null; } // Helfer (neu) starten, nächstes Mal klappt's
   if (!helper.ready) return null;
   const r = await helperCommand('btn', 300);
@@ -176,11 +205,13 @@ async function isMouseDown() {
 
 /** Startet den Windows-Helfer vorab, damit der erste Klick nicht warten muss. */
 function warmUp() {
-  if (process.platform === 'win32') startWindowsHelper();
+  if (process.platform !== 'win32') return;
+  log(winkeys.load() ? 'Tastatur: direkt über Windows (user32)' : `Tastatur: PowerShell-Helfer (user32 nicht ladbar: ${winkeys.load.error?.message || '?'})`);
+  startWindowsHelper();
 }
 
 function sendCopyKeystroke(hotkey) {
-  if (process.platform === 'win32') return windowsCopy(hotkey);
+  if (process.platform === 'win32') return winkeys.load() ? winkeys.copy(hotkey) : windowsCopy(hotkey);
   if (process.platform === 'darwin') {
     return run('osascript', ['-e', 'tell application "System Events" to keystroke "c" using command down']);
   }
@@ -223,12 +254,26 @@ const ownClipboardActive = () => Date.now() < ownClipboardUntil;
 
 /** Zähler, den Windows bei jeder Änderung der Zwischenablage erhöht (sehr billig abzufragen). */
 async function clipboardSeq() {
-  if (process.platform !== 'win32' || !helper?.ready) return null;
+  if (process.platform !== 'win32') return null;
+  if (winkeys.load()) return winkeys.clipboardSeq();
+  if (!helper?.ready) return null;
   const r = await helperCommand('seq', 500);
   return r && /^\d+$/.test(r) ? Number(r) : null;
 }
 
+/** Markierten Text über UI Automation lesen (kein Strg+C nötig). null = unbekannt/nichts. */
+async function uiaSelectedText() {
+  if (process.platform !== 'win32' || !helper?.ready) return null;
+  const r = await helperCommand('seltext', 1500);
+  if (!r || r === '-' || r === 'err') return null;
+  try { const t = Buffer.from(r, 'base64').toString('utf8').trim(); return t || null; } catch { return null; }
+}
+
 async function grabSelection({ hotkey = false } = {}) {
+  // 1. Weg: das Programm direkt fragen – zuverlässig auch bei Tastenkürzeln, Zwischenablage bleibt unberührt
+  const direct = await uiaSelectedText();
+  log(`Auswahl per UI Automation: ${direct ? `${direct.length} Zeichen` : 'nichts'}`);
+  if (direct && direct.length > 1) return { text: direct, files: [] };
   ownClipboardUntil = Date.now() + 6000;
   // Per Tastenkürzel ausgelöst: Auf Windows wartet der Helfer selbst, bis die Tasten losgelassen sind
   if (hotkey && process.platform !== 'win32') await sleep(350);
@@ -238,7 +283,7 @@ async function grabSelection({ hotkey = false } = {}) {
   await sendCopyKeystroke(hotkey);
 
   let text = null;
-  for (let i = 0; i < 15; i++) {
+  for (let i = 0; i < 30; i++) { // manche Programme (Word, Browser) brauchen etwas länger
     await sleep(40);
     const t = await clipboard.readText();
     if (t !== marker) { text = t; break; }
@@ -247,6 +292,7 @@ async function grabSelection({ hotkey = false } = {}) {
   let files = [];
   if (!text || !text.trim()) files = await readClipboardFiles();
   await restoreClipboard(before);
+  log(`Auswahl per Strg+C: ${text && text !== marker ? `${text.length} Zeichen` : 'nichts'}, Dateien: ${files.length}`);
   ownClipboardUntil = Date.now() + 1500;
   return { text: text && text.trim() ? text.trim() : null, files };
 }
@@ -277,4 +323,4 @@ async function copyFileToClipboard(filePath) {
   return true;
 }
 
-module.exports = { grabSelection, copyFileToClipboard, warmUp, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable: () => process.platform === 'win32' && !!helper?.ready };
+module.exports = { setLogger, grabSelection, copyFileToClipboard, warmUp, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable: () => process.platform === 'win32' && (!!winkeys.load() || !!helper?.ready) };
