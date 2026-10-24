@@ -1237,8 +1237,31 @@ const SHORT_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['title', 'doc_type', 'summary', 'key_points', 'figures', 'findings'],
   properties: { ...FINAL_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, maxItems: 8 } },
 };
-// Enthält der Text Zahlen, muss das kleine Modell auch Angaben liefern (es lässt sie sonst gern weg)
-const SHORT_SCHEMA_NUMBERS = { ...SHORT_SCHEMA, properties: { ...SHORT_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, minItems: 2, maxItems: 8 } } };
+// Eingebautes (kleines) Modell: Stichpunkte als Liste mit 3–5 Einträgen erzwingen (sonst kommt manchmal nur einer),
+// und enthält der Text Zahlen, auch Angaben (es lässt sie sonst gern weg)
+const BULLETS = { type: 'array', items: str(140), minItems: 3, maxItems: 5 };
+const BUILTIN_FINAL_SCHEMA = { ...FINAL_SCHEMA, properties: { ...FINAL_SCHEMA.properties, summary: BULLETS } };
+const BUILTIN_SHORT_SCHEMA = { ...SHORT_SCHEMA, properties: { ...SHORT_SCHEMA.properties, summary: BULLETS } };
+const SHORT_SCHEMA_NUMBERS = { ...BUILTIN_SHORT_SCHEMA, properties: { ...BUILTIN_SHORT_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, minItems: 2, maxItems: 8 } } };
+
+// Aussagen, die nur in EINEM Abschnitt stehen (z. B. ein Rücktritt am Ende), gehen in der Gesamtzusammenfassung
+// eines kleinen Modells leicht verloren. Fehlen sie dort, werden sie als Kernaussage ergänzt.
+function addExclusivePoints(final, chunkPoints) {
+  const words = (t) => new Set(String(t).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) || []);
+  const overlap = (a, b) => { const A = words(a), B = words(b); if (!A.size) return 1; let n = 0; for (const w of A) if (B.has(w)) n++; return n / A.size; };
+  const covered = [...(Array.isArray(final.summary) ? final.summary : [final.summary]), ...(final.key_points || [])].join(' ');
+  const keyPoints = [...(final.key_points || [])];
+  const extra = [];
+  chunkPoints.forEach((pts, i) => {
+    for (const p of pts || []) {
+      const elsewhere = chunkPoints.some((other, j) => j !== i && (other || []).some((q) => overlap(p, q) > 0.5));
+      if (!elsewhere && overlap(p, covered) < 0.5) extra.push({ p, i });
+    }
+  });
+  // Spätere Abschnitte zuerst (dort steht Wichtiges oft zuletzt), höchstens 3 Ergänzungen
+  extra.sort((a, b) => b.i - a.i).slice(0, 3).forEach(({ p }) => keyPoints.push(p));
+  return keyPoints.slice(0, 9);
+}
 
 // Text in Abschnitte von höchstens maxTokens teilen (an Absatzgrenzen, mit Seitenangabe).
 function splitIntoChunks(model, doc, maxTokens) {
@@ -1310,15 +1333,16 @@ async function analyzeBuiltin(doc, s, onProgress) {
       onProgress({ stage: 'Analysiere …', step: 1, steps: 1 });
       const r = await ask([
         `Analysiere das folgende Dokument („${doc.title}“).`,
-        'Liefere Titel, Art, als "summary" das Wichtigste in 3 bis 5 kurzen Stichpunkten (jeder in eigener Zeile, mit "• " am Anfang), bis zu 6 Kernaussagen, bis zu 8 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "quote" = wörtliche Stelle aus dem Text) und bis zu 5 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
+        'Liefere Titel, Art, als "summary" das Wichtigste in 3 bis 5 kurzen Stichpunkten, bis zu 6 Kernaussagen, bis zu 8 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "quote" = wörtliche Stelle aus dem Text) und bis zu 5 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
         '', '<document>', chunks[0]?.text || '', '</document>',
-      ].join('\n'), /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(chunks[0]?.text || '') ? SHORT_SCHEMA_NUMBERS : SHORT_SCHEMA, 2200, true);
+      ].join('\n'), /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(chunks[0]?.text || '') ? SHORT_SCHEMA_NUMBERS : BUILTIN_SHORT_SCHEMA, 2200, true);
       return normalizeResult(r);
     }
 
     // Langes Dokument: jeden Abschnitt lesen und Notizen machen …
     const notes = [];
     const figures = [];
+    const chunkPoints = []; // Aussagen je Abschnitt (für den Abgleich am Schluss)
     for (let i = 0; i < chunks.length; i++) {
       const c = chunks[i];
       onProgress({ stage: `Liest Abschnitt ${i + 1} von ${chunks.length} …`, step: i + 1, steps: chunks.length + 1 });
@@ -1327,6 +1351,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
         'Notiere die bis zu 4 wichtigsten Aussagen als kurze Sätze und bis zu 5 wichtige Angaben (Zahlen, Beträge, Fristen, Namen) mit wörtlicher Fundstelle ("quote").',
         '', '<abschnitt>', c.text, '</abschnitt>',
       ].join('\n'), NOTES_SCHEMA, 700, false);
+      chunkPoints.push(n.points);
       notes.push(`Abschnitt ${i + 1} (S. ${c.firstPage}${c.lastPage !== c.firstPage ? `–${c.lastPage}` : ''}):\n- ${n.points.join('\n- ')}`
         + (n.figures.length ? `\n  Angaben: ${n.figures.map((f) => `${f.label}: ${f.value}`).join('; ')}` : ''));
       for (const f of n.figures) figures.push({ ...f, chunk: i, page: Math.min(c.lastPage, Math.max(c.firstPage, f.page || c.firstPage)) });
@@ -1336,10 +1361,10 @@ async function analyzeBuiltin(doc, s, onProgress) {
     onProgress({ stage: 'Schreibt die Zusammenfassung …', step: chunks.length + 1, steps: chunks.length + 1 });
     const final = await ask([
       `Hier sind Notizen zu allen ${chunks.length} Abschnitten des Dokuments „${doc.title}“.`,
-      'Erstelle daraus Titel, Art des Dokuments, als "summary" das Wichtigste aus dem GANZEN Dokument in 3 bis 5 kurzen Stichpunkten (jeder in eigener Zeile, mit "• " am Anfang), bis zu 6 Kernaussagen und bis zu 5 echte Erkenntnisse (Risiken, Chancen, Widersprüche, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
+      'Erstelle daraus Titel, Art des Dokuments, als "summary" das Wichtigste aus dem GANZEN Dokument in 3 bis 5 kurzen Stichpunkten, bis zu 6 Kernaussagen und bis zu 5 echte Erkenntnisse (Risiken, Chancen, Widersprüche, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
       'Wichtig: Berücksichtige alle Abschnitte gleich, auch den letzten. Aussagen, die nur in EINEM Abschnitt vorkommen (z. B. Rücktritte, Fristen, Kündigungen, Ausnahmen – oft am Ende), sind meist besonders wichtig und gehören in die Stichpunkte oder Kernaussagen. Wiederholungen nur einmal nennen.',
       '', '<notizen>', notes.join('\n\n'), '</notizen>',
-    ].join('\n'), FINAL_SCHEMA, 1300, true);
+    ].join('\n'), BUILTIN_FINAL_SCHEMA, 1300, true);
 
     // Angaben aus allen Abschnitten übernehmen (doppelte entfernen)
     const seen = new Set();
@@ -1356,7 +1381,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
       for (const l of byChunk) if (l[round] && uniqueFigures.length < 20) uniqueFigures.push(l[round]);
     }
     uniqueFigures.sort((a, b) => a.chunk - b.chunk || 0).forEach((f) => delete f.chunk);
-    return normalizeResult({ ...final, figures: uniqueFigures });
+    return normalizeResult({ ...final, key_points: addExclusivePoints(final, chunkPoints), figures: uniqueFigures });
   } catch (e) {
     if (e.code) throw e;
     throw new Error(`Das eingebaute Modell ist bei der Analyse gestolpert: ${e.message || e}. Bitte erneut versuchen.`);
@@ -1488,6 +1513,14 @@ function normalizeResult(r) {
 
 // Liest ein (evtl. noch unvollständiges) Textfeld aus halb fertigem JSON.
 function partialField(json, name) {
+  const unq = (v) => { try { return JSON.parse(`"${v.replace(/\\+$/, (b) => (b.length % 2 ? b.slice(1) : b))}"`); } catch { return v; } };
+  // Liste von Stichpunkten (eingebautes Modell): fertige und angefangene Einträge zeigen
+  const arr = json.match(new RegExp(`"${name}"\\s*:\\s*\\[([\\s\\S]*)`));
+  if (arr) {
+    const body = arr[1].split(/\]\s*[,}]/)[0];
+    const items = [...body.matchAll(/"((?:[^"\\]|\\.)*)"?/g)].map((x) => unq(x[1])).filter(Boolean);
+    return items.length ? items.map((x) => `• ${x}`).join('\n') : null;
+  }
   const m = json.match(new RegExp(`"${name}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`));
   if (!m) return null;
   try { return JSON.parse(`"${m[1].replace(/\\+$/, (b) => (b.length % 2 ? b.slice(1) : b))}"`); } catch { return m[1]; }
@@ -1657,10 +1690,25 @@ function runTransform(mode, text, extra = '', onChunk = () => {}) {
   const st = loadSettings();
   const target = !st.language || st.language === 'der Sprache des Dokuments' ? (uiLang() === 'en' ? 'Englisch' : 'Deutsch') : st.language;
   const other = target === 'Deutsch' ? 'Englische' : 'Deutsche';
+  // Kleine Modelle kommen mit „falls schon Deutsch, dann …“ durcheinander – deshalb die Richtung selbst festlegen
+  const into = mode === 'translate' ? (looksLike(text) === (target === 'Deutsch' ? 'de' : target === 'Englisch' ? 'en' : '') ? other : `${target}e`) : null;
   const instruction = mode === 'translate'
-    ? `Übersetze den folgenden Text ins ${target}e. Ist er schon auf ${target}, übersetze ihn ins ${other}. Gib nur die Übersetzung aus, ohne Kommentar.`
+    ? `Übersetze den folgenden Text ins ${into}. Gib nur die Übersetzung aus – ohne Überschrift, ohne Erklärung, ohne den Originaltext.`
     : TRANSFORMS[mode].instruction;
-  return llmGenerate({ instruction: instruction + (extra ? ` ${extra}` : ''), material: text, maxTokens: 1500, langHint: mode === 'simplify', onChunk });
+  return llmGenerate({ instruction: instruction + (extra ? ` ${extra}` : ''), material: text, maxTokens: 1500, langHint: mode === 'simplify', onChunk })
+    .then((r) => (mode === 'translate' && typeof r.value === 'string' ? { ...r, value: cleanTranslation(r.value) } : r));
+}
+// Grobe Spracherkennung (Deutsch/Englisch) über häufige Wörter
+function looksLike(text) {
+  const t = ` ${String(text).toLowerCase()} `;
+  const count = (ws) => ws.reduce((n, w) => n + (t.split(` ${w} `).length - 1), 0);
+  const de = count(['der', 'die', 'das', 'und', 'ist', 'nicht', 'mit', 'auf', 'für', 'ein', 'eine', 'den', 'von', 'zu', 'im', 'sich', 'auch']) + (/[äöüß]/.test(t) ? 2 : 0);
+  const en = count(['the', 'and', 'is', 'not', 'with', 'on', 'for', 'a', 'an', 'of', 'to', 'in', 'by', 'it', 'that', 'this', 'are']);
+  return de > en ? 'de' : en > de ? 'en' : '';
+}
+// Vorspann wie „Englische Übersetzung:“ oder „Translation:“ entfernen
+function cleanTranslation(t) {
+  return t.replace(/^\s*[^\n]{0,40}(übersetzung|translation|übersetzt|translated)[^\n]{0,30}:\s*\n?/i, '').trim();
 }
 
 ipcMain.handle('compare', async (event, a, b) => {
