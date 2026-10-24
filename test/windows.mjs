@@ -111,6 +111,8 @@ try {
   const uia = await silk(() => global.__silk.uia());
   check('Markierung über UI Automation gelesen', uia && uia.includes('Nordlicht'), uia ? `${uia.length} Zeichen` : 'nichts');
   await focusNotepad();
+  await press(VK.CTRL, VK.A); // Fokus-Klick kann die Markierung aufheben – neu markieren
+  await sleep(200);
   const viaCopy = await silk(() => global.__silk.grab({ noUia: true }));
   check('Markierung über Strg+C gelesen (Zwischenablage danach wiederhergestellt)', viaCopy.text && viaCopy.text.includes('Nordlicht'), viaCopy.text ? `${viaCopy.text.length} Zeichen` : JSON.stringify(viaCopy));
 
@@ -160,9 +162,9 @@ try {
   const crawl = silk(() => global.__silk.crawlSelection());
   await sleep(1200);
   for (let i = 0; i < 2; i++) { wheel(-120); await sleep(600); }
-  const words = await crawl;
+  const found = await crawl;
   const shifts = (await silk(() => global.__silk.shiftCount)) - shifts0;
-  check('Mitwandern beim Scrollen (Spinne folgt dem Text)', shifts > 0, `${shifts} Verschiebungen, ${words ?? 0} Wörter per UI Automation`, false);
+  check('Mitwandern beim Scrollen (Spinne folgt dem Text)', shifts > 0, `${shifts} Verschiebungen; UI Automation fand ${found?.words ?? 0} Wörter, ${found?.lines ?? 0} Zeilen`, false);
   shot('6-scrollen');
 
   // 7) Kopierte Datei landet im Spinnennetz
@@ -195,7 +197,7 @@ try {
 
   check('Keine Fehler in den Fenstern', !errs.length, errs.join(' | '), false);
   const log = await silk(() => global.__silk.log());
-  check('Protokoll: Wege der Textauswahl', true, (log.match(/Auswahl per [^\n]*/g) || []).join(' · '), false);
+  check('Protokoll: Wege der Textauswahl', true, (log.match(/(Auswahl per|UI Automation:|Helfer:) [^\n]*/g) || []).join(' · '), false);
 } catch (e) {
   check('Testlauf', false, e.stack || e.message);
 } finally {

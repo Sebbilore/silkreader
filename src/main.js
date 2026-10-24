@@ -2085,7 +2085,12 @@ if (process.env.SPIDER_MOCK) global.__silk = { showPopupPayload, showNotebook, s
   verify: (file) => verifyUpdateSignature(['Silkreader'], file),
   spiderPos: () => spiderScreenPos(),
   get shiftCount() { return global.__shiftCount || 0; },
-  async crawlSelection() { const r = await selectionRects(); if (!r) return null; await runCrawlOverlay(screen.getCursorScreenPoint(), r); return r.words?.length || r.lines?.length; },
+  async crawlSelection() {
+    const r = await selectionRects();
+    if (!r) return { words: 0, lines: 0 };
+    await runCrawlOverlay(screen.getCursorScreenPoint(), r);
+    return { words: r.words?.length || 0, lines: r.lines?.length || 0 };
+  },
   async ocrSample() {
     // Text in einem unsichtbaren Fenster zeichnen, abfotografieren und mit der Windows-Texterkennung lesen
     const w = new BrowserWindow({ width: 640, height: 160, show: false, webPreferences: { offscreen: true } });

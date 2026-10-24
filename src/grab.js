@@ -173,8 +173,12 @@ function helperCommand(cmd, timeoutMs) {
   return new Promise((resolve) => {
     const h = startWindowsHelper();
     let done = false;
+    const t0 = Date.now();
     const finish = (v) => { if (!done) { done = true; resolve(v); } };
-    const timer = setTimeout(() => finish(null), timeoutMs);
+    const timer = setTimeout(() => {
+      if (cmd !== 'seq' && cmd !== 'btn') log(`Helfer: „${cmd}“ ohne Antwort nach ${timeoutMs} ms (${h.waiting.length} Befehle in der Warteschlange)`);
+      finish(null);
+    }, timeoutMs);
     h.waiting.push((line) => { clearTimeout(timer); finish(line); });
     try { h.proc.stdin.write(`${cmd}\n`); } catch { finish(null); }
   });
@@ -271,8 +275,11 @@ async function clipboardSeq() {
 
 /** Markierten Text über UI Automation lesen (kein Strg+C nötig). null = unbekannt/nichts. */
 async function uiaSelectedText() {
-  if (process.platform !== 'win32' || !helper?.ready) return null;
+  if (process.platform !== 'win32') return null;
+  if (!helper?.ready) { log('UI Automation: Helfer noch nicht bereit'); return null; }
+  const t0 = Date.now();
   const r = await helperCommand('seltext', 1500);
+  log(`UI Automation: ${r === null ? 'Zeitüberschreitung' : r === '-' ? 'keine Markierung gefunden' : r === 'err' ? 'Fehler' : `${r.length} Zeichen (Base64)`} nach ${Date.now() - t0} ms`);
   if (!r || r === '-' || r === 'err') return null;
   try { const t = Buffer.from(r, 'base64').toString('utf8').trim(); return t || null; } catch { return null; }
 }
