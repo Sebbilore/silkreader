@@ -1245,6 +1245,33 @@ const BUILTIN_FINAL_SCHEMA = { ...FINAL_SCHEMA, properties: { ...FINAL_SCHEMA.pr
 const BUILTIN_SHORT_SCHEMA = { ...SHORT_SCHEMA, properties: { ...SHORT_SCHEMA.properties, summary: BULLETS } };
 const SHORT_SCHEMA_NUMBERS = { ...BUILTIN_SHORT_SCHEMA, properties: { ...BUILTIN_SHORT_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, minItems: 2, maxItems: 8 } } };
 
+// Ereignis-Sätze (Rücktritt, Kündigung, Frist, Ablauf … mit Datum oder Jahr) aus dem Originaltext, die im Ergebnis
+// fehlen, als Kernaussage ergänzen – kleine Modelle überlesen solche Einzelsätze gern, sie sind aber oft das Wichtigste.
+const EVENT_WORDS = /(rücktritt|tritt\s.*zurück|zurücktreten|kündig|frist|endet|läuft\s.*aus|ausläuft|befristet|insolvenz|verschoben|gestrichen|eingestellt|übernahme|fusion|schließ|entlass|klage|strafe|mahnung|zahlbar|fällig|resign|terminat|deadline|expire|due\b|insolven|lawsuit)/i;
+function addEventSentences(result, text) {
+  const words = (t) => new Set(String(t).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) || []);
+  const covered = words([result.summary, ...(result.key_points || []), ...(result.findings || []).map((f) => `${f.title} ${f.detail}`)].join(' '));
+  // Sätze trennen – aber nicht nach Ordnungszahlen wie „am 31. Dezember“ oder Abkürzungen wie „Mio.“
+  const pieces = String(text).replace(/\s+/g, ' ').split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ])/);
+  const sentences = [];
+  for (const p of pieces) {
+    const prev = sentences[sentences.length - 1];
+    if (prev && /(\b\d{1,2}\.|\b(Mio|Mrd|ca|bzw|Nr|Abs|Dr|Hr|Fr|z\.\s?B|d\.\s?h)\.)$/i.test(prev)) sentences[sentences.length - 1] = `${prev} ${p}`;
+    else sentences.push(p);
+  }
+  const hits = [];
+  for (const raw of sentences) {
+    const sent = raw.trim();
+    if (sent.length < 25 || sent.length > 260 || !EVENT_WORDS.test(sent) || !/\b(19|20)\d{2}\b|\d{1,2}\.\s?\d{1,2}\.|\b\d{1,2}\.\s?(januar|februar|märz|april|mai|juni|juli|august|september|oktober|november|dezember)/i.test(sent)) continue;
+    const w = words(sent);
+    let known = 0;
+    for (const x of w) if (covered.has(x)) known++;
+    if (w.size && known / w.size < 0.5 && !hits.some((h) => h === sent)) hits.push(sent);
+  }
+  if (!hits.length) return result;
+  return { ...result, key_points: [...(result.key_points || []), ...hits.slice(-2)].slice(0, 9) };
+}
+
 // Aussagen, die nur in EINEM Abschnitt stehen (z. B. ein Rücktritt am Ende), gehen in der Gesamtzusammenfassung
 // eines kleinen Modells leicht verloren. Fehlen sie dort, werden sie als Kernaussage ergänzt.
 function addExclusivePoints(final, chunkPoints) {
@@ -1337,7 +1364,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
         'Liefere Titel, Art, als "summary" das Wichtigste in 3 bis 5 kurzen Stichpunkten, bis zu 6 Kernaussagen, bis zu 8 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "quote" = wörtliche Stelle aus dem Text) und bis zu 5 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
         '', '<document>', chunks[0]?.text || '', '</document>',
       ].join('\n'), /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(chunks[0]?.text || '') ? SHORT_SCHEMA_NUMBERS : BUILTIN_SHORT_SCHEMA, 2200, true);
-      return normalizeResult(r);
+      return addEventSentences(normalizeResult(r), doc.pages.join('\n'));
     }
 
     // Langes Dokument: jeden Abschnitt lesen und Notizen machen …
@@ -1384,7 +1411,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
       for (const l of byChunk) if (l[round] && uniqueFigures.length < 20) uniqueFigures.push(l[round]);
     }
     uniqueFigures.sort((a, b) => a.chunk - b.chunk || 0).forEach((f) => delete f.chunk);
-    return normalizeResult({ ...final, key_points: addExclusivePoints(final, chunkPoints), figures: uniqueFigures });
+    return addEventSentences(normalizeResult({ ...final, key_points: addExclusivePoints(final, chunkPoints), figures: uniqueFigures }), doc.pages.join('\n'));
   } catch (e) {
     if (e.code) throw e;
     throw new Error(`Das eingebaute Modell ist bei der Analyse gestolpert: ${e.message || e}. Bitte erneut versuchen.`);

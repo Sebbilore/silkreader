@@ -2,6 +2,12 @@
 
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
+## 1.17.0
+- Built-in AI tested on real Windows (download, analysis, long documents, translation, reply drafts, memory and CPU) before every release; reading in Chrome and Edge tested too.
+- Translation with the built-in model fixed: no more contradicting language instruction, direction detected automatically, retried if the model echoes the original.
+- Built-in model: always 3–5 bullet points, figures are no longer left out, smaller sections for long documents, important one-off statements (resignations, deadlines, terminations …) are never lost.
+- Measured on Windows: idle ≈ 240 MB RAM and ≈ 1 % CPU; analysis of a page ≈ 20–45 s with the fast model (CPU only).
+
 ## 1.16.0
 - Automated tests on real Windows (GitHub Actions) before every release: real Notepad, real keyboard shortcuts and mouse clicks, ring hold-and-release, scroll tracking, OCR and update signature check.
 - Hint for less powerful PCs (memory check, recommends “Fast” or Claude).
