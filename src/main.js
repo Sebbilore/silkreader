@@ -639,7 +639,13 @@ ipcMain.handle('report-problem', (_e, { text, withLog }) => {
 });
 
 // „Mit Silkreader lesen“ im Explorer-Rechtsklick: Silkreader wird mit --read <Datei> gestartet
-const fileFromArgs = (argv) => { const i = argv.indexOf('--read'); return i >= 0 && argv[i + 1] ? argv[i + 1] : null; };
+// Chromium sortiert Schalter beim Weiterreichen um – deshalb „--read=<Datei>“ und als Rückfall jede vorhandene Datei nach --read
+const fileFromArgs = (argv) => {
+  const eq = argv.find((a) => a.startsWith('--read='));
+  if (eq) return eq.slice(7).replace(/^"|"$/g, '');
+  if (!argv.includes('--read')) return null;
+  return argv.find((a) => !a.startsWith('-') && /\.[a-z0-9]{2,5}$/i.test(a) && fs.existsSync(a) && fs.statSync(a).isFile()) || null;
+};
 async function readFileToBubble(file) {
   logLine('Datei aus dem Explorer');
   bubbleWin?.showInactive();
@@ -651,14 +657,14 @@ const MENU_EXT = ['.pdf', '.docx', '.txt', '.md', '.png', '.jpg', '.jpeg'];
 function registerExplorerMenu() {
   if (process.platform !== 'win32' || !app.isPackaged) return;
   const label = T('Mit Silkreader lesen');
-  const stamp = `${process.execPath}|${label}`;
+  const stamp = `v2|${process.execPath}|${label}`;
   const st = loadSettings();
   if (st.explorerMenu === stamp) return;
   const exe = process.execPath.replace(/\\/g, '\\\\');
   let reg = 'Windows Registry Editor Version 5.00\r\n';
   for (const ext of MENU_EXT) {
     const key = `HKEY_CURRENT_USER\\Software\\Classes\\SystemFileAssociations\\${ext}\\shell\\Silkreader`;
-    reg += `\r\n[${key}]\r\n@="${label}"\r\n"Icon"="\\"${exe}\\",0"\r\n\r\n[${key}\\command]\r\n@="\\"${exe}\\" --read \\"%1\\""\r\n`;
+    reg += `\r\n[${key}]\r\n@="${label}"\r\n"Icon"="\\"${exe}\\",0"\r\n\r\n[${key}\\command]\r\n@="\\"${exe}\\" --read=\\"%1\\""\r\n`;
   }
   const file = path.join(app.getPath('temp'), 'silkreader-menu.reg');
   fs.writeFileSync(file, `\ufeff${reg}`, 'utf16le');

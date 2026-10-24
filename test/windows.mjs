@@ -257,7 +257,7 @@ try {
   const fsBusy = await silk(() => global.__silk.fullscreenBusy());
   check('Vollbild-Erkennung abfragbar', typeof fsBusy === 'boolean', `gerade Vollbild: ${fsBusy}`, false);
   await hidePopup();
-  spawn(electronPath, ['.', '--read', txt], { env: appEnv, detached: true, stdio: 'ignore' }).unref();
+  spawn(electronPath, ['.', `--read=${txt}`], { env: appEnv, detached: true, stdio: 'ignore' }).unref();
   const t4 = await waitFor(async () => { const t = await popupTitle(); return (await visible('popup.html')) && t === path.basename(txt) ? t : null; }, 20000);
   check('Explorer „Mit Silkreader lesen“ (Start mit --read)', !!t4, t4 || 'keine Blase', false);
 
