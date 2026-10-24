@@ -65,6 +65,7 @@ contextBridge.exposeInMainWorld('spider', {
   // Spinnennetz-Ring
   onRingOpen: (cb) => ipcRenderer.on('ring-open', (_e, d) => cb(d)),
   onRingRelease: (cb) => ipcRenderer.on('ring-release', () => cb()),
+  onRingKey: (cb) => ipcRenderer.on('ring-key', (_e, k) => cb(k)),
   ringHover: (id) => ipcRenderer.send('ring-hover', id),
   ringAction: (id) => ipcRenderer.send('ring-action', id),
   // Sprechblase als Bedienzentrale

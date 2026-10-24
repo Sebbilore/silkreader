@@ -6,6 +6,7 @@
 <title>Willkommen</title>
 <link rel="stylesheet" href="theme.css">
 <script src="i18n.js"></script>
+<script src="a11y.js"></script>
 <script src="icons.js"></script>
 <style>
   * { box-sizing: border-box; }
@@ -149,6 +150,15 @@
     $('hatch').checked = st.hatchAnimation;
     $('pinCopied').checked = st.pinCopied;
     $('copyHint').checked = st.copyHint;
+    // Wenig Arbeitsspeicher: Claude empfehlen
+    window.spider.modelStatus().then((ms) => {
+      if (ms.ramGB >= 4) return;
+      const tip = document.createElement('div');
+      tip.className = 'small';
+      tip.style.color = '#ff7a9c';
+      tip.textContent = T('Dein PC hat wenig Arbeitsspeicher ({ram} GB) – Claude ist hier meist die bessere Wahl.', { ram: ms.ramGB });
+      document.querySelector('.opt[data-p="builtin"] > span').after(tip);
+    });
     if (st.provider === 'claude' && st.hasKey) choose('claude');
     else if (st.modelReady) choose('builtin');
   });
@@ -186,7 +196,12 @@
     if (step < 3) { step++; show(); return; }
     window.spider.welcomeDone({ hatchAnimation: $('hatch').checked, pinCopied: $('pinCopied').checked, copyHint: $('copyHint').checked });
   });
-  window.addEventListener('keydown', (e) => { if (e.key === 'Enter' && document.activeElement?.id !== 'key') $('next').click(); });
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.defaultPrevented) return;
+    const a = document.activeElement;
+    if (a?.id === 'key' || a?.tagName === 'BUTTON' || a?.tagName === 'INPUT' || a?.classList.contains('opt')) return;
+    $('next').click();
+  });
 </script>
 </body>
 </html>

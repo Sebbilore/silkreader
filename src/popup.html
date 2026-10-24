@@ -6,6 +6,7 @@
 <title>Silkreader</title>
 <link rel="stylesheet" href="theme.css">
 <script src="i18n.js"></script>
+<script src="a11y.js"></script>
 <script src="icons.js"></script>
 <style>
   * { box-sizing: border-box; }
@@ -140,6 +141,10 @@
   let P = null, result = null, state = 'idle', run = 0;
   $('close').innerHTML = silkIcon('close');
   $('back').innerHTML = silkIcon('back');
+  $('close').setAttribute('aria-label', T('Schließen'));
+  $('back').setAttribute('aria-label', T('Zurück'));
+  document.getElementById('bubble').setAttribute('role', 'dialog');
+  document.getElementById('main').setAttribute('aria-live', 'polite'); // Ergebnisse werden vorgelesen, sobald sie da sind
 
   // Fortschritt als Spinnennetz, das gewebt wird (ohne Schritte: in Dauerschleife)
   const SPIRAL = (() => { let d = '', n = 8 * 3.2; for (let k = 0; k <= n; k++) { const a = (k / 8) * Math.PI * 2 - Math.PI / 2, r = 2 + (k / n) * 9; d += `${k ? 'L' : 'M'}${(Math.cos(a) * r).toFixed(2)} ${(Math.sin(a) * r).toFixed(2)}`; } return d; })();

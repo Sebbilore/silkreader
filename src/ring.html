@@ -89,7 +89,7 @@
     const icons = mk('g', { class: 'icons' }, root);
     slots = items.map(([id, label], i) => {
       const a0 = dirs[i], a1 = dirs[i] + Math.PI * 2 / n, am = (a0 + a1) / 2;
-      const g = mk('g', { class: 'slot', 'data-id': id }, icons);
+      const g = mk('g', { class: 'slot', 'data-id': id, role: 'button', 'aria-label': label }, icons);
       const wedge = (r0, r1) => `M${C + Math.cos(a0) * r0},${C + Math.sin(a0) * r0} L${C + Math.cos(a0) * r1},${C + Math.sin(a0) * r1}
         A${r1},${r1} 0 0 1 ${C + Math.cos(a1) * r1},${C + Math.sin(a1) * r1} L${C + Math.cos(a1) * r0},${C + Math.sin(a1) * r0} A${r0},${r0} 0 0 0 ${C + Math.cos(a0) * r0},${C + Math.sin(a0) * r0}Z`;
       mk('path', { class: 'hl', d: wedge(INNER, R) }, g);
@@ -175,6 +175,14 @@
   window.addEventListener('contextmenu', (e) => { e.preventDefault(); window.spider.ringAction(null); });
 
   window.spider.onRingOpen(({ page: p = 0 } = {}) => { page = p; build(); });
+  // Tastatur: im Uhrzeigersinn weiter (→ ↓ Tab), zurück (← ↑ Umschalt+Tab), Enter/Leertaste wählt
+  window.spider.onRingKey((k) => {
+    if (k === 'Return' || k === 'Space') { if (hovered) choose(hovered.id); return; }
+    const step = ['Right', 'Down', 'Tab'].includes(k) ? 1 : -1;
+    const i = hovered ? slots.indexOf(hovered) : (step > 0 ? -1 : 0);
+    setHover(slots[(i + step + slots.length) % slots.length]);
+  });
+
   // Gedrückt halten + loslassen: Hauptprozess fragt, welches Feld gerade gewählt ist
   window.spider.onRingRelease(() => { if (hovered) choose(hovered.id); });
 </script>

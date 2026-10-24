@@ -125,6 +125,8 @@
     'Im Fenster: Notizbuch': 'In the window: notebook', 'Im Fenster: Text in Kokon packen': 'In the window: put text in a cocoon', 'Im Fenster: Ergebnis kopieren': 'In the window: copy result',
     'Wirkt nach einem Neustart.': 'Takes effect after a restart.', 'Jetzt neu starten': 'Restart now',
     'Download abgebrochen.': 'Download canceled.',
+    'Für diesen PC zu groß ({ram} GB Arbeitsspeicher, empfohlen ab {min} GB)': 'Too large for this PC ({ram} GB of memory, recommended from {min} GB)',
+    'Dein PC hat wenig Arbeitsspeicher ({ram} GB) – Claude ist hier meist die bessere Wahl.': 'Your PC has little memory ({ram} GB) – Claude is usually the better choice here.',
     // Tastenkürzel-Beschreibungen
     'Markierten Text an die Spinne geben (Vorschau)': 'Give selected text to the spider', 'Markierten Text sofort analysieren': 'Analyze selected text right away',
     'Markierten Text oder Datei in einen Kokon packen': 'Put selected text or file in a cocoon', 'Kokon-Ablage öffnen (Kopieren/Einfügen)': 'Open the cocoon menu (copy/paste)',

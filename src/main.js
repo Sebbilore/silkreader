@@ -119,6 +119,7 @@ const BUILTIN_MODELS = {
     file: 'Qwen2.5-1.5B-Instruct-Q4_K_M.gguf',
     sizeLabel: '1 GB',
     chunkTokens: 2200,
+    minRamGB: 4,
   },
   quality: {
     name: 'Gründlich (Qwen3 4B)',
@@ -126,6 +127,7 @@ const BUILTIN_MODELS = {
     file: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
     sizeLabel: '2,5 GB',
     chunkTokens: 3000,
+    minRamGB: 8,
   },
 };
 const MODELS = {
@@ -421,6 +423,7 @@ ipcMain.handle('set-click-mode', (_e, mode) => {
 
 // ---------- Spinnennetz-Ring (wie ein Aktionsring, direkt am Mauszeiger) ----------
 const RING_SIZE = 300;
+const RING_KEYS = ['Left', 'Right', 'Up', 'Down', 'Tab', 'Shift+Tab', 'Return', 'Space'];
 let ringWin = null, ring = null;
 function createRing() {
   if (ringWin && !ringWin.isDestroyed()) return ringWin;
@@ -448,6 +451,8 @@ function openRing({ at = null, viaHotkey = false } = {}) {
   const show = () => { if (ring !== r) return; win.webContents.send('ring-open', { page: 0 }); win.showInactive(); };
   if (win.webContents.isLoading()) win.webContents.once('did-finish-load', show); else show();
   try { globalShortcut.register('Escape', closeRing); } catch {}
+  // Tastatur: Pfeiltasten wählen ein Feld, Enter führt es aus (nur solange der Ring offen ist)
+  for (const k of RING_KEYS) { try { globalShortcut.register(k, () => { if (ringWin && !ringWin.isDestroyed()) ringWin.webContents.send('ring-key', k); }); } catch {} }
   // Gedrückt halten → Richtung wählen → loslassen (nur Windows, braucht den Tastenstatus)
   let holding = viaHotkey && winkeys.load();
   r.timer = setInterval(() => {
@@ -469,6 +474,7 @@ function closeRing() {
   clearInterval(ring.timer);
   ring = null;
   try { globalShortcut.unregister('Escape'); } catch {}
+  for (const k of RING_KEYS) { try { globalShortcut.unregister(k); } catch {} }
   if (ringWin && !ringWin.isDestroyed()) ringWin.hide();
 }
 ipcMain.on('ring-hover', (_e, id) => { if (ring) ring.hover = id; });
@@ -1833,10 +1839,13 @@ ipcMain.handle('get-settings', () => {
     hasKey: !!getApiKey(), models: MODELS, hotkey: SHORTCUTS[0].label,
   };
 });
+// Arbeitsspeicher des PCs (gerundet, in GB) – für Empfehlungen bei schwächeren PCs
+const ramGB = () => Math.round(require('os').totalmem() / 1024 ** 3);
 ipcMain.handle('model-status', () => ({
   selected: builtinKey(),
   downloading: !!modelDownload,
-  models: Object.fromEntries(Object.entries(BUILTIN_MODELS).map(([k, m]) => [k, { name: m.name, size: m.sizeLabel, ready: modelReady(k) }])),
+  ramGB: ramGB(),
+  models: Object.fromEntries(Object.entries(BUILTIN_MODELS).map(([k, m]) => [k, { name: m.name, size: m.sizeLabel, ready: modelReady(k), tooBig: ramGB() < m.minRamGB, minRamGB: m.minRamGB }])),
 }));
 ipcMain.handle('model-download', (event, key) => { startModelDownload(event.sender, key); });
 ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await modelDownload?.cancel(); });

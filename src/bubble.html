@@ -208,6 +208,7 @@
   let override = null; // direkte Position (z. B. beim Netzbauen), sonst Pendel
   let last = performance.now(), lastDraw = 0;
   const SLEEP_AFTER = 120000;
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)'); // Windows: „Animationen anzeigen“ aus
 
   // ---------- Spinnennetz ----------
   const WEB = { cx: AX, cy: 64, r: 48, spokes: 8 };
@@ -340,7 +341,7 @@
     if (!sleeping && !busy && !dragging && now - lastActivity > SLEEP_AFTER && !trick) {
       sleeping = true;
     }
-    if (!trick && !sleeping && !hover && !dragging && !busy && !catching && now > nextTrick) {
+    if (!trick && !sleeping && !hover && !dragging && !busy && !catching && now > nextTrick && !reduceMotion.matches) {
       doTrick(randomTrick());
       nextTrick = now + 8000 + Math.random() * 10000;
     }

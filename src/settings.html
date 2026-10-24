@@ -5,6 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
 <link rel="stylesheet" href="theme.css">
 <script src="i18n.js"></script>
+<script src="a11y.js"></script>
 <title>Einstellungen</title>
 <style>
   :root { --bg: #0c0c11; --card: #1a1a23; --line: rgba(255,255,255,.1); --text: #f1f1f6; --muted: #9494a6; --pink: #ff2d8a; }
@@ -23,7 +24,7 @@
   .progress i { display: block; height: 100%; width: 0; background: var(--pink); transition: width .3s; }
   .opt { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; background: var(--card); }
   .opt.on { border-color: var(--pink); box-shadow: 0 0 0 1px var(--pink); }
-  .opt b { display: block; } .opt span { color: var(--muted); font-size: 12px; }
+  .opt b { display: block; } .opt span { color: var(--muted); font-size: 12px; } .opt span.bad { display: block; color: #ff7a9c; margin-top: 3px; }
   .box { border: 1px solid var(--line); border-radius: 10px; padding: 4px 14px 14px; margin-top: 14px; }
   .row { display: flex; gap: 8px; margin-top: 22px; align-items: center; }
   .inline { display: flex; gap: 8px; } .inline select { flex: 1; }
@@ -133,12 +134,15 @@
     for (const [key, info] of Object.entries(m.models)) {
       const d = document.createElement('div');
       d.className = 'opt' + (key === builtinModel ? ' on' : '');
-      d.innerHTML = `<b>${info.name.split(' (')[0]}</b><span>${info.name.split(' (')[1]?.replace(')', '') || ''} · ${info.size}${info.ready ? ' · ✓ geladen' : ''}</span>`;
+      d.innerHTML = `<b>${info.name.split(' (')[0]}</b><span>${info.name.split(' (')[1]?.replace(')', '') || ''} · ${info.size}${info.ready ? ' · ✓ geladen' : ''}</span>`
+        + (info.tooBig ? `<span class="bad">${T('Für diesen PC zu groß ({ram} GB Arbeitsspeicher, empfohlen ab {min} GB)', { ram: m.ramGB, min: info.minRamGB })}</span>` : '');
       d.addEventListener('click', () => { builtinModel = key; renderModels(); });
       $('modelChoice').appendChild(d);
     }
     const sel = m.models[builtinModel];
     $('modelInfo').textContent = sel.ready ? `✓ ${sel.name} ist bereit.` : `${sel.name}: noch nicht heruntergeladen (einmalig ${sel.size}).`;
+    // Schwacher PC: lieber „Schnell“ oder Claude
+    if (m.ramGB < 4) $('modelInfo').textContent += ' ' + T('Dein PC hat wenig Arbeitsspeicher ({ram} GB) – Claude ist hier meist die bessere Wahl.', { ram: m.ramGB });
     $('modelInfo').className = sel.ready ? 'hint ok' : 'hint';
     $('modelDl').style.display = sel.ready || m.downloading ? 'none' : '';
     $('modelCancel').style.display = m.downloading ? '' : 'none';

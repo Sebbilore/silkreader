@@ -12,6 +12,11 @@ const { _electron: electron } = require(process.env.PW_MODULE || 'playwright-cor
 const electronPath = require('electron');
 const koffi = require('koffi');
 
+// Abstürze des Tests selbst als Hinweis am Testlauf ausgeben
+const crash = (e) => { console.log(`::error title=Test abgestürzt::${String(e?.stack || e).replace(/%/g, '%25').replace(/\r?\n/g, '%0A')}`); process.exit(1); };
+process.on('uncaughtException', crash);
+process.on('unhandledRejection', crash);
+
 const out = path.resolve(process.argv[2] || 'win-test');
 const signedExe = process.argv[3];
 fs.mkdirSync(out, { recursive: true });
@@ -135,13 +140,13 @@ try {
   // 6) Große Spinne bleibt beim Scrollen auf dem Text
   await focusNotepad();
   await press(VK.CTRL, VK.HOME);
-  for (let i = 0; i < 6; i++) await press(VK.DOWN);
+  for (let i = 0; i < 15; i++) await press(VK.DOWN);
   down(VK.SHIFT); for (let i = 0; i < 3; i++) { keybd(VK.DOWN, 0, 0, 0); keybd(VK.DOWN, 0, 2, 0); await sleep(40); } up(VK.SHIFT);
   await sleep(300);
   setCursor(600, 500);
   const crawl = silk(() => global.__silk.crawlSelection());
   await sleep(1200);
-  for (let i = 0; i < 4; i++) { wheel(-120); await sleep(250); }
+  for (let i = 0; i < 2; i++) { wheel(-120); await sleep(600); }
   const words = await crawl;
   const shifts = await silk(() => global.__silk.shiftCount);
   check('Mitwandern beim Scrollen (Spinne folgt dem Text)', shifts > 0, `${shifts} Verschiebungen, ${words ?? 0} Wörter per UI Automation`, false);
@@ -188,6 +193,11 @@ fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify(results, null, 2)
 const failed = results.filter((r) => !r.ok && r.critical);
 const warned = results.filter((r) => !r.ok && !r.critical);
 console.log(`\n${results.length - failed.length - warned.length}/${results.length} bestanden, ${warned.length} Warnung(en), ${failed.length} kritische Fehler`);
+// Als Hinweise am Testlauf ausgeben (über die GitHub-Schnittstelle lesbar, auch ohne Log-Download)
+const enc = (t) => String(t).replace(/%/g, '%25').replace(/\r/g, '').replace(/\n/g, '%0A').replace(/::/g, ': :');
+console.log(`::notice title=Windows-Test (${results.length - failed.length - warned.length}/${results.length})::${enc(results.map((r) => `${r.ok ? 'OK ' : r.critical ? 'FEHLER ' : 'WARNUNG '} ${r.name}${r.detail ? ` – ${r.detail}` : ''}`).join('\n'))}`);
+for (const r of failed.slice(0, 9)) console.log(`::error title=${enc(r.name)}::${enc(r.detail || 'fehlgeschlagen')}`);
+for (const r of warned.slice(0, 9)) console.log(`::warning title=${enc(r.name)}::${enc(r.detail || 'fehlgeschlagen')}`);
 // Kurzfassung für die GitHub-Übersicht
 if (process.env.GITHUB_STEP_SUMMARY) {
   fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Silkreader auf echtem Windows\n\n| | Prüfung | Details |\n|---|---|---|\n${results.map((r) => `| ${r.ok ? '✅' : r.critical ? '❌' : '⚠️'} | ${r.name} | ${r.detail.replace(/\|/g, '/').replace(/\n/g, ' ')} |`).join('\n')}\n`);
