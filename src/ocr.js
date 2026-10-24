@@ -1,6 +1,7 @@
 // Texterkennung (OCR) mit der in Windows eingebauten Texterkennung (Windows.Media.Ocr).
 // Kein Download, keine Internetverbindung nötig. Läuft über Windows PowerShell 5.1.
 
+const { psEnv } = require('./psenv');
 const { execFile } = require('child_process');
 
 const OCR_SCRIPT = (file) => `
@@ -27,7 +28,7 @@ function recognizeText(file) {
   const encoded = Buffer.from(OCR_SCRIPT(file), 'utf16le').toString('base64');
   return new Promise((resolve) => {
     execFile('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded],
-      { windowsHide: true, timeout: 30000, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 },
+      { windowsHide: true, timeout: 30000, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, env: psEnv() },
       (err, stdout) => resolve(err ? '' : String(stdout).trim()));
   });
 }

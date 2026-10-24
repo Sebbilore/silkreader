@@ -24,7 +24,7 @@ function uiLang() {
   if (process.env.SPIDER_MOCK) return 'de'; // automatische Tests laufen auf Deutsch
   try { return app.getLocale().toLowerCase().startsWith('de') ? 'de' : 'en'; } catch { return 'de'; }
 }
-const { setLogger, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
+const { setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
 const { CocoonStore } = require('./cocoons');
 const { scanSelection } = require('./selectionScan');
 const { recognizeText } = require('./ocr');
@@ -1950,7 +1950,7 @@ function verifyUpdateSignature(publisherNames, file) {
   };
   return new Promise((resolve) => {
     const ps = `Get-AuthenticodeSignature -LiteralPath '${file.replace(/'/g, "''")}' | ForEach-Object { [pscustomobject]@{ s = [int]$_.Status; t = $_.SignerCertificate.Thumbprint; n = $_.SignerCertificate.Subject } } | ConvertTo-Json -Compress`;
-    require('child_process').execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true, timeout: 30000 }, (err, out) => {
+    require('child_process').execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true, timeout: 30000, env: require('./psenv').psEnv() }, (err, out) => {
       if (err) return resolve(fallback(err.message));
       let d;
       try { d = JSON.parse(String(out).trim()); } catch { return resolve(fallback('Ausgabe nicht lesbar')); }
@@ -2080,7 +2080,8 @@ if (process.env.SPIDER_MOCK) global.__silk = { showPopupPayload, showNotebook, s
   // Für die Windows-Tests: Diagnose und direkte Aufrufe der Windows-Bausteine
   diag: () => ({ winkeys: !!winkeys.load(), winkeysError: winkeys.load.error?.message || null, helper: helperAvailable(),
     shortcuts: { ...shortcutStatus }, tray: !!tray && !tray.isDestroyed(), lang: uiLang(), userData: app.getPath('userData') }),
-  grab: (o) => grabSelection(o), uia: () => uiaSelectedText(), rects: () => selectionRects(), scan: (p) => scanSelection(p),
+  grab: (o) => grabSelection(o), uia: () => uiaSelectedText(), helperDiag: () => helperDiag(),
+  log: () => { try { return fs.readFileSync(path.join(app.getPath('userData'), 'silkreader-errors.log'), 'utf8'); } catch { return ''; } }, rects: () => selectionRects(), scan: (p) => scanSelection(p),
   verify: (file) => verifyUpdateSignature(['Silkreader'], file),
   spiderPos: () => spiderScreenPos(),
   get shiftCount() { return global.__shiftCount || 0; },

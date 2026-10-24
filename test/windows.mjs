@@ -30,6 +30,8 @@ const mouseEvt = user32.func('void __stdcall mouse_event(uint32_t, uint32_t, uin
 const findWindow = user32.func('void* __stdcall FindWindowW(str16, str16)');
 const setFg = user32.func('int __stdcall SetForegroundWindow(void*)');
 const showWin = user32.func('int __stdcall ShowWindow(void*, int)');
+const getFg = user32.func('void* __stdcall GetForegroundWindow()');
+const bringTop = user32.func('int __stdcall BringWindowToTop(void*)');
 const VK = { CTRL: 0x11, ALT: 0x12, SHIFT: 0x10, SPACE: 0x20, A: 0x41, T: 0x54, HOME: 0x24, END: 0x23, RIGHT: 0x27, DOWN: 0x28 };
 const down = (k) => keybd(k, 0, 0, 0);
 const up = (k) => keybd(k, 0, 2, 0);
@@ -53,14 +55,21 @@ fs.writeFileSync(txt, longText.replace(/\r?\n/g, '\r\n'), 'utf8');
 spawn('notepad.exe', [txt], { detached: true, stdio: 'ignore' }).unref();
 await sleep(2500);
 const notepad = () => findWindow('Notepad', null);
+const addr = (p) => (p ? koffi.address(p) : 0n);
 const focusNotepad = async () => {
   const h = notepad();
   if (!h) return false;
-  showWin(h, 3); // maximiert
-  // Vordergrund erzwingen: kurz Alt drücken erlaubt SetForegroundWindow
-  down(VK.ALT); setFg(h); up(VK.ALT);
-  await sleep(400);
-  return true;
+  for (let i = 0; i < 6; i++) {
+    showWin(h, 3); // maximiert
+    // Vordergrund erzwingen: kurz Alt drücken erlaubt SetForegroundWindow
+    down(VK.ALT); setFg(h); bringTop(h); up(VK.ALT);
+    await sleep(350);
+    if (addr(getFg()) === addr(h)) return true;
+    // Notfalls in die Mitte des Editors klicken
+    await click(500, 400);
+    if (addr(getFg()) === addr(h)) return true;
+  }
+  return false;
 };
 
 // ---------- Silkreader starten ----------
@@ -88,6 +97,8 @@ try {
   d = await waitFor(async () => { const x = await silk(() => global.__silk.diag()); return x.helper ? x : null; }, 30000) || d;
   check('PowerShell-Helfer läuft (UI Automation, Dateien)', d.helper);
   check('Tray-Symbol', d.tray);
+  const hd = await silk(() => global.__silk.helperDiag());
+  check('UI Automation im Helfer geladen', /uia=True/i.test(hd || ''), hd || 'keine Antwort');
   const busy = Object.entries(d.shortcuts).filter(([, ok]) => !ok).map(([k]) => k);
   check('Alle Tastenkürzel angemeldet', !busy.length, busy.join(', '));
 
@@ -95,6 +106,7 @@ try {
   check('Editor geöffnet', await focusNotepad());
   await press(VK.CTRL, VK.HOME);
   await press(VK.CTRL, VK.A);
+  await sleep(300);
   shot('1-editor-markiert');
   const uia = await silk(() => global.__silk.uia());
   check('Markierung über UI Automation gelesen', uia && uia.includes('Nordlicht'), uia ? `${uia.length} Zeichen` : 'nichts');
@@ -118,7 +130,7 @@ try {
   const overlay = await waitFor(() => visible('overlay.html'), 8000);
   check('Klick auf die Spinne → große Spinne läuft über den Text', overlay, '', false);
   shot('3-grosse-spinne');
-  const t2 = await waitFor(async () => { const t = await popupTitle(); return (await visible('popup.html')) && t && t !== 'Silkreader' ? t : null; }, 25000);
+  const t2 = await waitFor(async () => { const t = await popupTitle(); return (await visible('popup.html')) && t && !['Silkreader', 'Übersetzung', 'Markierter Text'].includes(t) ? t : null; }, 25000);
   check('… danach Ergebnis in der Sprechblase', !!t2, t2 || 'keine Blase');
   shot('4-ergebnis');
   await hidePopup();
@@ -144,11 +156,12 @@ try {
   down(VK.SHIFT); for (let i = 0; i < 3; i++) { keybd(VK.DOWN, 0, 0, 0); keybd(VK.DOWN, 0, 2, 0); await sleep(40); } up(VK.SHIFT);
   await sleep(300);
   setCursor(600, 500);
+  const shifts0 = await silk(() => global.__silk.shiftCount);
   const crawl = silk(() => global.__silk.crawlSelection());
   await sleep(1200);
   for (let i = 0; i < 2; i++) { wheel(-120); await sleep(600); }
   const words = await crawl;
-  const shifts = await silk(() => global.__silk.shiftCount);
+  const shifts = (await silk(() => global.__silk.shiftCount)) - shifts0;
   check('Mitwandern beim Scrollen (Spinne folgt dem Text)', shifts > 0, `${shifts} Verschiebungen, ${words ?? 0} Wörter per UI Automation`, false);
   shot('6-scrollen');
 
@@ -181,6 +194,8 @@ try {
   }
 
   check('Keine Fehler in den Fenstern', !errs.length, errs.join(' | '), false);
+  const log = await silk(() => global.__silk.log());
+  check('Protokoll: Wege der Textauswahl', true, (log.match(/Auswahl per [^\n]*/g) || []).join(' · '), false);
 } catch (e) {
   check('Testlauf', false, e.stack || e.message);
 } finally {

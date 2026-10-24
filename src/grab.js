@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const winkeys = require('./winkeys');
+const { psEnv } = require('./psenv');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let log = () => {};
@@ -15,7 +16,7 @@ const setLogger = (fn) => { log = fn; };
 
 function run(cmd, args, timeout = 4000) {
   return new Promise((resolve) => {
-    execFile(cmd, args, { windowsHide: true, timeout }, (err, stdout) => resolve(err ? null : String(stdout)));
+    execFile(cmd, args, { windowsHide: true, timeout, env: psEnv() }, (err, stdout) => resolve(err ? null : String(stdout)));
   });
 }
 
@@ -127,6 +128,7 @@ while ($true) {
     if ($line -eq 'copy') { [SilkKeys]::Copy(); [Console]::Out.WriteLine('ok') }
     elseif ($line -eq 'hotcopy') { [SilkKeys]::MaskMenu(); [SilkKeys]::WaitModifiersUp(2000); Start-Sleep -Milliseconds 40; [SilkKeys]::Copy(); [Console]::Out.WriteLine('ok') }
     elseif ($line -eq 'seltext') { if ($uia) { [Console]::Out.WriteLine([SilkText]::SelectedText(300000)) } else { [Console]::Out.WriteLine('-') } }
+    elseif ($line -eq 'diag') { [Console]::Out.WriteLine("uia=$uia ps=$($PSVersionTable.PSVersion)") }
     elseif ($line -eq 'seq') { [Console]::Out.WriteLine([SilkKeys]::Seq()) }
     elseif ($line -eq 'files') { $l = [System.Windows.Forms.Clipboard]::GetFileDropList(); [Console]::Out.WriteLine((@($l) -join '|')) }
     elseif ($line -eq 'rects') { if ($uia) { [Console]::Out.WriteLine([SilkText]::Selection(160)) } else { [Console]::Out.WriteLine('{}') } }
@@ -141,7 +143,7 @@ function startWindowsHelper() {
   if (helper) return helper;
   // Als -EncodedCommand statt als Skriptdatei: so greifen keine Skript-Sperren (Execution Policy).
   const encoded = Buffer.from(PS_HELPER, 'utf16le').toString('base64');
-  const proc = spawn('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], { windowsHide: true });
+  const proc = spawn('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], { windowsHide: true, env: psEnv() });
   const h = { proc, ready: false, waiting: [], buf: '' };
   proc.stdout.on('data', (d) => {
     h.buf += d;
@@ -253,6 +255,12 @@ let ownClipboardUntil = 0;
 const ownClipboardActive = () => Date.now() < ownClipboardUntil;
 
 /** Zähler, den Windows bei jeder Änderung der Zwischenablage erhöht (sehr billig abzufragen). */
+/** Zustand des PowerShell-Helfers (für die Tests): z. B. "uia=True ps=5.1…" */
+async function helperDiag() {
+  if (process.platform !== 'win32' || !helper?.ready) return null;
+  return helperCommand('diag', 3000);
+}
+
 async function clipboardSeq() {
   if (process.platform !== 'win32') return null;
   if (winkeys.load()) return winkeys.clipboardSeq();
@@ -326,4 +334,4 @@ async function copyFileToClipboard(filePath) {
   return true;
 }
 
-module.exports = { setLogger, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable: () => process.platform === 'win32' && (!!winkeys.load() || !!helper?.ready) };
+module.exports = { setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable: () => process.platform === 'win32' && (!!winkeys.load() || !!helper?.ready) };
