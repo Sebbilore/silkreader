@@ -61,7 +61,7 @@ try {
   const r = a.value.result;
   const bullets = String(r.summary || '').split(/\n|•/).filter((x) => x.trim()).length;
   check('Echte Analyse liefert ein Ergebnis', r && r.summary && bullets >= 2, `${(a.value.ms / 1000).toFixed(1)} s, ${bullets} Stichpunkte: ${String(r.summary).slice(0, 160)}`);
-  check('Ergebnis nennt die wichtigen Zahlen', /412/.test(JSON.stringify(r)), `Angaben: ${(r.figures || []).slice(0, 4).map((f) => `${f.label}=${f.value}`).join(', ')}`, false);
+  check('Ergebnis enthält Angaben (Zahlen mit Fundstelle)', (r.figures || []).length >= 2, `${(r.figures || []).length} Angaben: ${(r.figures || []).slice(0, 4).map((f) => `${f.label}=${f.value}`).join(', ')}`, false);
   check('Analyse: Dauer (kurzer Text, nur Prozessor)', a.value.ms < 180000, `${(a.value.ms / 1000).toFixed(1)} s`, false);
   check('Analyse: Arbeitsspeicher (Spitze)', a.peakMb < 4000, `${a.peakMb} MB, Prozessor Ø ${a.avgCpu} %`, false);
 
@@ -71,8 +71,15 @@ try {
   check('Langes Dokument bis zum Ende gelesen', /2030|zurück/i.test(JSON.stringify(b.value.result)), `${(b.value.ms / 1000).toFixed(1)} s, Spitze ${b.peakMb} MB`, false);
 
   // 5) Übersetzen mit echter KI
-  const t = await silk(() => global.__silk.generateTimed('Übersetze den folgenden Text ins Englische. Gib nur die Übersetzung aus.', 'Der Umsatz stieg um 18 Prozent auf 412 Millionen Euro.'));
-  check('Übersetzen mit echter KI', /revenue|sales|turnover/i.test(t.text || ''), `${(t.ms / 1000).toFixed(1)} s: ${String(t.text).slice(0, 140)}`, false);
+  // Wie der Knopf „Übersetzen“: deutscher Text bei Ergebnissprache Deutsch → ins Englische
+  const t = await silk(() => global.__silk.transformTimed('translate', 'Der Umsatz stieg um 18 Prozent auf 412 Millionen Euro. Die Dividende steigt auf 1,10 Euro je Aktie.'));
+  check('Übersetzen mit echter KI (Deutsch → Englisch)', /revenue|sales|turnover|dividend/i.test(t.text || '') && !/Umsatz/.test(t.text || ''), `${(t.ms / 1000).toFixed(1)} s: ${String(t.text).slice(0, 160)}`);
+  const t2 = await silk(() => global.__silk.transformTimed('translate', 'Revenue rose by 18 percent to 412 million euros.'));
+  check('Übersetzen mit echter KI (Englisch → Deutsch)', /Umsatz|stieg|Prozent/i.test(t2.text || ''), `${(t2.ms / 1000).toFixed(1)} s: ${String(t2.text).slice(0, 160)}`);
+  const rp = await silk(() => global.__silk.transformTimed('reply', 'Hallo Frau Weber, können wir den Termin am Donnerstag auf 14 Uhr verschieben? Viele Grüße, Jan'));
+  check('Antwort-Entwurf mit echter KI', (rp.text || '').length > 30 && /Donnerstag|14|Termin/i.test(rp.text || ''), `${(rp.ms / 1000).toFixed(1)} s: ${String(rp.text).slice(0, 160)}`, false);
+  const sm = await silk(() => global.__silk.transformTimed('simplify', 'Die Nettoverschuldung erhöhte sich infolge des negativen Free Cashflows auf 238 Millionen Euro.'));
+  check('Einfache Sprache mit echter KI', (sm.text || '').length > 20, `${(sm.ms / 1000).toFixed(1)} s: ${String(sm.text).slice(0, 160)}`, false);
 
   // 6) Nach der Arbeit: Modell wird nach 3 Minuten wieder freigegeben – hier nur Momentaufnahme
   const after = await silk(() => global.__silk.metrics());

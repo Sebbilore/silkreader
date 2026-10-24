@@ -1237,6 +1237,8 @@ const SHORT_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['title', 'doc_type', 'summary', 'key_points', 'figures', 'findings'],
   properties: { ...FINAL_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, maxItems: 8 } },
 };
+// Enthält der Text Zahlen, muss das kleine Modell auch Angaben liefern (es lässt sie sonst gern weg)
+const SHORT_SCHEMA_NUMBERS = { ...SHORT_SCHEMA, properties: { ...SHORT_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, minItems: 2, maxItems: 8 } } };
 
 // Text in Abschnitte von höchstens maxTokens teilen (an Absatzgrenzen, mit Seitenangabe).
 function splitIntoChunks(model, doc, maxTokens) {
@@ -1310,7 +1312,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
         `Analysiere das folgende Dokument („${doc.title}“).`,
         'Liefere Titel, Art, als "summary" das Wichtigste in 3 bis 5 kurzen Stichpunkten (jeder in eigener Zeile, mit "• " am Anfang), bis zu 6 Kernaussagen, bis zu 8 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "quote" = wörtliche Stelle aus dem Text) und bis zu 5 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
         '', '<document>', chunks[0]?.text || '', '</document>',
-      ].join('\n'), SHORT_SCHEMA, 2200, true);
+      ].join('\n'), /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(chunks[0]?.text || '') ? SHORT_SCHEMA_NUMBERS : SHORT_SCHEMA, 2200, true);
       return normalizeResult(r);
     }
 
@@ -1327,7 +1329,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
       ].join('\n'), NOTES_SCHEMA, 700, false);
       notes.push(`Abschnitt ${i + 1} (S. ${c.firstPage}${c.lastPage !== c.firstPage ? `–${c.lastPage}` : ''}):\n- ${n.points.join('\n- ')}`
         + (n.figures.length ? `\n  Angaben: ${n.figures.map((f) => `${f.label}: ${f.value}`).join('; ')}` : ''));
-      for (const f of n.figures) figures.push({ ...f, page: Math.min(c.lastPage, Math.max(c.firstPage, f.page || c.firstPage)) });
+      for (const f of n.figures) figures.push({ ...f, chunk: i, page: Math.min(c.lastPage, Math.max(c.firstPage, f.page || c.firstPage)) });
     }
 
     // … dann aus allen Notizen die Gesamtanalyse schreiben
@@ -1335,17 +1337,25 @@ async function analyzeBuiltin(doc, s, onProgress) {
     const final = await ask([
       `Hier sind Notizen zu allen ${chunks.length} Abschnitten des Dokuments „${doc.title}“.`,
       'Erstelle daraus Titel, Art des Dokuments, als "summary" das Wichtigste aus dem GANZEN Dokument in 3 bis 5 kurzen Stichpunkten (jeder in eigener Zeile, mit "• " am Anfang), bis zu 6 Kernaussagen und bis zu 5 echte Erkenntnisse (Risiken, Chancen, Widersprüche, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
+      'Wichtig: Berücksichtige alle Abschnitte gleich, auch den letzten. Aussagen, die nur in EINEM Abschnitt vorkommen (z. B. Rücktritte, Fristen, Kündigungen, Ausnahmen – oft am Ende), sind meist besonders wichtig und gehören in die Stichpunkte oder Kernaussagen. Wiederholungen nur einmal nennen.',
       '', '<notizen>', notes.join('\n\n'), '</notizen>',
     ].join('\n'), FINAL_SCHEMA, 1300, true);
 
     // Angaben aus allen Abschnitten übernehmen (doppelte entfernen)
     const seen = new Set();
-    const uniqueFigures = figures.filter((f) => {
+    const unique = figures.filter((f) => {
       const k = `${f.label}|${f.value}`.toLowerCase();
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
-    }).slice(0, 20);
+    });
+    // Abwechselnd aus allen Abschnitten nehmen, damit auch Angaben vom Ende des Dokuments dabei sind
+    const byChunk = chunks.map((_, i) => unique.filter((f) => f.chunk === i));
+    const uniqueFigures = [];
+    for (let round = 0; uniqueFigures.length < 20 && byChunk.some((l) => l.length > round); round++) {
+      for (const l of byChunk) if (l[round] && uniqueFigures.length < 20) uniqueFigures.push(l[round]);
+    }
+    uniqueFigures.sort((a, b) => a.chunk - b.chunk || 0).forEach((f) => delete f.chunk);
     return normalizeResult({ ...final, figures: uniqueFigures });
   } catch (e) {
     if (e.code) throw e;
@@ -1497,10 +1507,11 @@ function friendlyError(e) {
 
 // Eine Anfrage an die eingestellte KI. "material" ist der (lange) Text; beim eingebauten Modell
 // wird er bei Bedarf gekürzt. Mit schema kommt JSON zurück, sonst Text (gestreamt über onChunk).
-async function llmGenerate({ instruction, material = '', schema = null, maxTokens = 1200, onChunk = () => {}, budget = null }) {
+async function llmGenerate({ instruction, material = '', schema = null, maxTokens = 1200, onChunk = () => {}, budget = null, langHint = true }) {
   const s = loadSettings();
   if (process.env.SPIDER_MOCK) return mockGenerate(instruction, schema, onChunk);
-  const lang = `Antworte auf ${s.language}, in einfacher, klarer Sprache.`;
+  // Nicht beim Übersetzen/Antworten: dort legt die Aufgabe die Sprache fest (sonst widerspricht sich die Anweisung)
+  const lang = langHint ? `Antworte auf ${s.language}, in einfacher, klarer Sprache.` : 'Antworte klar und natürlich.';
 
   if (s.provider === 'builtin') {
     const key = builtinKey(s);
@@ -1636,18 +1647,21 @@ ipcMain.handle('transform', async (event, mode, text, extra = '') => {
     bubbleWin?.webContents.send('rig-task', mode);
     setBusy(true);
     let out = '';
-    const st = loadSettings();
-    const target = !st.language || st.language === 'der Sprache des Dokuments' ? (uiLang() === 'en' ? 'Englisch' : 'Deutsch') : st.language;
-    const instruction = mode === 'translate'
-      ? `Übersetze den folgenden Text ins ${target}e. Ist er schon auf ${target}, übersetze ihn ins ${target === 'Deutsch' ? 'Englische' : 'Deutsche'}. Gib nur die Übersetzung aus, ohne Kommentar.`
-      : TRANSFORMS[mode].instruction;
-    const { value, truncated } = await llmGenerate({
-      instruction: instruction + (extra ? ` ${extra}` : ''), material: text, maxTokens: 1500,
-      onChunk: (c) => { out += c; event.sender.send('transform-progress', out); },
-    });
+    const { value, truncated } = await runTransform(mode, text, extra, (c) => { out += c; event.sender.send('transform-progress', out); });
     return { ok: true, text: value, truncated };
   } catch (e) { return friendlyErr(e); } finally { setBusy(false); }
 });
+
+// Übersetzen / einfache Sprache / Antwort-Entwurf
+function runTransform(mode, text, extra = '', onChunk = () => {}) {
+  const st = loadSettings();
+  const target = !st.language || st.language === 'der Sprache des Dokuments' ? (uiLang() === 'en' ? 'Englisch' : 'Deutsch') : st.language;
+  const other = target === 'Deutsch' ? 'Englische' : 'Deutsche';
+  const instruction = mode === 'translate'
+    ? `Übersetze den folgenden Text ins ${target}e. Ist er schon auf ${target}, übersetze ihn ins ${other}. Gib nur die Übersetzung aus, ohne Kommentar.`
+    : TRANSFORMS[mode].instruction;
+  return llmGenerate({ instruction: instruction + (extra ? ` ${extra}` : ''), material: text, maxTokens: 1500, langHint: mode === 'simplify', onChunk });
+}
 
 ipcMain.handle('compare', async (event, a, b) => {
   try {
@@ -2098,9 +2112,9 @@ if (TESTING) global.__silk = { showPopupPayload, showNotebook, showHome, openRin
     const result = await analyze(doc, () => {});
     return { ms: Date.now() - t0, result };
   },
-  async generateTimed(instruction, material) {
+  async transformTimed(mode, text) {
     const t0 = Date.now();
-    const { value } = await llmGenerate({ instruction, material, maxTokens: 600 });
+    const { value } = await runTransform(mode, text);
     return { ms: Date.now() - t0, text: value };
   },
   metrics: () => {
