@@ -168,6 +168,52 @@ try {
   check('Mitwandern beim Scrollen (Spinne folgt dem Text)', shifts > 0, `${shifts} Verschiebungen; UI Automation fand ${found?.words ?? 0} Wörter, ${found?.lines ?? 0} Zeilen`, false);
   shot('6-scrollen');
 
+  // 6b) Browser: Chrome und Edge – Text auf einer Webseite markieren und lesen
+  const html = path.join(os.tmpdir(), 'silkreader-browsertest.html');
+  fs.writeFileSync(html, `<!doctype html><meta charset="utf-8"><title>Silkreader Browsertest</title>
+    <body style="font:20px/1.6 Segoe UI,Arial;max-width:900px;margin:60px auto"><p id="t">${sample.split('\n').filter(Boolean).slice(0, 4).join('</p><p>')}</p></body>`);
+  const browsers = [
+    ['Chrome', 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', 'chrome', []],
+    ['Edge', 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe', 'msedge', ['--inprivate']],
+  ];
+  for (const [name, exe, proc, extra] of browsers) {
+    if (!fs.existsSync(exe)) { check(`${name}: installiert`, false, exe, false); continue; }
+    const profile = fs.mkdtempSync(path.join(os.tmpdir(), `silk-${proc}-`));
+    spawn(exe, ['--no-first-run', '--no-default-browser-check', '--disable-search-engine-choice-screen', '--disable-sync', '--start-maximized',
+      `--user-data-dir=${profile}`, ...extra, '--new-window', `file:///${html.replace(/\\/g, '/')}`], { detached: true, stdio: 'ignore' }).unref();
+    await sleep(6000);
+    let title = '';
+    for (let i = 0; i < 10 && !title; i++) {
+      try { title = execSync(`powershell -NoProfile -Command "(Get-Process ${proc} -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like '*Silkreader Browsertest*' } | Select-Object -First 1).MainWindowTitle"`).toString().trim(); } catch {}
+      if (!title) await sleep(1000);
+    }
+    const h = title ? findWindow(null, title) : null;
+    if (!h) { check(`${name}: Fenster gefunden`, false, title || 'kein Fenster', false); try { execSync(`taskkill /IM ${proc}.exe /F`, { stdio: 'ignore' }); } catch {} continue; }
+    showWin(h, 3); down(VK.ALT); setFg(h); bringTop(h); up(VK.ALT);
+    await sleep(800);
+    await click(700, 400); // in die Seite klicken (Fokus), dann alles markieren
+    await press(VK.CTRL, VK.A);
+    await sleep(500);
+    shot(`7-${proc}-markiert`);
+    let u = await silk(() => global.__silk.uia());
+    if (!u) { await sleep(1500); u = await silk(() => global.__silk.uia()); } // Browser schalten Bedienhilfen erst auf Anfrage ein
+    check(`${name}: Markierung über UI Automation`, u && u.includes('Nordlicht'), u ? `${u.length} Zeichen` : 'nichts', false);
+    const g = await silk(() => global.__silk.grab({ noUia: true }));
+    check(`${name}: Markierung über Strg+C`, g.text && g.text.includes('Nordlicht'), g.text ? `${g.text.length} Zeichen` : 'nichts', false);
+    const boxes = await silk((_e, p) => global.__silk.scan(p), { x: 700, y: 400 });
+    check(`${name}: markierte Wörter auf dem Bildschirm gefunden`, (boxes?.length || 0) > 10, `${boxes?.length || 0} Wortkästen`, false);
+    const sp = await silk(() => global.__silk.spiderPos());
+    await click(Math.round(sp.x), Math.round(sp.y));
+    const tb = await waitFor(async () => { const t = await popupTitle(); return (await visible('popup.html')) && t && !['Silkreader', 'Übersetzung', 'Markierter Text', 'Notizbuch'].includes(t) ? t : null; }, 25000);
+    check(`${name}: Klick auf die Spinne → Ergebnis`, !!tb, tb || 'keine Blase', false);
+    shot(`8-${proc}-ergebnis`);
+    await hidePopup();
+    await silk(() => global.__silk.showPopupPayload({ kind: 'message', title: 'Silkreader', text: '' })); // Titel zurücksetzen
+    await hidePopup();
+    try { execSync(`taskkill /IM ${proc}.exe /F`, { stdio: 'ignore' }); } catch {}
+    await sleep(800);
+  }
+
   // 7) Kopierte Datei landet im Spinnennetz
   const before = await silk(() => global.__silk.cocoons.list().length);
   execSync(`powershell -NoProfile -Command "Set-Clipboard -Path '${txt}'"`);

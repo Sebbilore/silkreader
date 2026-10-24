@@ -14,6 +14,8 @@ const loadAnthropic = () => (Anthropic ??= require('@anthropic-ai/sdk').default)
 let autoUpdaterInstance = null;
 const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoUpdater);
 
+// Automatische Tests: SPIDER_MOCK = Test-Antworten statt KI, SILK_TEST = echte KI, aber Test-Schnittstelle an
+const TESTING = !!(process.env.SPIDER_MOCK || process.env.SILK_TEST);
 const winkeys = require('./winkeys');
 const I18N = require('./i18n');
 const T = I18N.T;
@@ -21,7 +23,7 @@ const T = I18N.T;
 function uiLang() {
   const l = loadSettings().uiLang;
   if (l === 'de' || l === 'en') return l;
-  if (process.env.SPIDER_MOCK) return 'de'; // automatische Tests laufen auf Deutsch
+  if (TESTING) return 'de'; // automatische Tests laufen auf Deutsch
   try { return app.getLocale().toLowerCase().startsWith('de') ? 'de' : 'en'; } catch { return 'de'; }
 }
 const { setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
@@ -57,7 +59,7 @@ function logLine(msg) {
   } catch {}
 }
 const logError = (err) => logLine(`FEHLER ${err?.stack || err}`);
-if (process.env.SPIDER_MOCK && process.env.SILK_USERDATA) app.setPath('userData', process.env.SILK_USERDATA);
+if (TESTING && process.env.SILK_USERDATA) app.setPath('userData', process.env.SILK_USERDATA);
 process.on('uncaughtException', logError);
 process.on('unhandledRejection', logError);
 
@@ -855,7 +857,7 @@ function runCrawlOverlay(anchorAbs, rects, prepared = null) {
         words: rel(words), lines: rel(lines),
       });
       stopTrack = trackSelectionMove(rects, anchorAbs, (dx, dy) => {
-        if (process.env.SPIDER_MOCK) global.__shiftCount = (global.__shiftCount || 0) + 1;
+        if (TESTING) global.__shiftCount = (global.__shiftCount || 0) + 1;
         if (!win.isDestroyed()) win.webContents.send('overlay-shift', { dx, dy });
       });
     });
@@ -1148,7 +1150,7 @@ async function analyzeClaude(doc, s, onProgress) {
 
 // ---------- Kostenlos & eingebaut: llama.cpp ----------
 
-const modelDir = () => path.join(app.getPath('userData'), 'models');
+const modelDir = () => (TESTING && process.env.SILK_MODEL_DIR) || path.join(app.getPath('userData'), 'models');
 const modelPathFor = (key) => process.env.SILK_MODEL_PATH || path.join(modelDir(), BUILTIN_MODELS[key].file);
 const modelReady = (key) => fs.existsSync(modelPathFor(key));
 // Ohne Auswahl: das gründliche Modell, falls es schon da ist, sonst das schnelle.
@@ -2061,7 +2063,7 @@ if (!app.requestSingleInstanceLock()) {
     setupUpdates();
 
     const s = loadSettings();
-    if (!s.onboarded && (!process.env.SPIDER_MOCK || process.env.SILK_WELCOME)) { showWelcome(); return; }
+    if (!s.onboarded && (!TESTING || process.env.SILK_WELCOME)) { showWelcome(); return; }
     if (s.provider === 'claude' && !getApiKey()) openSettings();
     if (s.provider === 'builtin' && !builtinModelReady()) openSettings();
     if (s.provider === 'ollama') ollamaModels().then((m) => { if (!m.length) openSettings(); }).catch(openSettings);
@@ -2074,7 +2076,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 // Nur für automatische Tests: ein paar Funktionen erreichbar machen
-if (process.env.SPIDER_MOCK) global.__silk = { showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
+if (TESTING) global.__silk = { showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
   get cocoons() { return cocoons; }, get lastScreenSel() { return lastScreenSel; }, set lastScreenSel(v) { lastScreenSel = v; },
   set copiedOffer(v) { copiedOffer = v; }, spiderTake, runCrawlOverlay,
   // Für die Windows-Tests: Diagnose und direkte Aufrufe der Windows-Bausteine
@@ -2084,6 +2086,28 @@ if (process.env.SPIDER_MOCK) global.__silk = { showPopupPayload, showNotebook, s
   log: () => { try { return fs.readFileSync(path.join(app.getPath('userData'), 'silkreader-errors.log'), 'utf8'); } catch { return ''; } }, rects: () => selectionRects(), scan: (p) => scanSelection(p),
   verify: (file) => verifyUpdateSignature(['Silkreader'], file),
   spiderPos: () => spiderScreenPos(),
+  modelReady: (k = 'fast') => modelReady(k),
+  async downloadModel(k = 'fast') {
+    let last = 0;
+    const sender = { isDestroyed: () => false, send: (_ch, p) => { if (p?.error) global.__dlError = p.error; if (p?.done) last = p.done; } };
+    await startModelDownload(sender, k);
+    return { ready: modelReady(k), error: global.__dlError || null, bytes: last };
+  },
+  async analyzeTimed(doc) {
+    const t0 = Date.now();
+    const result = await analyze(doc, () => {});
+    return { ms: Date.now() - t0, result };
+  },
+  async generateTimed(instruction, material) {
+    const t0 = Date.now();
+    const { value } = await llmGenerate({ instruction, material, maxTokens: 600 });
+    return { ms: Date.now() - t0, text: value };
+  },
+  metrics: () => {
+    const m = app.getAppMetrics();
+    return { mb: Math.round(m.reduce((s, x) => s + x.memory.workingSetSize, 0) / 1024), cpu: +m.reduce((s, x) => s + x.cpu.percentCPUUsage, 0).toFixed(2), procs: m.length,
+      byType: m.reduce((o, x) => { const k = x.type + (x.serviceName ? `:${x.serviceName}` : ''); o[k] = (o[k] || 0) + Math.round(x.memory.workingSetSize / 1024); return o; }, {}) };
+  },
   get shiftCount() { return global.__shiftCount || 0; },
   async crawlSelection() {
     const r = await selectionRects();

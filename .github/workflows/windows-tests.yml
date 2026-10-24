@@ -51,3 +51,41 @@ jobs:
           name: windows-test
           path: win-test
           retention-days: 14
+
+  # Echte KI (eingebautes Modell, nur Prozessor) auf echtem Windows: Analyse, langes Dokument,
+  # Übersetzen, Dauer, Arbeitsspeicher und Prozessorlast. Das Modell (1 GB) wird zwischengespeichert.
+  ai:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      SILK_MODEL_DIR: ${{ github.workspace }}\silk-models
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Testwerkzeug
+        run: npm i --no-save playwright-core@1.56.1
+
+      - name: KI-Modell aus dem Zwischenspeicher
+        uses: actions/cache@v4
+        with:
+          path: silk-models
+          key: silk-model-qwen2.5-1.5b-q4km-v1
+
+      - name: Echte KI auf Windows testen
+        shell: pwsh
+        run: node test/windows-ai.mjs win-ai
+
+      - name: Ergebnisse
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-ai
+          path: win-ai
+          retention-days: 14
