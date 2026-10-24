@@ -109,7 +109,11 @@ try {
   await press(VK.CTRL, VK.A);
   await sleep(300);
   shot('1-editor-markiert');
-  const uia = await silk(() => global.__silk.uia());
+  let uia = null;
+  for (let i = 0; i < 3 && !uia; i++) {
+    if (i) { await focusNotepad(); await press(VK.CTRL, VK.A); await sleep(400); }
+    uia = await silk(() => global.__silk.uia());
+  }
   check('Markierung über UI Automation gelesen', uia && uia.includes('Nordlicht'), uia ? `${uia.length} Zeichen` : 'nichts');
   await focusNotepad();
   await press(VK.CTRL, VK.A); // Fokus-Klick kann die Markierung aufheben – neu markieren

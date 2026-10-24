@@ -19,7 +19,7 @@ fs.mkdirSync(out, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const results = [];
 const check = (name, ok, detail = '', critical = true) => {
-  results.push({ name, ok: !!ok, detail: String(detail).slice(0, 400), critical });
+  results.push({ name, ok: !!ok, detail: String(detail).slice(0, 1500), critical });
   console.log(`${ok ? '✅' : critical ? '❌' : '⚠️ '} ${name}${detail ? ` – ${String(detail).slice(0, 300)}` : ''}`);
 };
 
@@ -68,7 +68,8 @@ try {
   // 4) Langes Dokument: wird bis zum Ende gelesen (abschnittsweise)
   const long = Array.from({ length: 5 }, (_, i) => sample.replace(/2025/g, String(2021 + i))).join('\n\n') + '\n\nSchlusssatz: Der Vorstand tritt am 31. Dezember 2030 geschlossen zurück.';
   const b = await measure(() => silk((_e, t) => global.__silk.analyzeTimed({ title: 'Langer Bericht', source: 'text', pages: [t] }), long));
-  check('Langes Dokument bis zum Ende gelesen', /2030|zurück/i.test(JSON.stringify(b.value.result)), `${(b.value.ms / 1000).toFixed(1)} s, Spitze ${b.peakMb} MB`, false);
+  const lr = b.value.result;
+  check('Langes Dokument bis zum Ende gelesen', /2030|zurück/i.test(JSON.stringify(lr)), `${(b.value.ms / 1000).toFixed(1)} s, Spitze ${b.peakMb} MB | Kernaussagen: ${(lr.key_points || []).join(' / ')} | Notizen: ${b.value.notes || ''}`, false);
 
   // 5) Übersetzen mit echter KI
   // Wie der Knopf „Übersetzen“: deutscher Text bei Ergebnissprache Deutsch → ins Englische

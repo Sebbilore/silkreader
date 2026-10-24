@@ -1348,10 +1348,12 @@ async function analyzeBuiltin(doc, s, onProgress) {
       onProgress({ stage: `Liest Abschnitt ${i + 1} von ${chunks.length} …`, step: i + 1, steps: chunks.length + 1 });
       const n = await ask([
         `Abschnitt ${i + 1} von ${chunks.length} des Dokuments „${doc.title}“ (Seite ${c.firstPage}${c.lastPage !== c.firstPage ? `–${c.lastPage}` : ''}).`,
-        'Notiere die bis zu 4 wichtigsten Aussagen als kurze Sätze und bis zu 5 wichtige Angaben (Zahlen, Beträge, Fristen, Namen) mit wörtlicher Fundstelle ("quote").',
+        'Notiere die bis zu 5 wichtigsten Aussagen als kurze Sätze und bis zu 5 wichtige Angaben (Zahlen, Beträge, Fristen, Namen) mit wörtlicher Fundstelle ("quote").',
+        'Übersieh keine Ereignisse oder Entscheidungen (z. B. Rücktritte, Kündigungen, Fristen, Änderungen) – auch nicht, wenn sie nur in einem Satz am Ende stehen.',
         '', '<abschnitt>', c.text, '</abschnitt>',
       ].join('\n'), NOTES_SCHEMA, 700, false);
       chunkPoints.push(n.points);
+      if (TESTING) global.__lastNotes = chunkPoints.map((p, k) => `A${k + 1}: ${p.join(' | ')}`).join(' || ');
       notes.push(`Abschnitt ${i + 1} (S. ${c.firstPage}${c.lastPage !== c.firstPage ? `–${c.lastPage}` : ''}):\n- ${n.points.join('\n- ')}`
         + (n.figures.length ? `\n  Angaben: ${n.figures.map((f) => `${f.label}: ${f.value}`).join('; ')}` : ''));
       for (const f of n.figures) figures.push({ ...f, chunk: i, page: Math.min(c.lastPage, Math.max(c.firstPage, f.page || c.firstPage)) });
@@ -2157,8 +2159,9 @@ if (TESTING) global.__silk = { showPopupPayload, showNotebook, showHome, openRin
   },
   async analyzeTimed(doc) {
     const t0 = Date.now();
+    global.__lastNotes = '';
     const result = await analyze(doc, () => {});
-    return { ms: Date.now() - t0, result };
+    return { ms: Date.now() - t0, result, notes: global.__lastNotes };
   },
   async transformTimed(mode, text) {
     const t0 = Date.now();
