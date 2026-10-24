@@ -269,9 +269,9 @@ async function uiaSelectedText() {
   try { const t = Buffer.from(r, 'base64').toString('utf8').trim(); return t || null; } catch { return null; }
 }
 
-async function grabSelection({ hotkey = false } = {}) {
+async function grabSelection({ hotkey = false, noUia = false } = {}) {
   // 1. Weg: das Programm direkt fragen – zuverlässig auch bei Tastenkürzeln, Zwischenablage bleibt unberührt
-  const direct = await uiaSelectedText();
+  const direct = noUia ? null : await uiaSelectedText();
   log(`Auswahl per UI Automation: ${direct ? `${direct.length} Zeichen` : 'nichts'}`);
   if (direct && direct.length > 1) return { text: direct, files: [] };
   ownClipboardUntil = Date.now() + 6000;
@@ -326,4 +326,4 @@ async function copyFileToClipboard(filePath) {
   return true;
 }
 
-module.exports = { setLogger, grabSelection, copyFileToClipboard, warmUp, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable: () => process.platform === 'win32' && (!!winkeys.load() || !!helper?.ready) };
+module.exports = { setLogger, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable: () => process.platform === 'win32' && (!!winkeys.load() || !!helper?.ready) };

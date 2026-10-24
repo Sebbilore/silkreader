@@ -13,7 +13,12 @@ permissions:
   contents: write
 
 jobs:
+  # Erst auf echtem Windows testen – schlägt dabei etwas Wichtiges fehl, wird nichts veröffentlicht.
+  tests:
+    uses: ./.github/workflows/windows-tests.yml
+
   windows:
+    needs: tests
     runs-on: windows-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

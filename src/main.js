@@ -24,7 +24,7 @@ function uiLang() {
   if (process.env.SPIDER_MOCK) return 'de'; // automatische Tests laufen auf Deutsch
   try { return app.getLocale().toLowerCase().startsWith('de') ? 'de' : 'en'; } catch { return 'de'; }
 }
-const { setLogger, grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
+const { setLogger, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
 const { CocoonStore } = require('./cocoons');
 const { scanSelection } = require('./selectionScan');
 const { recognizeText } = require('./ocr');
@@ -57,6 +57,7 @@ function logLine(msg) {
   } catch {}
 }
 const logError = (err) => logLine(`FEHLER ${err?.stack || err}`);
+if (process.env.SPIDER_MOCK && process.env.SILK_USERDATA) app.setPath('userData', process.env.SILK_USERDATA);
 process.on('uncaughtException', logError);
 process.on('unhandledRejection', logError);
 
@@ -847,7 +848,10 @@ function runCrawlOverlay(anchorAbs, rects, prepared = null) {
         width: b.width, height: b.height,
         words: rel(words), lines: rel(lines),
       });
-      stopTrack = trackSelectionMove(rects, anchorAbs, (dx, dy) => { if (!win.isDestroyed()) win.webContents.send('overlay-shift', { dx, dy }); });
+      stopTrack = trackSelectionMove(rects, anchorAbs, (dx, dy) => {
+        if (process.env.SPIDER_MOCK) global.__shiftCount = (global.__shiftCount || 0) + 1;
+        if (!win.isDestroyed()) win.webContents.send('overlay-shift', { dx, dy });
+      });
     });
   });
 }
@@ -2063,4 +2067,24 @@ if (!app.requestSingleInstanceLock()) {
 // Nur für automatische Tests: ein paar Funktionen erreichbar machen
 if (process.env.SPIDER_MOCK) global.__silk = { showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
   get cocoons() { return cocoons; }, get lastScreenSel() { return lastScreenSel; }, set lastScreenSel(v) { lastScreenSel = v; },
-  set copiedOffer(v) { copiedOffer = v; }, spiderTake, runCrawlOverlay };
+  set copiedOffer(v) { copiedOffer = v; }, spiderTake, runCrawlOverlay,
+  // Für die Windows-Tests: Diagnose und direkte Aufrufe der Windows-Bausteine
+  diag: () => ({ winkeys: !!winkeys.load(), winkeysError: winkeys.load.error?.message || null, helper: helperAvailable(),
+    shortcuts: { ...shortcutStatus }, tray: !!tray && !tray.isDestroyed(), lang: uiLang(), userData: app.getPath('userData') }),
+  grab: (o) => grabSelection(o), uia: () => uiaSelectedText(), rects: () => selectionRects(), scan: (p) => scanSelection(p),
+  verify: (file) => verifyUpdateSignature(['Silkreader'], file),
+  spiderPos: () => spiderScreenPos(),
+  get shiftCount() { return global.__shiftCount || 0; },
+  async crawlSelection() { const r = await selectionRects(); if (!r) return null; await runCrawlOverlay(screen.getCursorScreenPoint(), r); return r.words?.length || r.lines?.length; },
+  async ocrSample() {
+    // Text in einem unsichtbaren Fenster zeichnen, abfotografieren und mit der Windows-Texterkennung lesen
+    const w = new BrowserWindow({ width: 640, height: 160, show: false, webPreferences: { offscreen: true } });
+    await w.loadURL('data:text/html,' + encodeURIComponent('<body style="margin:0;background:#fff;font:48px Segoe UI,Arial">Silkreader liest 2026</body>'));
+    await new Promise((r) => setTimeout(r, 400));
+    const img = await w.capturePage();
+    w.destroy();
+    const file = path.join(app.getPath('temp'), `silk-ocr-${Date.now()}.png`);
+    fs.writeFileSync(file, img.toPNG());
+    try { return await recognizeText(file); } finally { fs.unlink(file, () => {}); }
+  },
+};
