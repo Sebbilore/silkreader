@@ -1929,13 +1929,18 @@ let manualUpdateCheck = false;
 // dafür muss kein Zertifikat mehr als vertrauenswürdige Stammstelle installiert werden. Eine später gekaufte,
 // anerkannte Signatur (Status „gültig“ und Herausgeber „Silkreader“) wird ebenfalls akzeptiert.
 const PINNED_CERTS = ['66923F7442AA9A51CEE8EE2055B12E9FB722F9F1'];
+let defaultVerify = null; // Prüfung von electron-updater als Rückfallebene
 function verifyUpdateSignature(publisherNames, file) {
+  const fallback = (why) => {
+    logLine(`Eigene Signaturprüfung nicht möglich (${why}) – nutze Standardprüfung`);
+    return defaultVerify ? defaultVerify(publisherNames, file) : `Signatur nicht prüfbar: ${why}`;
+  };
   return new Promise((resolve) => {
     const ps = `Get-AuthenticodeSignature -LiteralPath '${file.replace(/'/g, "''")}' | ForEach-Object { [pscustomobject]@{ s = [int]$_.Status; t = $_.SignerCertificate.Thumbprint; n = $_.SignerCertificate.Subject } } | ConvertTo-Json -Compress`;
     require('child_process').execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true, timeout: 30000 }, (err, out) => {
-      if (err) return resolve(`Signatur nicht prüfbar: ${err.message}`);
+      if (err) return resolve(fallback(err.message));
       let d;
-      try { d = JSON.parse(String(out).trim()); } catch { return resolve('Signatur nicht lesbar'); }
+      try { d = JSON.parse(String(out).trim()); } catch { return resolve(fallback('Ausgabe nicht lesbar')); }
       const thumb = String(d?.t || '').toUpperCase();
       // 0 = gültig, 1/4 = nur die Vertrauenskette fehlt (selbst erstelltes Zertifikat); 2/3 = unsigniert/verändert → ablehnen
       if (PINNED_CERTS.includes(thumb) && [0, 1, 4].includes(d.s)) return resolve(null);
@@ -1948,7 +1953,10 @@ function verifyUpdateSignature(publisherNames, file) {
 
 function setupUpdates() {
   if (!app.isPackaged) return; // nur in der installierten App
-  if (process.platform === 'win32') updater().verifyUpdateCodeSignature = verifyUpdateSignature;
+  if (process.platform === 'win32') {
+    defaultVerify = updater().verifyUpdateCodeSignature;
+    updater().verifyUpdateCodeSignature = verifyUpdateSignature;
+  }
   updater().autoDownload = true;
   updater().autoInstallOnAppQuit = true;
 
