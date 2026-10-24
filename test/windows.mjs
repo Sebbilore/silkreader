@@ -97,7 +97,8 @@ try {
   d = await waitFor(async () => { const x = await silk(() => global.__silk.diag()); return x.helper ? x : null; }, 30000) || d;
   check('PowerShell-Helfer läuft (UI Automation, Dateien)', d.helper);
   check('Tray-Symbol', d.tray);
-  const hd = await silk(() => global.__silk.helperDiag());
+  // Der PowerShell-Helfer übersetzt beim Start C#-Code – das kann auf frischen Rechnern einige Sekunden dauern
+  const hd = await waitFor(() => silk(() => global.__silk.helperDiag()), 45000);
   check('UI Automation im Helfer geladen', /uia=True/i.test(hd || ''), hd || 'keine Antwort');
   const busy = Object.entries(d.shortcuts).filter(([, ok]) => !ok).map(([k]) => k);
   check('Alle Tastenkürzel angemeldet', !busy.length, busy.join(', '));
