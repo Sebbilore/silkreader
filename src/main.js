@@ -120,7 +120,7 @@ const BUILTIN_MODELS = {
     uri: 'hf:bartowski/Qwen2.5-1.5B-Instruct-GGUF:Q4_K_M',
     file: 'Qwen2.5-1.5B-Instruct-Q4_K_M.gguf',
     sizeLabel: '1 GB',
-    chunkTokens: 2200,
+    chunkTokens: 1500, // kleinere Abschnitte: das kleine Modell übersieht sonst einzelne Aussagen
     minRamGB: 4,
   },
   quality: {
@@ -1697,8 +1697,20 @@ function runTransform(mode, text, extra = '', onChunk = () => {}) {
   const instruction = mode === 'translate'
     ? `Übersetze den folgenden Text ins ${into}. Gib nur die Übersetzung aus – ohne Überschrift, ohne Erklärung, ohne den Originaltext.`
     : TRANSFORMS[mode].instruction;
-  return llmGenerate({ instruction: instruction + (extra ? ` ${extra}` : ''), material: text, maxTokens: 1500, langHint: mode === 'simplify', onChunk })
-    .then((r) => (mode === 'translate' && typeof r.value === 'string' ? { ...r, value: cleanTranslation(r.value) } : r));
+  const run = (instr) => llmGenerate({ instruction: instr + (extra ? ` ${extra}` : ''), material: text, maxTokens: 1500, langHint: mode === 'simplify', onChunk });
+  if (mode !== 'translate') return run(instruction);
+  return run(instruction).then(async (r) => {
+    let value = cleanTranslation(String(r.value || ''));
+    // Kleine Modelle geben manchmal einfach den Originaltext zurück – dann einmal mit englischer Anweisung nachfassen
+    const src = looksLike(text);
+    if (src && looksLike(value) === src) {
+      const lang = { Englische: 'English', Deutsche: 'German', Französische: 'French', Spanische: 'Spanish', Italienische: 'Italian' }[into] || into;
+      const again = await run(`Translate the following text into ${lang}. Output only the ${lang} translation – no heading, no explanation, no original text.`);
+      value = cleanTranslation(String(again.value || '')) || value;
+      return { ...again, value };
+    }
+    return { ...r, value };
+  });
 }
 // Grobe Spracherkennung (Deutsch/Englisch) über häufige Wörter
 function looksLike(text) {

@@ -207,7 +207,10 @@ try {
     check(`${name}: Markierung über Strg+C`, g.text && g.text.includes('Nordlicht'), g.text ? `${g.text.length} Zeichen` : 'nichts', false);
     const boxes = await silk((_e, p) => global.__silk.scan(p), { x: 700, y: 400 });
     check(`${name}: markierte Wörter auf dem Bildschirm gefunden`, (boxes?.length || 0) > 10, `${boxes?.length || 0} Wortkästen`, false);
-    const sp = await silk(() => global.__silk.spiderPos());
+    // Wie ein Mensch: erst zur Spinne fahren (sie hält dann still), dann klicken
+    let sp = await silk(() => global.__silk.spiderPos());
+    setCursor(Math.round(sp.x), Math.round(sp.y) + 30); await sleep(700);
+    sp = await silk(() => global.__silk.spiderPos());
     await click(Math.round(sp.x), Math.round(sp.y));
     const tb = await waitFor(async () => { const t = await popupTitle(); return (await visible('popup.html')) && t && !['Silkreader', 'Übersetzung', 'Markierter Text', 'Notizbuch'].includes(t) ? t : null; }, 25000);
     check(`${name}: Klick auf die Spinne → Ergebnis`, !!tb, tb || 'keine Blase', false);
