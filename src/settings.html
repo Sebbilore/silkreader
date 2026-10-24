@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
 <link rel="stylesheet" href="theme.css">
+<script src="i18n.js"></script>
 <title>Einstellungen</title>
 <style>
   :root { --bg: #0c0c11; --card: #1a1a23; --line: rgba(255,255,255,.1); --text: #f1f1f6; --muted: #9494a6; --pink: #ff2d8a; }
@@ -88,12 +89,15 @@
 
 <label for="lang">Sprache der Analyse</label>
 <select id="lang">
-  <option>Deutsch</option><option>Englisch</option><option>Französisch</option><option>Spanisch</option><option>Italienisch</option>
+  <option value="Deutsch">Deutsch</option><option value="Englisch">Englisch</option><option value="Französisch">Französisch</option><option value="Spanisch">Spanisch</option><option value="Italienisch">Italienisch</option>
   <option value="der Sprache des Dokuments">Wie das Dokument</option>
 </select>
+<label for="uiLang">Sprache der App</label>
+<select id="uiLang" data-noi18n><option value="de">Deutsch</option><option value="en">English</option></select>
 <label class="check"><input type="checkbox" id="hatch"> Spinnen-Animation: Eine große Spinne kriecht herein und liest den markierten Text (die kleine versteckt sich so lange)</label>
 
 <label class="check"><input type="checkbox" id="pinCopied"> Kopierte Dateien (Strg+C im Explorer) automatisch ins Spinnennetz hängen</label>
+<label class="check"><input type="checkbox" id="copyHint"> Bei kopiertem Text (Strg+C) anbieten, ihn zu lesen</label>
 <label class="check"><input type="checkbox" id="lowPower"> Sparmodus: ohne Grafikbeschleunigung – braucht weniger Arbeitsspeicher (wirkt nach einem Neustart von Silkreader)</label>
 
 <label>Tastenkürzel <span class="hint" style="font-weight:400">– zum Ändern anklicken und neue Tasten drücken</span></label>
@@ -103,6 +107,9 @@
   <button class="primary" id="save">Speichern</button>
   <button id="close">Schließen</button>
   <span id="msg" class="ok"></span>
+</div>
+<div class="row" style="margin-top:6px;gap:18px">
+  <a id="lPriv">Datenschutz</a><a id="lLic">Lizenzen</a><a id="lLog">Protokoll öffnen</a>
 </div>
 
 <script>
@@ -118,7 +125,7 @@
   }
   document.querySelectorAll('.opt[data-p]').forEach((o) => o.addEventListener('click', () => setProvider(o.dataset.p)));
 
-  const gb = (b) => (b / 1e9).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+  const gb = (b) => (b / 1e9).toLocaleString(I18N.locale, { maximumFractionDigits: 2 });
   let builtinModel = 'fast', modelState = null;
   function renderModels() {
     const m = modelState;
@@ -193,6 +200,8 @@
     $('hatch').checked = s.hatchAnimation;
     $('lowPower').checked = s.lowPower;
     $('pinCopied').checked = s.pinCopied;
+    $('copyHint').checked = s.copyHint;
+    $('uiLang').value = s.uiLang;
     wantedOllama = s.ollamaModel;
     if (s.hasKey) $('key').placeholder = '•••••••• (gespeichert – leer lassen, um ihn zu behalten)';
     setProvider(s.provider);
@@ -249,12 +258,22 @@
     await window.spider.saveSettings({
       provider, apiKey: $('key').value, model: $('model').value,
       ollamaModel: $('ollamaModel').value, language: $('lang').value, builtinModel, hatchAnimation: $('hatch').checked, lowPower: $('lowPower').checked, pinCopied: $('pinCopied').checked,
+      copyHint: $('copyHint').checked,
     });
     $('key').value = '';
     $('msg').textContent = 'Gespeichert ✓';
     setTimeout(() => window.close(), 700);
   });
   $('close').addEventListener('click', () => window.close());
+  $('lPriv').addEventListener('click', () => window.spider.openPrivacy());
+  $('lLic').addEventListener('click', () => window.spider.openLicenses());
+  $('lLog').addEventListener('click', () => window.spider.openLog());
+  // App-Sprache wirkt sofort (Fenster lädt in der neuen Sprache neu)
+  $('uiLang').addEventListener('change', async (e) => {
+    await window.spider.saveSettings({ provider, model: $('model').value, ollamaModel: $('ollamaModel').value, builtinModel,
+      hatchAnimation: $('hatch').checked, lowPower: $('lowPower').checked, pinCopied: $('pinCopied').checked, copyHint: $('copyHint').checked });
+    await window.spider.setUiLang(e.target.value);
+  });
 </script>
 </body>
 </html>

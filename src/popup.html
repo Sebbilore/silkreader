@@ -5,6 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
 <title>Silkreader</title>
 <link rel="stylesheet" href="theme.css">
+<script src="i18n.js"></script>
 <script src="icons.js"></script>
 <style>
   * { box-sizing: border-box; }
@@ -69,6 +70,16 @@
   .actions .link .icon { width: 13px; height: 13px; }
   .actions .link:hover { color: var(--pink); text-decoration: none; }
   .hidden { display: none !important; }
+  .aiNote { font-size: 10.5px; color: var(--faint); margin: 10px 0 2px; }
+  .about { text-align: center; padding: 4px 0 6px; }
+  .about svg.sp { width: 64px; height: 64px; }
+  .about h2 { font: 650 17px var(--font-display); margin: 6px 0 0; }
+  .about .v { color: var(--muted); font-size: 12px; }
+  .about p { color: var(--muted); font-size: 12.5px; margin: 10px 0; text-align: left; }
+  .linklist { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin: 8px 0 4px; text-align: left; }
+  .linklist .link { display: inline-flex; gap: 6px; align-items: center; color: var(--text); } .linklist .link:hover { color: var(--pink); }
+  .linklist .icon { width: 14px; height: 14px; color: var(--muted); }
+  textarea.rep { height: 90px; }
   /* Zurück-Pfeil im Kopf */
   .back:hover { color: var(--pink); }
   /* Lupe: Originalstelle direkt in der Blase */
@@ -181,7 +192,7 @@
     if (state !== 'running' || !$('stage')) return;
     if (stage?.stage) $('stage').textContent = stage.stage;
     if (stage?.steps) weaveProgress(stage.step / stage.steps);
-    if (summary) $('live').innerHTML = `<ul class="lead">${bullets(summary).map((b) => `<li>${emph(b)}</li>`).join('')}</ul><span class="cur">▍</span>`;
+    if (summary) $('live').innerHTML = `<ul class="lead" data-noi18n>${bullets(summary).map((b) => `<li>${emph(b)}</li>`).join('')}</ul><span class="cur">▍</span>`;
   });
 
   function showResult() {
@@ -191,16 +202,17 @@
     const deadlines = findDeadlines(P.doc.pages.join('\n'));
     const figs = r.figures.slice(0, 8);
     $('main').innerHTML = `
-      <ul class="lead">${bullets(r.summary).map((b, i) => `<li class="rise" style="animation-delay:${i * 70}ms">${emph(b)}</li>`).join('')}</ul>
-      ${deadlines.map((d, i) => `<div class="dl"><span class="when">📅 ${d.date.toLocaleDateString('de-DE')}</span><span class="what" title="${esc(d.sentence)}">${esc(d.sentence)}</span><button class="link" data-dl="${i}">+ Kalender</button></div>`).join('')}
+      <ul class="lead" data-noi18n>${bullets(r.summary).map((b, i) => `<li class="rise" style="animation-delay:${i * 70}ms">${emph(b)}</li>`).join('')}</ul>
+      ${deadlines.map((d, i) => `<div class="dl"><span class="when">📅 ${d.date.toLocaleDateString(I18N.locale)}</span><span class="what" data-noi18n title="${esc(d.sentence)}">${esc(d.sentence)}</span><button class="link" data-dl="${i}">+ Kalender</button></div>`).join('')}
       <button class="more" id="moreBtn">Mehr ▾</button>
       <div id="details">
-        ${r.key_points.length ? `<div class="sec"><div class="h">Kernaussagen</div><ul>${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}">${emph(p)}</li>`).join('')}</ul></div>` : ''}
-        ${r.findings.length ? `<div class="sec"><div class="h">Erkenntnisse</div>${r.findings.map((f, i) => `<div class="find jump" data-type="finding" data-index="${i}"><span class="k">${esc(f.kind)}</span> ${emph(f.title)}${f.detail ? `<div class="d">${emph(f.detail)}</div>` : ''}</div>`).join('')}</div>` : ''}
-        ${figs.length ? `<div class="sec"><div class="h">Angaben</div><div class="figs">${figs.map((f, i) => `<span class="jump" data-type="figure" data-index="${i}">${esc(f.label)}</span><span><b>${esc(f.value)}</b></span>`).join('')}</div></div>` : ''}
-        ${r.note ? `<div class="sec muted">${esc(r.note)}</div>` : ''}
+        ${r.key_points.length ? `<div class="sec"><div class="h">Kernaussagen</div><ul data-noi18n>${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}">${emph(p)}</li>`).join('')}</ul></div>` : ''}
+        ${r.findings.length ? `<div class="sec"><div class="h">Erkenntnisse</div>${r.findings.map((f, i) => `<div class="find jump" data-type="finding" data-index="${i}"><span class="k">${esc(f.kind)}</span> <span data-noi18n>${emph(f.title)}</span>${f.detail ? `<div class="d" data-noi18n>${emph(f.detail)}</div>` : ''}</div>`).join('')}</div>` : ''}
+        ${figs.length ? `<div class="sec"><div class="h">Angaben</div><div class="figs" data-noi18n>${figs.map((f, i) => `<span class="jump" data-type="figure" data-index="${i}">${esc(f.label)}</span><span><b>${esc(f.value)}</b></span>`).join('')}</div></div>` : ''}
+        ${r.note ? `<div class="sec muted" data-noi18n>${esc(r.note)}</div>` : ''}
       </div>
-      <div id="answers"></div>`;
+      <div id="answers"></div>
+      <div class="aiNote">KI-Ergebnis · wichtige Angaben bitte im Original prüfen</div>`;
     $('moreBtn').addEventListener('click', () => {
       const open = $('details').classList.toggle('open');
       $('moreBtn').textContent = open ? 'Weniger ▴' : 'Mehr ▾';
@@ -260,12 +272,12 @@
     state = 'running';
     const myRun = ++run;
     $('foot').classList.add('hidden');
-    $('main').innerHTML = `${weave('Die Spinne schreibt …')}<div class="out" id="out"></div>`;
+    $('main').innerHTML = `${weave('Die Spinne schreibt …')}<div class="out" id="out" data-noi18n></div>`;
     const res = await window.spider.transform(P.mode, P.text, P.extra || '');
     if (myRun !== run) return;
     if (!res.ok) return showError(res, transform);
     state = 'done';
-    $('main').innerHTML = `<div class="out rise">${esc(res.text)}</div>${res.truncated ? '<div class="muted" style="margin-top:8px">Nur der Anfang wurde bearbeitet (eingebautes Modell).</div>' : ''}`;
+    $('main').innerHTML = `<div class="out rise" data-noi18n>${esc(res.text)}</div>${res.truncated ? '<div class="muted" style="margin-top:8px">Nur der Anfang wurde bearbeitet (eingebautes Modell).</div>' : ''}`;
     // Nachschärfen mit einem Klick: kürzer, förmlicher, lockerer
     const again = (extra) => () => { P = { ...P, extra: `${P.extra || ''} ${extra}`.trim() }; transform(); };
     footer({ actions: [
@@ -344,17 +356,19 @@
     const src = findSource(queryFor(focus), text);
     const box = document.createElement('div');
     box.className = 'lupe';
+    box.dataset.noi18n = '';
     box.innerHTML = src
       ? `${src.cutA ? '… ' : ''}${esc(src.before)}<mark>${emph(src.hit)}</mark>${esc(src.after)}${src.cutB ? ' …' : ''}`
-      : '<span class="none">Diese Stelle steht so nicht wörtlich im Text.</span>';
+      : `<span class="none">${T('Diese Stelle steht so nicht wörtlich im Text.')}</span>`;
     const row = document.createElement('div');
     row.className = 'row';
-    if (src && P.doc.screenAt) row.innerHTML += '<button class="link" data-l="screen">Auf dem Bildschirm zeigen</button>';
-    row.innerHTML += '<button class="link" data-l="reader">Im Lesemodus</button>';
+    // Die Lupe zeigt Dokumenttext (nie übersetzen) – ihre Knöpfe deshalb direkt übersetzt einsetzen
+    if (src && P.doc.screenAt) row.innerHTML += `<button class="link" data-l="screen">${T('Auf dem Bildschirm zeigen')}</button>`;
+    row.innerHTML += `<button class="link" data-l="reader">${T('Im Lesemodus')}</button>`;
     box.appendChild(row);
     row.querySelector('[data-l="screen"]')?.addEventListener('click', async (e) => {
       const ok = await window.spider.showOnScreen({ screenAt: P.doc.screenAt, start: src.start, end: src.end });
-      if (!ok) e.target.textContent = 'nicht mehr auf dem Bildschirm';
+      if (!ok) e.target.textContent = T('nicht mehr auf dem Bildschirm');
     });
     row.querySelector('[data-l="reader"]').addEventListener('click', () => window.spider.openReader(P.doc, result, focus));
     (afterEl ? afterEl.closest('.answer') || anchor : anchor).after(box);
@@ -418,7 +432,7 @@
 
   // ---------- Notizbuch ----------
   const entryHtml = (h) => `<div class="entry" data-id="${esc(h.id)}"><div class="t"><b>${esc(h.title || h.docTitle)}</b><span>${esc(bullets(h.summary)[0] || '')}</span></div>
-    <small>${new Date(h.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</small><button class="del" title="Löschen">✕</button></div>`;
+    <small>${new Date(h.date).toLocaleDateString(I18N.locale, { day: '2-digit', month: '2-digit' })}</small><button class="del" title="Löschen">✕</button></div>`;
   function bindEntries(box, backTo) {
     box.querySelectorAll('.entry').forEach((el) => el.addEventListener('click', async (e) => {
       if (e.target.classList.contains('del')) { await window.spider.historyDelete(el.dataset.id); el.remove(); return; }
@@ -456,7 +470,9 @@
       <div class="set"><div class="h">KI</div>${chips('provider', [['builtin', 'Eingebaut'], ['claude', 'Claude'], ['ollama', 'Ollama']], s.provider || 'builtin')}
         <div class="muted ${s.provider === 'claude' && !s.hasKey ? '' : 'hidden'}" id="keyHint">Für Claude fehlt noch der Schlüssel – <button class="link" id="keyLink">eintragen …</button></div></div>
       <div class="set"><div class="h">Klick auf die Spinne</div>${chips('clickMode', MODES, s.clickMode || 'read')}</div>
-      <div class="set"><div class="h">Sprache der Ergebnisse</div><select id="lang">${['Deutsch', 'Englisch', 'Französisch', 'Spanisch', 'Italienisch'].map((l) => `<option${l === s.language ? ' selected' : ''}>${l}</option>`).join('')}
+      <div class="set"><div class="h">Sprache der App</div><div class="chips" id="uiLang" data-noi18n>
+        <button class="chip${s.uiLang === 'de' ? ' on' : ''}" data-l="de">Deutsch</button><button class="chip${s.uiLang === 'en' ? ' on' : ''}" data-l="en">English</button></div></div>
+      <div class="set"><div class="h">Sprache der Ergebnisse</div><select id="lang">${['Deutsch', 'Englisch', 'Französisch', 'Spanisch', 'Italienisch'].map((l) => `<option value="${l}"${l === s.language ? ' selected' : ''}>${l}</option>`).join('')}
         <option value="der Sprache des Dokuments"${s.language === 'der Sprache des Dokuments' ? ' selected' : ''}>Wie das Dokument</option></select></div>
       <label class="tog"><input type="checkbox" id="hatch"${s.hatchAnimation ? ' checked' : ''}> Große Spinne liest mit</label>
       <label class="tog"><input type="checkbox" id="pinCopied"${s.pinCopied ? ' checked' : ''}> Kopierte Dateien ins Netz</label>
@@ -469,11 +485,60 @@
       if (g.dataset.set === 'provider') $('keyHint').classList.toggle('hidden', !(b.dataset.v === 'claude' && !s.hasKey));
     }));
     $('keyLink').addEventListener('click', () => window.spider.openSettings());
+    $('uiLang').addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-l]'); if (!b || b.dataset.l === I18N.lang) return;
+      await window.spider.setUiLang(b.dataset.l);
+      I18N.switch(b.dataset.l);
+      for (const id of ['close', 'back']) $(id).title = T(id === 'close' ? 'Schließen (Esc)' : 'Zurück');
+      settings(); // Blase in der neuen Sprache neu aufbauen
+    });
     $('lang').addEventListener('change', (e) => window.spider.saveSettings({ language: e.target.value }));
     for (const id of ['hatch', 'pinCopied', 'copyHint', 'lowPower']) {
       $(id).addEventListener('change', (e) => window.spider.saveSettings({ [id === 'hatch' ? 'hatchAnimation' : id]: e.target.checked }));
     }
-    footer({ actions: [['Tastenkürzel & mehr …', () => window.spider.openSettings()], ['Lesemodus', () => window.spider.openReader(null)]] });
+    footer({ actions: [['Tastenkürzel & mehr …', () => window.spider.openSettings()], ['Über', () => { setBack(settings); about(); }]] });
+  }
+
+  // ---------- Über Silkreader ----------
+  async function about() {
+    state = 'done';
+    $('title').textContent = 'Über Silkreader';
+    const info = await window.spider.appInfo();
+    $('main').innerHTML = `<div class="about">
+      <svg class="sp" viewBox="-36 -30 72 60"><g stroke="#ff2d8a" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 -5L18 -15L24 -4M10 -1L21 -7L28 4M10 3L20 2L26 13M8 7L16 9L20 20M-8 -5L-18 -15L-24 -4M-10 -1L-21 -7L-28 4M-10 3L-20 2L-26 13M-8 7L-16 9L-20 20"/></g>
+        <circle r="11" fill="#14141b" stroke="#ff2d8a" stroke-width="1.4"/><ellipse cx="-4.4" cy="-1.6" rx="3.9" ry="4.4" fill="#fff"/><ellipse cx="4.4" cy="-1.6" rx="3.9" ry="4.4" fill="#fff"/>
+        <circle cx="-4" cy="-1" r="1.9" fill="#0c0c11"/><circle cx="4.8" cy="-1" r="1.9" fill="#0c0c11"/><path d="M-2.6 5.4Q0 8.4 2.6 5.4" stroke="#ff2d8a" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>
+      <h2>Silkreader</h2><div class="v">Version ${esc(info.version)}</div>
+      <p>Eine Spinne, die für dich liest.</p>
+      <p>Zusammenfassungen und Antworten erstellt eine KI. Sie kann sich irren – bei Verträgen, Fristen und Zahlen bitte immer das Original prüfen.</p>
+      <div class="linklist">
+        <button class="link" id="aPriv">${silkIcon('info')}<span>Datenschutz</span></button>
+        <button class="link" id="aLic">${silkIcon('file')}<span>Lizenzen</span></button>
+        <button class="link" id="aNew">${silkIcon('notebook')}<span>Was ist neu?</span></button>
+        <button class="link" id="aRep">${silkIcon('bug')}<span>Problem melden</span></button>
+      </div>
+      <div class="v" style="margin-top:12px">${T('Kostenlos · MIT-Lizenz')} · © 2026 Sebbilore</div></div>`;
+    $('aPriv').addEventListener('click', () => window.spider.openPrivacy());
+    $('aLic').addEventListener('click', () => window.spider.openLicenses());
+    $('aNew').addEventListener('click', () => window.spider.openExternal('https://github.com/Sebbilore/silkreader/releases'));
+    $('aRep').addEventListener('click', () => { setBack(about); report(); });
+    $('foot').classList.add('hidden');
+  }
+
+  // ---------- Problem melden ----------
+  function report() {
+    state = 'done';
+    $('title').textContent = 'Problem melden';
+    $('main').innerHTML = `<p class="muted" style="margin:0 0 8px">Beschreibe kurz, was passiert ist. Beim Senden öffnet sich GitHub im Browser – dort siehst du alles, bevor es abgeschickt wird (GitHub-Konto nötig).</p>
+      <textarea class="in rep" id="repText" placeholder="Was ist passiert?"></textarea>
+      <label class="tog"><input type="checkbox" id="repLog" checked> Protokoll der letzten Abläufe anhängen (keine Texte, nur technische Schritte)</label>`;
+    footer({ actions: [['Im Browser öffnen', async () => {
+      if (!$('repText').value.trim()) { $('repText').focus(); return; }
+      await window.spider.reportProblem({ text: $('repText').value.trim(), withLog: $('repLog').checked });
+      close();
+    }], ['Protokoll öffnen', () => window.spider.openLog()]] });
+    setTimeout(() => $('repText')?.focus(), 60);
   }
 
   // ---------- Zurück ----------
@@ -491,7 +556,7 @@
     });
     f.classList.remove('hidden');
   }
-  const ACTION_ICONS = { Vorlesen: 'speak', Kürzer: 'shorter', Förmlicher: 'tone', Lockerer: 'tone', Kopieren: 'copy', Festhalten: 'keep', Lesemodus: 'reader', Notizbuch: 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Erneut versuchen': 'send' };
+  const ACTION_ICONS = { 'Im Browser öffnen': 'send', 'Protokoll öffnen': 'file', 'Über': 'info', Vorlesen: 'speak', Kürzer: 'shorter', Förmlicher: 'tone', Lockerer: 'tone', Kopieren: 'copy', Festhalten: 'keep', Lesemodus: 'reader', Notizbuch: 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Erneut versuchen': 'send' };
   function flash(label, text) { const b = $('foot').querySelector(`[data-a="${label}"] span`); if (!b) return; b.textContent = text; setTimeout(() => (b.textContent = label), 1300); }
   function showError(res, retry) {
     state = 'error';
@@ -499,9 +564,9 @@
     footer({ actions: [['Erneut versuchen', retry], ...(res.needsKey ? [['Einstellungen', () => window.spider.openSettings()]] : [])] });
   }
   function markdown(r) {
-    return [`# ${r.title}`, '', ...bullets(r.summary).map((b) => `- ${b}`), '', '## Kernaussagen', ...r.key_points.map((p) => `- ${p}`), '',
-      '## Erkenntnisse', ...r.findings.map((f) => `- **[${f.kind}] ${f.title}** – ${f.detail}`), '',
-      '## Angaben', ...r.figures.map((f) => `- ${f.label}: ${f.value} (S. ${f.page})`)].join('\n');
+    return [`# ${r.title}`, '', ...bullets(r.summary).map((b) => `- ${b}`), '', `## ${T('Kernaussagen')}`, ...r.key_points.map((p) => `- ${p}`), '',
+      `## ${T('Erkenntnisse')}`, ...r.findings.map((f) => `- **[${T(f.kind)}] ${f.title}** – ${f.detail}`), '',
+      `## ${T('Angaben')}`, ...r.figures.map((f) => `- ${f.label}: ${f.value} (${T(`S. ${f.page}`)})`)].join('\n');
   }
   async function copyResult() { await navigator.clipboard.writeText(markdown(result)); flash('Kopieren', '✓ Kopiert'); }
   async function keepResult() { await window.spider.cocoonAddText(markdown(result)); flash('Festhalten', '✓ Im Netz'); }
@@ -551,6 +616,8 @@
     else if (P.kind === 'home') home();
     else if (P.kind === 'notebook') notebook();
     else if (P.kind === 'settings') settings();
+    else if (P.kind === 'about') about();
+    else if (P.kind === 'report') report();
     else if (P.kind === 'transform') { $('title').textContent = P.title; transform(); }
     else if (P.kind === 'compare') { $('title').textContent = P.title; compare(); }
     else { state = 'done'; $('title').textContent = P.title; $('main').innerHTML = `<p>${esc(P.text)}</p>`; footer({ actions: [['OK', close]] }); }

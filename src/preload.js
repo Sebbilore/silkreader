@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('spider', {
+  uiLang: ipcRenderer.sendSync('ui-lang'),
   analyze: (doc) => ipcRenderer.invoke('analyze', doc),
   openFile: (file) => ipcRenderer.invoke('open-file', webUtils.getPathForFile(file)),
   pickFile: () => ipcRenderer.invoke('pick-file'),
@@ -82,6 +83,14 @@ contextBridge.exposeInMainWorld('spider', {
   onRigTalk: (cb) => ipcRenderer.on('rig-talk', (_e, on) => cb(on)),
   rigTalk: (on) => ipcRenderer.send('rig-talk', on),
   prewarm: () => ipcRenderer.send('prewarm'),
+  setUiLang: (l) => ipcRenderer.invoke('set-ui-lang', l),
+  welcomeState: () => ipcRenderer.invoke('welcome-state'),
+  welcomeDone: (prefs) => ipcRenderer.send('welcome-done', prefs),
+  openPrivacy: () => ipcRenderer.invoke('open-privacy'),
+  openLicenses: () => ipcRenderer.invoke('open-licenses'),
+  openLog: () => ipcRenderer.invoke('open-log'),
+  appInfo: () => ipcRenderer.invoke('app-info'),
+  reportProblem: (r) => ipcRenderer.invoke('report-problem', r),
   onOverlayShift: (cb) => ipcRenderer.on('overlay-shift', (_e, d) => cb(d)),
   onProgress: (cb) => ipcRenderer.on('progress', (_e, n) => cb(n)),
 });

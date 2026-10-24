@@ -1,7 +1,7 @@
 {
   "name": "silkreader",
   "productName": "Silkreader",
-  "version": "1.14.0",
+  "version": "1.15.0",
   "description": "Silkreader – eine schwebende Spinne, die Texte und Dokumente mit KI liest, zusammenfasst und analysiert",
   "main": "src/main.js",
   "author": "Silkreader",
@@ -11,7 +11,9 @@
     "dist:win": "electron-builder --win nsis --x64 --publish never",
     "dist:mac": "electron-builder --mac dmg",
     "dist:linux": "electron-builder --linux AppImage",
-    "dist:win:linux": "electron-builder --win nsis --x64 --publish never -c.win.signtoolOptions.sign=./build/sign.js"
+    "dist:win:linux": "electron-builder --win nsis --x64 --publish never -c.win.signtoolOptions.sign=./build/sign.js",
+    "dist:store": "electron-builder --win appx --config electron-builder.store.js --publish never",
+    "notices": "node scripts/notices.mjs"
   },
   "build": {
     "appId": "app.silkreader",

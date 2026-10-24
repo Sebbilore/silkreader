@@ -15,6 +15,15 @@ let autoUpdaterInstance = null;
 const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoUpdater);
 
 const winkeys = require('./winkeys');
+const I18N = require('./i18n');
+const T = I18N.T;
+// Sprache der Oberfläche: Einstellung oder Windows-Sprache (Deutsch → de, sonst Englisch)
+function uiLang() {
+  const l = loadSettings().uiLang;
+  if (l === 'de' || l === 'en') return l;
+  if (process.env.SPIDER_MOCK) return 'de'; // automatische Tests laufen auf Deutsch
+  try { return app.getLocale().toLowerCase().startsWith('de') ? 'de' : 'en'; } catch { return 'de'; }
+}
 const { setLogger, grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
 const { CocoonStore } = require('./cocoons');
 const { scanSelection } = require('./selectionScan');
@@ -50,6 +59,18 @@ function logLine(msg) {
 const logError = (err) => logLine(`FEHLER ${err?.stack || err}`);
 process.on('uncaughtException', logError);
 process.on('unhandledRejection', logError);
+
+// ---------- Absicherung ----------
+// Fenster der App zeigen nur eigene Seiten: keine Navigation zu fremden Adressen, keine neuen Fenster.
+// Links (https) öffnen im normalen Browser.
+app.on('web-contents-created', (_e, wc) => {
+  wc.setWindowOpenHandler(({ url }) => {
+    if (/^https:\/\//.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  wc.on('will-navigate', (ev, url) => { if (!url.startsWith('file://')) ev.preventDefault(); });
+  wc.on('will-attach-webview', (ev) => ev.preventDefault());
+});
 const shortcutActions = {
   take: () => spiderTake({ fromHotkey: true, mode: 'read' }),
   analyze: () => spiderTake({ fromHotkey: true, autoStart: true, mode: 'read' }),
@@ -74,7 +95,7 @@ function registerShortcuts(notify = false) {
   }
   const busy = SHORTCUTS.filter((sc) => !shortcutStatus[sc.id]);
   if (notify && busy.length && tray && !tray.isDestroyed()) {
-    try { tray.displayBalloon({ title: 'Silkreader', content: `Diese Tastenkürzel benutzt schon ein anderes Programm: ${busy.map((b) => b.label).join(', ')}. In den Einstellungen kannst du andere wählen.` }); } catch {}
+    try { tray.displayBalloon({ title: 'Silkreader', content: T(`Diese Tastenkürzel benutzt schon ein anderes Programm: ${busy.map((b) => b.label).join(', ')}. In den Einstellungen kannst du andere wählen.`) }); } catch {}
   }
 }
 // Jeder Tastendruck: sofort sichtbare Rückmeldung (Spinne hüpft), Protokoll, dann die Aktion
@@ -181,7 +202,7 @@ function createBubble() {
   bubbleWin.setIgnoreMouseEvents(true, { forward: true });
   bubbleWin.loadFile(path.join(__dirname, 'bubble.html'));
   bubbleWin.webContents.on('did-finish-load', () => {
-    bubbleWin.webContents.send('rig-init', { length: s.rig?.length ?? 90, minLen: RIG.minLen, maxLen: RIG.maxLen, clickMode: clickMode() });
+    bubbleWin.webContents.send('rig-init', { length: loadSettings().rig?.length ?? 90, minLen: RIG.minLen, maxLen: RIG.maxLen, clickMode: clickMode() });
     sendCocoons();
   });
 
@@ -290,7 +311,7 @@ function showMain() {
 function openSettings() {
   if (settingsWin && !settingsWin.isDestroyed()) return settingsWin.focus();
   settingsWin = new BrowserWindow({
-    width: 580, height: 820, resizable: true, title: 'Einstellungen',
+    width: 580, height: 820, resizable: true, title: T('Einstellungen'),
     backgroundColor: '#0b0b10', autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
   });
@@ -451,6 +472,7 @@ function closeRing() {
 }
 ipcMain.on('ring-hover', (_e, id) => { if (ring) ring.hover = id; });
 ipcMain.on('prewarm', () => { createPopup(); });
+ipcMain.on('ui-lang', (e) => { e.returnValue = uiLang(); });
 ipcMain.on('rig-talk', (_e, on) => bubbleWin?.webContents.send('rig-talk', !!on));
 ipcMain.on('ring-action', (_e, id) => {
   closeRing();
@@ -478,15 +500,119 @@ async function runRingAction(id) {
     case 'reader': return showMain();
     case 'settings': return showPopupPayload({ kind: 'settings' });
     case 'hide': return bubbleWin?.hide();
+    case 'about': return showPopupPayload({ kind: 'about' });
   }
 }
+
+function buildTrayMenu() {
+  if (!tray || tray.isDestroyed()) return;
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: T('Spinne anzeigen'), click: () => bubbleWin.show() },
+    { label: T('Markierten Text lesen'), click: () => spiderTake({ mode: 'read' }) },
+    { label: T('Datei lesen …'), click: pickFileToBubble },
+    { label: T('Lesemodus öffnen'), click: () => showMain() },
+    { label: T('Weitere Funktionen'), submenu: classicMenu() },
+    { label: T('Einstellungen …'), click: openSettings },
+    { type: 'separator' },
+    { label: T('Über Silkreader'), click: () => showPopupPayload({ kind: 'about' }) },
+    { label: T('Problem melden'), click: () => showPopupPayload({ kind: 'report' }) },
+    { label: T(`Nach Updates suchen (v${app.getVersion()})`), click: checkUpdatesNow },
+    { label: T('Protokoll öffnen (für Fehlersuche)'), click: openLog },
+    {
+      label: T('Mit Windows starten'), type: 'checkbox',
+      checked: app.getLoginItemSettings().openAtLogin,
+      click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }),
+    },
+    { type: 'separator' },
+    { label: T('Beenden'), click: () => app.quit() },
+  ]));
+}
+const logFile = () => path.join(app.getPath('userData'), 'silkreader-errors.log');
+const openLog = () => { if (!fs.existsSync(logFile())) logLine('Protokoll geöffnet'); shell.openPath(logFile()); };
+
+// ---------- Erster Start: Willkommen, KI wählen, Datenschutz ----------
+let welcomeWin = null;
+function showWelcome() {
+  if (welcomeWin && !welcomeWin.isDestroyed()) return welcomeWin.focus();
+  welcomeWin = new BrowserWindow({
+    width: 560, height: 640, resizable: false, maximizable: false, minimizable: false, title: T('Willkommen'),
+    backgroundColor: '#0c0c11', autoHideMenuBar: true, show: false,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+  });
+  welcomeWin.loadFile(path.join(__dirname, 'welcome.html'));
+  welcomeWin.once('ready-to-show', () => welcomeWin.show());
+  welcomeWin.on('closed', () => {
+    welcomeWin = null;
+    // Ohne „Los geht's“ geschlossen: beim nächsten Start nochmal fragen, Zwischenablage bleibt aus
+  });
+}
+ipcMain.handle('welcome-state', () => {
+  const st = loadSettings();
+  return {
+    provider: st.provider, hasKey: !!getApiKey(), modelReady: builtinModelReady(),
+    hatchAnimation: st.hatchAnimation !== false, pinCopied: st.pinCopied === true, copyHint: st.copyHint === true,
+  };
+});
+ipcMain.on('welcome-done', (_e, prefs) => {
+  const st = loadSettings();
+  st.onboarded = app.getVersion();
+  for (const k of ['hatchAnimation', 'pinCopied', 'copyHint']) if (typeof prefs?.[k] === 'boolean') st[k] = prefs[k];
+  saveSettings(st);
+  logLine('Willkommen abgeschlossen');
+  welcomeWin?.close();
+  bubbleWin?.show();
+  bubbleWin?.webContents.send('rig-trick', 'hello');
+});
+ipcMain.handle('set-ui-lang', (_e, l) => {
+  if (l !== 'de' && l !== 'en') return uiLang();
+  const st = loadSettings();
+  const before = uiLang();
+  st.uiLang = l;
+  // Ergebnis-Sprache mitziehen, solange sie noch auf der Voreinstellung der alten Sprache steht
+  if (!st.languageSet && st.language === (before === 'en' ? 'Englisch' : 'Deutsch')) st.language = l === 'en' ? 'Englisch' : 'Deutsch';
+  saveSettings(st);
+  I18N.setLang(l);
+  buildTrayMenu();
+  // Andere Fenster in der neuen Sprache neu laden (die Sprechblase baut sich selbst neu auf)
+  bubbleWin?.webContents.reload();
+  if (ringWin && !ringWin.isDestroyed()) ringWin.destroy();
+  for (const w of [mainWin, settingsWin]) if (w && !w.isDestroyed()) w.webContents.reload();
+  return l;
+});
+
+// Datenschutz und Lizenzen in kleinen Fenstern
+function openDoc(file, title, size = { width: 680, height: 720 }) {
+  const w = new BrowserWindow({ ...size, title, backgroundColor: '#0c0c11', autoHideMenuBar: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false } });
+  w.loadFile(path.join(__dirname, file));
+  return w;
+}
+ipcMain.handle('open-privacy', () => { openDoc('privacy.html', T('Datenschutz')); });
+ipcMain.handle('open-licenses', () => { openDoc('legal/THIRD_PARTY_NOTICES.txt', T('Lizenzen'), { width: 760, height: 760 }); });
+ipcMain.handle('open-log', () => openLog());
+ipcMain.handle('app-info', () => ({ version: app.getVersion(), platform: `${process.platform} ${require('os').release()}` }));
+
+// Problem melden: GitHub öffnet sich im Browser – nichts wird automatisch verschickt
+ipcMain.handle('report-problem', (_e, { text, withLog }) => {
+  const st = loadSettings();
+  let log = '';
+  if (withLog) {
+    try { log = fs.readFileSync(logFile(), 'utf8').split('\n').filter(Boolean).slice(-40).join('\n'); } catch {}
+  }
+  const head = `**Was ist passiert? / What happened?**\n${String(text || '').slice(0, 2000)}\n\n**System**\nSilkreader ${app.getVersion()} · ${process.platform} ${require('os').release()} · ${process.arch} · KI: ${st.provider} · ${uiLang()}`;
+  let body = head + (log ? `\n\n**Protokoll / Log**\n\`\`\`\n${log}\n\`\`\`` : '');
+  const url = (b) => `https://github.com/Sebbilore/silkreader/issues/new?title=${encodeURIComponent(`Problem: ${String(text || '').split('\n')[0].slice(0, 60)}`)}&body=${encodeURIComponent(b)}`;
+  while (url(body).length > 7500 && log) { log = log.split('\n').slice(5).join('\n'); body = head + `\n\n**Protokoll / Log**\n\`\`\`\n${log}\n\`\`\``; }
+  shell.openExternal(url(body));
+  return true;
+});
 
 // Datei auswählen und direkt in der Sprechblase lesen
 async function pickFileToBubble() {
   const r = await dialog.showOpenDialog({
-    title: 'Dokument lesen',
+    title: T('Dokument lesen'),
     properties: ['openFile'],
-    filters: [{ name: 'Dokumente', extensions: ['pdf', 'docx', 'txt', 'md', 'csv', 'json', 'html', 'log'] }],
+    filters: [{ name: T('Dokumente'), extensions: ['pdf', 'docx', 'txt', 'md', 'csv', 'json', 'html', 'log'] }],
   });
   if (r.canceled || !r.filePaths[0]) return;
   try { showPopup(await readFileDoc(r.filePaths[0]), { autoStart: true }); }
@@ -801,17 +927,17 @@ function cocoonMenu(id) {
   const it = cocoons.get(id);
   if (!it) return [];
   return [
-    { label: 'Kopieren', click: async () => { if (await copyCocoon(id)) bubbleWin?.webContents.send('cocoon-copied', id); } },
-    ...(it.type === 'file' && isFolder(it.path) ? [{ label: 'Öffnen', click: () => shell.openPath(it.path) }] : [
-      { label: 'Lesen', click: () => readCocoon(id) },
-      { label: 'Im Lesemodus öffnen', click: async () => showDocument(await cocoonDoc(it)) },
+    { label: T('Kopieren'), click: async () => { if (await copyCocoon(id)) bubbleWin?.webContents.send('cocoon-copied', id); } },
+    ...(it.type === 'file' && isFolder(it.path) ? [{ label: T('Öffnen'), click: () => shell.openPath(it.path) }] : [
+      { label: T('Lesen'), click: () => readCocoon(id) },
+      { label: T('Im Lesemodus öffnen'), click: async () => showDocument(await cocoonDoc(it)) },
     ]),
-    ...(it.type === 'file' ? [{ label: 'Im Ordner zeigen', click: () => shell.showItemInFolder(it.path) }] : []),
-    ...(cocoons.list().length > 1 && !(it.type === 'file' && isFolder(it.path)) ? [{ label: 'Vergleichen mit …', submenu: cocoons.list()
+    ...(it.type === 'file' ? [{ label: T('Im Ordner zeigen'), click: () => shell.showItemInFolder(it.path) }] : []),
+    ...(cocoons.list().length > 1 && !(it.type === 'file' && isFolder(it.path)) ? [{ label: T('Vergleichen mit …'), submenu: cocoons.list()
       .filter((o) => o.id !== id && !(o.type === 'file' && isFolder(o.path)))
       .map((o) => ({ label: o.name, click: () => compareCocoons(id, o.id) })) }] : []),
     { type: 'separator' },
-    { label: 'Aus dem Netz nehmen', click: () => { cocoons.remove(id); sendCocoons(); } },
+    { label: T('Aus dem Netz nehmen'), click: () => { cocoons.remove(id); sendCocoons(); } },
   ];
 }
 
@@ -839,25 +965,25 @@ async function compareCocoons(idA, idB) {
     preloadBuiltinModel();
     showPopupPayload({ kind: 'compare', title: `${a.title} ↔ ${b.title}`, a, b });
   } catch (e) {
-    dialog.showErrorBox('Vergleich nicht möglich', String(e.message || e));
+    dialog.showErrorBox(T('Vergleich nicht möglich'), String(e.message || e));
   }
 }
 
 function cocoonsMenuTemplate() {
   const items = cocoons.list();
-  if (!items.length) return [{ label: 'Noch leer – Datei oder Text auf die Spinne ziehen', enabled: false }];
+  if (!items.length) return [{ label: T('Noch leer – Datei oder Text auf die Spinne ziehen'), enabled: false }];
   return [
-    ...items.map((it) => ({ label: `${it.type === 'file' ? '📄' : '📝'} ${it.name}${it.missing ? ' (fehlt)' : ''}`, submenu: cocoonMenu(it.id) })),
+    ...items.map((it) => ({ label: T(`${it.type === 'file' ? '📄' : '📝'} ${it.name}${it.missing ? ' (fehlt)' : ''}`), submenu: cocoonMenu(it.id) })),
     { type: 'separator' },
-    { label: 'Alle Kokons entfernen', click: () => { cocoons.clear(); sendCocoons(); } },
+    { label: T('Alle Kokons entfernen'), click: () => { cocoons.clear(); sendCocoons(); } },
   ];
 }
 
 async function pickFile() {
   const r = await dialog.showOpenDialog({
-    title: 'Dokument analysieren',
+    title: T('Dokument analysieren'),
     properties: ['openFile'],
-    filters: [{ name: 'Dokumente', extensions: ['pdf', 'docx', 'txt', 'md', 'csv', 'json', 'html', 'log'] }],
+    filters: [{ name: T('Dokumente'), extensions: ['pdf', 'docx', 'txt', 'md', 'csv', 'json', 'html', 'log'] }],
   });
   if (!r.canceled && r.filePaths[0]) await openFile(r.filePaths[0]);
 }
@@ -866,7 +992,7 @@ async function openFile(filePath, opts) {
   try {
     showDocument(await readDocument(filePath), opts);
   } catch (e) {
-    dialog.showErrorBox('Datei konnte nicht gelesen werden', String(e.message || e));
+    dialog.showErrorBox(T('Datei konnte nicht gelesen werden'), String(e.message || e));
   }
 }
 
@@ -1498,8 +1624,13 @@ ipcMain.handle('transform', async (event, mode, text, extra = '') => {
     bubbleWin?.webContents.send('rig-task', mode);
     setBusy(true);
     let out = '';
+    const st = loadSettings();
+    const target = !st.language || st.language === 'der Sprache des Dokuments' ? (uiLang() === 'en' ? 'Englisch' : 'Deutsch') : st.language;
+    const instruction = mode === 'translate'
+      ? `Übersetze den folgenden Text ins ${target}e. Ist er schon auf ${target}, übersetze ihn ins ${target === 'Deutsch' ? 'Englische' : 'Deutsche'}. Gib nur die Übersetzung aus, ohne Kommentar.`
+      : TRANSFORMS[mode].instruction;
     const { value, truncated } = await llmGenerate({
-      instruction: TRANSFORMS[mode].instruction + (extra ? ` ${extra}` : ''), material: text, maxTokens: 1500,
+      instruction: instruction + (extra ? ` ${extra}` : ''), material: text, maxTokens: 1500,
       onChunk: (c) => { out += c; event.sender.send('transform-progress', out); },
     });
     return { ok: true, text: value, truncated };
@@ -1602,21 +1733,21 @@ ipcMain.handle('analyze-clipboard', () => spiderTake());
 ipcMain.handle('spider-take', () => spiderTake());
 ipcMain.on('main-menu', (e) => {
   Menu.buildFromTemplate([
-    { label: 'Neuer Text', accelerator: 'CommandOrControl+N', click: () => e.sender.send('menu', 'new') },
-    { label: 'Aus Zwischenablage', accelerator: 'CommandOrControl+V', click: () => e.sender.send('menu', 'paste') },
-    { label: 'Datei öffnen …', accelerator: 'CommandOrControl+O', click: () => pickFile() },
-    { label: 'Notizbuch', accelerator: 'CommandOrControl+H', click: () => e.sender.send('show-notebook') },
+    { label: T('Neuer Text'), accelerator: 'CommandOrControl+N', click: () => e.sender.send('menu', 'new') },
+    { label: T('Aus Zwischenablage'), accelerator: 'CommandOrControl+V', click: () => e.sender.send('menu', 'paste') },
+    { label: T('Datei öffnen …'), accelerator: 'CommandOrControl+O', click: () => pickFile() },
+    { label: T('Notizbuch'), accelerator: 'CommandOrControl+H', click: () => e.sender.send('show-notebook') },
     { type: 'separator' },
-    { label: 'Ergebnis kopieren', accelerator: 'CommandOrControl+Shift+C', click: () => e.sender.send('menu', 'copy') },
-    { label: 'Einstellungen …', accelerator: 'CommandOrControl+,', click: () => openSettings() },
+    { label: T('Ergebnis kopieren'), accelerator: 'CommandOrControl+Shift+C', click: () => e.sender.send('menu', 'copy') },
+    { label: T('Einstellungen …'), accelerator: 'CommandOrControl+,', click: () => openSettings() },
   ]).popup({ window: BrowserWindow.fromWebContents(e.sender) });
 });
 ipcMain.handle('pin-selection', () => cocoonFromSelection({ hotkey: false }));
 ipcMain.handle('clipboard-text', async () => String((await clipboard.readText()) || ''));
 ipcMain.handle('pick-file-bubble', async () => {
   const r = await dialog.showOpenDialog(popupWin && !popupWin.isDestroyed() ? popupWin : undefined, {
-    title: 'Dokument lesen', properties: ['openFile'],
-    filters: [{ name: 'Dokumente', extensions: ['pdf', 'docx', 'txt', 'md', 'csv', 'json', 'html', 'log'] }],
+    title: T('Dokument lesen'), properties: ['openFile'],
+    filters: [{ name: T('Dokumente'), extensions: ['pdf', 'docx', 'txt', 'md', 'csv', 'json', 'html', 'log'] }],
   });
   if (r.canceled || !r.filePaths[0]) return { ok: false };
   try { return { ok: true, doc: await readFileDoc(r.filePaths[0]) }; } catch (e) { return { ok: false, error: String(e.message || e) }; }
@@ -1670,7 +1801,7 @@ ipcMain.on('cocoon-drag', (e, id) => {
   if (!file || !fs.existsSync(file)) return;
   e.sender.startDrag({ file, icon: nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png')) });
 });
-ipcMain.handle('shortcuts', () => SHORTCUTS.map((s) => ({ id: s.id, label: s.label, desc: s.desc, ok: shortcutStatus[s.id] !== false })));
+ipcMain.handle('shortcuts', () => SHORTCUTS.map((s) => ({ id: s.id, label: s.label, desc: T(s.desc), ok: shortcutStatus[s.id] !== false })));
 // Während in den Einstellungen ein neues Kürzel aufgenommen wird, dürfen die alten es nicht abfangen
 let recordingShortcut = false;
 ipcMain.on('shortcut-recording', (_e, on) => { recordingShortcut = on; if (on) globalShortcut.unregisterAll(); else registerShortcuts(); });
@@ -1688,6 +1819,7 @@ ipcMain.handle('open-main', () => { const w = createMain(); w.show(); w.focus();
 ipcMain.handle('get-settings', () => {
   const s = loadSettings();
   return {
+    uiLang: uiLang(),
     provider: s.provider, model: s.model, ollamaModel: s.ollamaModel, language: s.language,
     hatchAnimation: s.hatchAnimation !== false,
     lowPower: !!s.lowPower,
@@ -1719,7 +1851,7 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   if (typeof copyHint === 'boolean') s.copyHint = copyHint;
   if (CLICK_MODES.includes(cm)) { s.clickMode = cm; bubbleWin?.webContents.send('click-mode', cm); }
   if (model && MODELS[model]) s.model = model;
-  if (language) s.language = language;
+  if (language) { if (language !== s.language) s.languageSet = true; s.language = language; }
   saveSettings(s);
   preloadBuiltinModel();
   return true;
@@ -1732,10 +1864,10 @@ ipcMain.on('bubble-menu', () => openRing({ at: spiderScreenPos() }));
 // Altes Menü (noch über das Tray-Symbol erreichbar)
 function classicMenu() {
   return Menu.buildFromTemplate([
-    { label: 'Bildschirmbereich lesen', click: () => regionCapture() },
-    { label: 'Notizbuch', click: () => showNotebook() },
-    { label: 'Spinnennetz-Ring öffnen', click: () => openRing({ at: spiderScreenPos() }) },
-    { label: 'Spinne ausblenden', click: () => bubbleWin.hide() },
+    { label: T('Bildschirmbereich lesen'), click: () => regionCapture() },
+    { label: T('Notizbuch'), click: () => showNotebook() },
+    { label: T('Spinnennetz-Ring öffnen'), click: () => openRing({ at: spiderScreenPos() }) },
+    { label: T('Spinne ausblenden'), click: () => bubbleWin.hide() },
   ]);
 }
 
@@ -1793,18 +1925,40 @@ function endRigDrag() {
 
 let manualUpdateCheck = false;
 
+// Updates prüfen: Die Datei muss mit unserem Silkreader-Zertifikat signiert sein (fest hinterlegter Fingerabdruck) –
+// dafür muss kein Zertifikat mehr als vertrauenswürdige Stammstelle installiert werden. Eine später gekaufte,
+// anerkannte Signatur (Status „gültig“ und Herausgeber „Silkreader“) wird ebenfalls akzeptiert.
+const PINNED_CERTS = ['66923F7442AA9A51CEE8EE2055B12E9FB722F9F1'];
+function verifyUpdateSignature(publisherNames, file) {
+  return new Promise((resolve) => {
+    const ps = `Get-AuthenticodeSignature -LiteralPath '${file.replace(/'/g, "''")}' | ForEach-Object { [pscustomobject]@{ s = [int]$_.Status; t = $_.SignerCertificate.Thumbprint; n = $_.SignerCertificate.Subject } } | ConvertTo-Json -Compress`;
+    require('child_process').execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true, timeout: 30000 }, (err, out) => {
+      if (err) return resolve(`Signatur nicht prüfbar: ${err.message}`);
+      let d;
+      try { d = JSON.parse(String(out).trim()); } catch { return resolve('Signatur nicht lesbar'); }
+      const thumb = String(d?.t || '').toUpperCase();
+      // 0 = gültig, 1/4 = nur die Vertrauenskette fehlt (selbst erstelltes Zertifikat); 2/3 = unsigniert/verändert → ablehnen
+      if (PINNED_CERTS.includes(thumb) && [0, 1, 4].includes(d.s)) return resolve(null);
+      if (d?.s === 0 && publisherNames.some((n) => String(d.n || '').includes(`CN=${n.replace(/^CN=/, '').split(',')[0]}`))) return resolve(null);
+      logLine(`Update abgelehnt: Signatur ${JSON.stringify(d)}`);
+      resolve(`Update nicht vertrauenswürdig signiert (Status ${d?.s})`);
+    });
+  });
+}
+
 function setupUpdates() {
   if (!app.isPackaged) return; // nur in der installierten App
+  if (process.platform === 'win32') updater().verifyUpdateCodeSignature = verifyUpdateSignature;
   updater().autoDownload = true;
   updater().autoInstallOnAppQuit = true;
 
   updater().on('update-downloaded', async (info) => {
     const { response } = await dialog.showMessageBox({
       type: 'info',
-      title: 'Silkreader-Update',
-      message: `Silkreader ${info.version} ist da! 🕷`,
-      detail: 'Jetzt neu starten und aktualisieren? Sonst wird das Update automatisch beim nächsten Beenden installiert.',
-      buttons: ['Jetzt neu starten', 'Später'],
+      title: T('Silkreader-Update'),
+      message: T(`Silkreader ${info.version} ist da! 🕷`),
+      detail: T('Jetzt neu starten und aktualisieren? Sonst wird das Update automatisch beim nächsten Beenden installiert.'),
+      buttons: [T('Jetzt neu starten'), T('Später')],
       defaultId: 0,
       cancelId: 1,
     });
@@ -1813,18 +1967,18 @@ function setupUpdates() {
   updater().on('update-not-available', () => {
     if (!manualUpdateCheck) return;
     manualUpdateCheck = false;
-    dialog.showMessageBox({ type: 'info', title: 'Silkreader', message: `Du hast die neueste Version (${app.getVersion()}).` });
+    dialog.showMessageBox({ type: 'info', title: 'Silkreader', message: T(`Du hast die neueste Version (${app.getVersion()}).`) });
   });
   updater().on('update-available', (info) => {
     if (!manualUpdateCheck) return;
     manualUpdateCheck = false;
-    dialog.showMessageBox({ type: 'info', title: 'Silkreader', message: `Version ${info.version} wird im Hintergrund heruntergeladen …` });
+    dialog.showMessageBox({ type: 'info', title: 'Silkreader', message: T(`Version ${info.version} wird im Hintergrund heruntergeladen …`) });
   });
   updater().on('error', (e) => {
     console.error('Update-Fehler:', e);
     if (!manualUpdateCheck) return; // automatische Prüfungen scheitern still (z. B. offline)
     manualUpdateCheck = false;
-    dialog.showMessageBox({ type: 'warning', title: 'Silkreader', message: 'Die Update-Prüfung hat nicht geklappt.', detail: String(e.message || e).slice(0, 400) });
+    dialog.showMessageBox({ type: 'warning', title: 'Silkreader', message: T('Die Update-Prüfung hat nicht geklappt.'), detail: String(e.message || e).slice(0, 400) });
   });
 
   const check = () => updater().checkForUpdates().catch(() => {});
@@ -1834,7 +1988,7 @@ function setupUpdates() {
 
 function checkUpdatesNow() {
   if (!app.isPackaged) {
-    dialog.showMessageBox({ type: 'info', title: 'Silkreader', message: 'Updates gibt es nur in der installierten App.' });
+    dialog.showMessageBox({ type: 'info', title: 'Silkreader', message: T('Updates gibt es nur in der installierten App.') });
     return;
   }
   manualUpdateCheck = true;
@@ -1860,6 +2014,11 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', () => { bubbleWin?.show(); showMain(); });
 
   app.whenReady().then(() => {
+    I18N.setLang(uiLang());
+    // Webseiten-Berechtigungen: nur Schreiben in die Zwischenablage (Kopieren-Knöpfe), sonst nichts
+    const { session: ses } = require('electron');
+    ses.defaultSession.setPermissionRequestHandler((_wc, perm, cb) => cb(['clipboard-sanitized-write'].includes(perm)));
+    ses.defaultSession.setPermissionCheckHandler((_wc, perm) => ['clipboard-sanitized-write'].includes(perm));
     cocoons = new CocoonStore(path.join(app.getPath('userData'), 'cocoons.json'));
     setTimeout(warmUpGrab, 2000); // Tastatur-Helfer vorab starten, damit der erste Klick sofort klappt
     // Ohne Helfer (nicht Windows oder blockiert) gibt es keine Ablagezone → Spinne bekommt größere Fangfläche
@@ -1870,23 +2029,7 @@ if (!app.requestSingleInstanceLock()) {
     const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png'));
     tray = new Tray(icon);
     tray.setToolTip(`Silkreader ${app.getVersion()}`);
-    tray.setContextMenu(Menu.buildFromTemplate([
-      { label: 'Spinne anzeigen', click: () => bubbleWin.show() },
-      { label: 'Markierten Text lesen', click: () => spiderTake({ mode: 'read' }) },
-      { label: 'Datei lesen …', click: pickFileToBubble },
-      { label: 'Lesemodus öffnen', click: () => showMain() },
-      { label: 'Weitere Funktionen', submenu: classicMenu() },
-      { label: 'Einstellungen …', click: openSettings },
-      { label: `Nach Updates suchen (v${app.getVersion()})`, click: checkUpdatesNow },
-      { label: 'Protokoll öffnen (für Fehlersuche)', click: () => shell.openPath(path.join(app.getPath('userData'), 'silkreader-errors.log')) },
-      {
-        label: 'Mit Windows starten', type: 'checkbox',
-        checked: app.getLoginItemSettings().openAtLogin,
-        click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }),
-      },
-      { type: 'separator' },
-      { label: 'Beenden', click: () => app.quit() },
-    ]));
+    buildTrayMenu();
     tray.on('click', () => bubbleWin.show());
 
     setLogger(logLine);
@@ -1897,6 +2040,7 @@ if (!app.requestSingleInstanceLock()) {
     setupUpdates();
 
     const s = loadSettings();
+    if (!s.onboarded && (!process.env.SPIDER_MOCK || process.env.SILK_WELCOME)) { showWelcome(); return; }
     if (s.provider === 'claude' && !getApiKey()) openSettings();
     if (s.provider === 'builtin' && !builtinModelReady()) openSettings();
     if (s.provider === 'ollama') ollamaModels().then((m) => { if (!m.length) openSettings(); }).catch(openSettings);

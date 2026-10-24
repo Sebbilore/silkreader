@@ -218,8 +218,8 @@ async function presentResult(r, myRun) {
   // Zusammenfassung & Erkenntnisse sofort zeigen – die Angaben folgen animiert darunter.
   const body = $('panelBody');
   body.innerHTML = `${r.note ? `<div class="status">ℹ️ ${esc(r.note)}</div>` : ''}
-    <h3>Das Wichtigste</h3><ul class="summary-list">${bullets(r.summary).map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
-    <h3>Kernaussagen</h3><ul class="points">${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}" style="animation-delay:${i * 60}ms">${esc(p)}</li>`).join('')}</ul>
+    <h3>Das Wichtigste</h3><ul class="summary-list" data-noi18n>${bullets(r.summary).map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
+    <h3>Kernaussagen</h3><ul class="points" data-noi18n>${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}" style="animation-delay:${i * 60}ms">${esc(p)}</li>`).join('')}</ul>
     <h3>Erkenntnisse</h3>${r.findings.map((f, i) => `
       <div class="finding jump" data-type="finding" data-index="${i}" style="animation-delay:${i * 80}ms">
         <span class="kind ${esc(f.kind)}">${esc(f.kind)}</span>
@@ -404,7 +404,7 @@ async function renderNotebook() {
   }
   list.innerHTML = items.map((h, i) => `<div class="nbItem${i === nbSel ? ' sel' : ''}" data-id="${esc(h.id)}">
     <div class="t"><b>${esc(h.title || h.docTitle)}</b><span>${esc(bullets(h.summary || '')[0] || '')}</span></div>
-    <small>${new Date(h.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</small>
+    <small>${new Date(h.date).toLocaleDateString(window.I18N?.locale || 'de-DE', { day: '2-digit', month: '2-digit' })}</small>
     <button class="del" title="Löschen">✕</button></div>`).join('');
 }
 function openNotebook() {

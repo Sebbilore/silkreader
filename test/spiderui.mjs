@@ -62,7 +62,7 @@ execSync('xdotool mousemove 748 448'); await sleep(200);
 execSync('xdotool click 1'); await sleep(500); // „Mehr“ → zweite Seite
 console.log('Seite 2:', await ring.evaluate(() => [...document.querySelectorAll('.slot')].map((s) => s.dataset.id).join(',')));
 shot('4-ring2');
-execSync('xdotool mousemove 800 572'); await sleep(200);
+execSync('xdotool mousemove 832 566'); await sleep(200);
 console.log('unten gewählt:', await ring.evaluate(() => document.querySelector('.slot.on')?.dataset.id));
 execSync('xdotool click 1'); await sleep(900);
 console.log('Ring zu:', !(await visible('ring.html')), '| Einstellungs-Blase:', await pop.textContent('#title'));

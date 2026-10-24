@@ -26,6 +26,8 @@
     stop: '<rect x="-5" y="-5" width="10" height="10" rx="1.5"/>',
     shorter: '<path d="M-7 -4h14M-7 0h9M-7 4h5"/>',
     tone: '<path d="M-7 5c2 -6 4 -6 6 0s4 6 6 0M-7 -3h14"/>',
+    info: '<circle r="8"/><path d="M0 -1v5.5M0 -4.2v.01" stroke-width="2"/>',
+    bug: '<path d="M-4 -2a4 4 0 0 1 8 0v4a4 4 0 0 1 -8 0z"/><path d="M-2.5 -5.5l-1.5 -2M2.5 -5.5l1.5 -2M-4 0h-4M4 0h4M-4 3.5l-3.5 2M4 3.5l3.5 2"/>',
     trash: '<path d="M-6 -5h12M-4 -5l1 12h6l1 -12M-2 -5v-2h4v2"/>',
   };
   window.SILK_ICONS = P;

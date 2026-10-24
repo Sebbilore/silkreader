@@ -118,6 +118,21 @@ Der durchsichtige Bereich um die Spinne herum lässt Klicks durch, du kannst als
 
 Im Analysefenster springt die Spinne beim Klick auf eine Angabe zur Fundstelle im Text. Über **Ergebnis kopieren** landet die Analyse als Markdown in der Zwischenablage.
 
+## Sprache, Datenschutz, Lizenzen
+
+- **Deutsch und Englisch:** Die Oberfläche richtet sich nach der Windows-Sprache und lässt sich in der Ersteinrichtung oder den Einstellungen umschalten (`src/i18n.js`).
+- **Ersteinrichtung:** Beim ersten Start erklärt die Spinne die Bedienung, man wählt die KI und stimmt bewusst zu, ob die Zwischenablage mitgelesen werden darf (standardmäßig aus).
+- **Datenschutz:** `src/privacy.html` (auch über „Über Silkreader“ erreichbar). Keine eigenen Server, kein Tracking.
+- **Lizenz:** MIT (`LICENSE`). Fremdlizenzen in `src/legal/THIRD_PARTY_NOTICES.txt` – nach dem Ändern von Abhängigkeiten neu erzeugen mit `npm run notices`.
+- **Problem melden:** öffnet ein vorausgefülltes GitHub-Issue im Browser; nichts wird automatisch verschickt.
+
+## Für die Öffentlichkeit: Signatur
+
+- Der Installer installiert **kein** eigenes Stammzertifikat mehr. Updates prüft die App selbst über den hinterlegten Fingerabdruck des Silkreader-Zertifikats (`PINNED_CERTS` in `src/main.js`); eine echte, anerkannte Signatur mit Herausgeber „Silkreader“ wird ebenfalls akzeptiert.
+- Bis zu einer echten Signatur zeigt Windows SmartScreen „Unbekannter Herausgeber“.
+- **Echtes Zertifikat:** In den GitHub-Secrets das Zertifikat austauschen; `publisherName` in `package.json` muss zum Zertifikat passen.
+- **Microsoft Store:** `npm run dist:store` (unter Windows) baut ein MSIX/AppX-Paket. Die Werte aus dem Partner Center als Umgebungsvariablen `STORE_IDENTITY_NAME`, `STORE_PUBLISHER`, `STORE_PUBLISHER_NAME` setzen (siehe `electron-builder.store.js`).
+
 ## Neue Version veröffentlichen
 
 1. In `package.json` die `version` erhöhen (z. B. `1.2.0`).
@@ -148,6 +163,8 @@ Aufbau:
 - `src/mascot.js`: die kleine Spinne, die im Analysefenster herumtollt
 - `src/popup.html`: Sprechblase unter der Spinne (Ergebnis, Lupe, Mini-Blase, Notizbuch, Einstellungen)
 - `src/ring.html`: Spinnennetz-Ring
+- `src/welcome.html`, `src/privacy.html`: Ersteinrichtung und Datenschutz
+- `src/i18n.js`: Übersetzungen (Deutsch/Englisch)
 - `src/theme.css` und `src/icons.js`: gemeinsame Farben, Schrift, Formen, Bewegungen und Symbole („Mitternachtsseide“)
 - `src/grab.js`: markierten Text aus anderen Programmen holen (zuerst direkt über UI Automation, sonst per Strg+C)
 - `src/winkeys.js`: Tastendrücke direkt über die Windows-API (ohne PowerShell)
