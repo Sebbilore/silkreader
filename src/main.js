@@ -121,6 +121,7 @@ const BUILTIN_MODELS = {
     file: 'Qwen2.5-1.5B-Instruct-Q4_K_M.gguf',
     sizeLabel: '1 GB',
     chunkTokens: 1500, // kleinere Abschnitte: das kleine Modell übersieht sonst einzelne Aussagen
+    genTokens: 2200,   // so viel Text darf beim Übersetzen, Fragen usw. auf einmal hinein
     minRamGB: 4,
   },
   quality: {
@@ -1554,7 +1555,7 @@ async function llmGenerate({ instruction, material = '', schema = null, maxToken
     const { LlamaChatSession } = await import('node-llama-cpp');
     lastModelUse = Date.now();
     const { llama, model } = await loadBuiltinModel(key);
-    const limit = budget || Math.round(BUILTIN_MODELS[key].chunkTokens * 1.4);
+    const limit = budget || Math.round((BUILTIN_MODELS[key].genTokens || BUILTIN_MODELS[key].chunkTokens) * 1.4);
     let text = material;
     let truncated = false;
     if (model.tokenize(text).length > limit) {
