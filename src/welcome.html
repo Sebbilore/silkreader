@@ -53,6 +53,9 @@
   .links { display: flex; gap: 16px; margin-top: 8px; }
   .link { background: none; border: none; color: var(--pink); font: inherit; font-size: 12px; cursor: pointer; padding: 0; }
   .link:hover { text-decoration: underline; }
+  .practice { user-select: text; cursor: text; background: #fff; color: #1b1b1f; border-radius: var(--r-m); padding: 16px 18px; font: 14px/1.6 Georgia, 'Times New Roman', serif;
+    box-shadow: var(--shadow); margin-bottom: 10px; }
+  .practice ::selection { background: #3390ff; color: #fff; }
   .nav { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
   button.go { background: var(--pink); color: #fff; border: none; border-radius: var(--r-pill); font: 600 13px var(--font); padding: 8px 22px; cursor: pointer;
     box-shadow: 0 6px 18px var(--pink-glow); transition: transform var(--t-fast) var(--ease-spring); }
@@ -64,7 +67,7 @@
 <body>
 <div class="wrap">
   <div class="top">
-    <div class="dots"><i class="on"></i><i></i><i></i></div>
+    <div class="dots"><i class="on"></i><i></i><i></i><i></i></div>
     <div class="langs" data-noi18n><button class="chip" data-l="de">Deutsch</button><button class="chip" data-l="en">English</button></div>
   </div>
 
@@ -122,6 +125,15 @@
     <div class="links"><button class="link" id="privacy">Datenschutz im Detail</button><button class="link" id="licenses">Lizenzen</button></div>
   </section>
 
+  <!-- 4: Ausprobieren -->
+  <section class="step" id="s4">
+    <h1>Probier es aus</h1>
+    <p class="sub">Markiere den Brief unten und klick dann auf mich – oben am Bildschirmrand.</p>
+    <div class="practice" id="practice"></div>
+    <div class="links"><button class="link" id="selAll">Text für mich markieren</button></div>
+    <div class="small" id="practiceHint" style="margin-top:10px"></div>
+  </section>
+
   <div class="nav">
     <button class="ghost" id="back">Zurück</button>
     <button class="go" id="next">Weiter</button>
@@ -131,11 +143,21 @@
   const $ = (id) => document.getElementById(id);
   [['i1', 'read'], ['i2', 'pin'], ['i3', 'translate'], ['i4', 'file'], ['i5', 'screen'], ['i6', 'send']].forEach(([id, ic]) => { $(id).outerHTML = silkIcon(ic); });
   let step = 1, provider = null;
+  const LAST = 4;
+  // Übungsbrief (in der Sprache der Oberfläche) – die Spinne erkennt ihn und zeigt ohne KI ein Beispiel-Ergebnis
+  $('practice').textContent = I18N.lang === 'en'
+    ? 'Dear Ms Sample, your electricity bill for March is 84.20 euros. Please transfer the amount by 15 December 2026. From January, your monthly instalment rises to 92 euros. Kind regards, City Power'
+    : 'Sehr geehrte Frau Muster, Ihre Stromrechnung für März beträgt 84,20 Euro. Bitte überweisen Sie den Betrag bis zum 15. Dezember 2026. Ab Januar steigt der Abschlag auf 92 Euro im Monat. Freundliche Grüße, Stadtwerke';
+  $('selAll').addEventListener('click', () => {
+    const r = document.createRange(); r.selectNodeContents($('practice'));
+    getSelection().removeAllRanges(); getSelection().addRange(r);
+    $('practiceHint').textContent = T('Jetzt oben auf die Spinne klicken.');
+  });
   const show = () => {
     document.querySelectorAll('.step').forEach((s, i) => s.classList.toggle('on', i + 1 === step));
     document.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i < step));
     $('back').style.visibility = step > 1 ? 'visible' : 'hidden';
-    $('next').textContent = step === 3 ? "Los geht's" : 'Weiter';
+    $('next').textContent = step === LAST ? "Los geht's" : 'Weiter';
   };
   show();
 
@@ -193,7 +215,8 @@
       if (provider === 'claude' && $('key').value.trim()) await window.spider.saveSettings({ provider: 'claude', apiKey: $('key').value.trim() });
       else if (provider === 'builtin') await window.spider.saveSettings({ provider: 'builtin' });
     }
-    if (step < 3) { step++; show(); return; }
+    if (step === 3) window.spider.welcomePrefs({ hatchAnimation: $('hatch').checked, pinCopied: $('pinCopied').checked, copyHint: $('copyHint').checked });
+    if (step < LAST) { step++; show(); return; }
     window.spider.welcomeDone({ hatchAnimation: $('hatch').checked, pinCopied: $('pinCopied').checked, copyHint: $('copyHint').checked });
   });
   window.addEventListener('keydown', (e) => {

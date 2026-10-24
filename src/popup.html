@@ -72,6 +72,10 @@
   .actions .link:hover { color: var(--pink); text-decoration: none; }
   .hidden { display: none !important; }
   .aiNote { font-size: 10.5px; color: var(--faint); margin: 10px 0 2px; }
+  .where { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--faint); white-space: nowrap; }
+  .where .icon { width: 13px; height: 13px; }
+  .where.cloud { color: var(--pink-2); }
+  .news li { margin-bottom: 9px; }
   .about { text-align: center; padding: 4px 0 6px; }
   .about svg.sp { width: 64px; height: 64px; }
   .about h2 { font: 650 17px var(--font-display); margin: 6px 0 0; }
@@ -123,7 +127,7 @@
 <body>
 <svg id="thread" viewBox="0 0 12 20"><line x1="6" y1="0" x2="6" y2="16"/><circle cx="6" cy="16" r="1.6"/></svg>
 <div id="bubble" class="glass">
-  <header><button class="back x hidden" id="back" title="Zurück"></button><span class="t" id="title">Silkreader</span><button class="x" id="close" title="Schließen (Esc)"></button></header>
+  <header><button class="back x hidden" id="back" title="Zurück"></button><span class="t" id="title">Silkreader</span><span class="where hidden" id="where"></span><button class="x" id="close" title="Schließen (Esc)"></button></header>
   <main id="main"></main>
   <footer id="foot" class="hidden"></footer>
 </div>
@@ -460,6 +464,7 @@
       bindEntries($('nbList'), notebook);
     };
     $('nbQ').addEventListener('input', load);
+    if ((await window.spider.getSettings()).privateMode) $('nbList').insertAdjacentHTML('beforebegin', `<div class="muted" style="margin-bottom:6px">${silkIcon('lock')} ${T('Privatmodus: Neue Texte werden nicht gespeichert.')}</div>`);
     $('foot').classList.add('hidden');
     await load();
     $('nbQ').focus();
@@ -482,6 +487,9 @@
       <label class="tog"><input type="checkbox" id="hatch"${s.hatchAnimation ? ' checked' : ''}> Große Spinne liest mit</label>
       <label class="tog"><input type="checkbox" id="pinCopied"${s.pinCopied ? ' checked' : ''}> Kopierte Dateien ins Netz</label>
       <label class="tog"><input type="checkbox" id="copyHint"${s.copyHint ? ' checked' : ''}> Bei kopiertem Text anbieten, ihn zu lesen</label>
+      <label class="tog"><input type="checkbox" id="privateMode"${s.privateMode ? ' checked' : ''}> Privatmodus: nichts im Notizbuch speichern</label>
+      <label class="tog"><input type="checkbox" id="hideFullscreen"${s.hideFullscreen ? ' checked' : ''}> Bei Vollbild und Präsentationen ausblenden</label>
+      <label class="tog"><input type="checkbox" id="hideInShare"${s.hideInShare ? ' checked' : ''}> In Bildschirmfreigaben unsichtbar</label>
       <label class="tog"><input type="checkbox" id="lowPower"${s.lowPower ? ' checked' : ''}> Sparmodus <span class="muted">(nach Neustart)</span></label>`;
     $('main').querySelectorAll('[data-set]').forEach((g) => g.addEventListener('click', async (e) => {
       const b = e.target.closest('[data-v]'); if (!b) return;
@@ -498,7 +506,7 @@
       settings(); // Blase in der neuen Sprache neu aufbauen
     });
     $('lang').addEventListener('change', (e) => window.spider.saveSettings({ language: e.target.value }));
-    for (const id of ['hatch', 'pinCopied', 'copyHint', 'lowPower']) {
+    for (const id of ['hatch', 'pinCopied', 'copyHint', 'privateMode', 'hideFullscreen', 'hideInShare', 'lowPower']) {
       $(id).addEventListener('change', (e) => window.spider.saveSettings({ [id === 'hatch' ? 'hatchAnimation' : id]: e.target.checked }));
     }
     footer({ actions: [['Tastenkürzel & mehr …', () => window.spider.openSettings()], ['Über', () => { setBack(settings); about(); }]] });
@@ -561,7 +569,7 @@
     });
     f.classList.remove('hidden');
   }
-  const ACTION_ICONS = { 'Im Browser öffnen': 'send', 'Protokoll öffnen': 'file', 'Über': 'info', Vorlesen: 'speak', Kürzer: 'shorter', Förmlicher: 'tone', Lockerer: 'tone', Kopieren: 'copy', Festhalten: 'keep', Lesemodus: 'reader', Notizbuch: 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Erneut versuchen': 'send' };
+  const ACTION_ICONS = { 'Alle Änderungen': 'notebook', 'Im Browser öffnen': 'send', 'Protokoll öffnen': 'file', 'Über': 'info', Vorlesen: 'speak', Kürzer: 'shorter', Förmlicher: 'tone', Lockerer: 'tone', Kopieren: 'copy', Festhalten: 'keep', Lesemodus: 'reader', Notizbuch: 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Erneut versuchen': 'send' };
   function flash(label, text) { const b = $('foot').querySelector(`[data-a="${label}"] span`); if (!b) return; b.textContent = text; setTimeout(() => (b.textContent = label), 1300); }
   function showError(res, retry) {
     state = 'error';
@@ -608,9 +616,29 @@
     close();
   }, 250));
 
+  // Bleibt der Text auf dem PC oder geht er an Claude? Klein im Kopf der Blase anzeigen
+  async function showWhere() {
+    const el = $('where');
+    if (!['analyze', 'transform', 'compare'].includes(P.kind) || (P.kind === 'analyze' && P.result)) { el.classList.add('hidden'); return; }
+    const st = await window.spider.getSettings();
+    const cloud = st.provider === 'claude';
+    el.className = `where${cloud ? ' cloud' : ''}`;
+    el.innerHTML = `${silkIcon(cloud ? 'cloud' : 'lock')}<span>${T(cloud ? 'an Claude' : 'auf diesem PC')}</span>`;
+    el.title = T(cloud ? 'Dieser Text wird an Claude (Anthropic) geschickt.' : 'Dieser Text bleibt auf deinem PC.');
+  }
+
+  // ---------- Was ist neu? ----------
+  function whatsNew() {
+    state = 'done';
+    $('title').textContent = T('Neu in Silkreader {v}', { v: P.version });
+    $('main').innerHTML = `<ul class="news" data-noi18n>${P.items.map((x) => `<li class="rise">${esc(x)}</li>`).join('')}</ul>`;
+    footer({ actions: [['Alle Änderungen', () => window.spider.openExternal('https://github.com/Sebbilore/silkreader/blob/main/CHANGELOG.md')], ['OK', close]] });
+  }
+
   window.spider.onPopupDoc((payload) => {
     stopSpeaking();
     P = payload; result = null; run++;
+    showWhere();
     setBack(null);
     document.documentElement.style.setProperty('--arrow', `${payload.arrow}px`);
     $('bubble').classList.remove('closing');
@@ -622,6 +650,7 @@
     else if (P.kind === 'notebook') notebook();
     else if (P.kind === 'settings') settings();
     else if (P.kind === 'about') about();
+    else if (P.kind === 'whatsnew') whatsNew();
     else if (P.kind === 'report') report();
     else if (P.kind === 'transform') { $('title').textContent = P.title; transform(); }
     else if (P.kind === 'compare') { $('title').textContent = P.title; compare(); }

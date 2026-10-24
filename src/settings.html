@@ -99,6 +99,9 @@
 
 <label class="check"><input type="checkbox" id="pinCopied"> Kopierte Dateien (Strg+C im Explorer) automatisch ins Spinnennetz hängen</label>
 <label class="check"><input type="checkbox" id="copyHint"> Bei kopiertem Text (Strg+C) anbieten, ihn zu lesen</label>
+<label class="check"><input type="checkbox" id="privateMode"> Privatmodus: nichts im Notizbuch speichern</label>
+<label class="check"><input type="checkbox" id="hideFullscreen"> Bei Vollbild, Präsentationen und Spielen automatisch ausblenden</label>
+<label class="check"><input type="checkbox" id="hideInShare"> In Bildschirmfreigaben (Teams, Zoom …) und Bildschirmfotos unsichtbar</label>
 <label class="check"><input type="checkbox" id="lowPower"> Sparmodus: ohne Grafikbeschleunigung – braucht weniger Arbeitsspeicher (wirkt nach einem Neustart von Silkreader)</label>
 
 <label>Tastenkürzel <span class="hint" style="font-weight:400">– zum Ändern anklicken und neue Tasten drücken</span></label>
@@ -205,6 +208,9 @@
     $('lowPower').checked = s.lowPower;
     $('pinCopied').checked = s.pinCopied;
     $('copyHint').checked = s.copyHint;
+    $('privateMode').checked = s.privateMode;
+    $('hideFullscreen').checked = s.hideFullscreen;
+    $('hideInShare').checked = s.hideInShare;
     $('uiLang').value = s.uiLang;
     wantedOllama = s.ollamaModel;
     if (s.hasKey) $('key').placeholder = '•••••••• (gespeichert – leer lassen, um ihn zu behalten)';
@@ -263,6 +269,7 @@
       provider, apiKey: $('key').value, model: $('model').value,
       ollamaModel: $('ollamaModel').value, language: $('lang').value, builtinModel, hatchAnimation: $('hatch').checked, lowPower: $('lowPower').checked, pinCopied: $('pinCopied').checked,
       copyHint: $('copyHint').checked,
+      privateMode: $('privateMode').checked, hideFullscreen: $('hideFullscreen').checked, hideInShare: $('hideInShare').checked,
     });
     $('key').value = '';
     $('msg').textContent = 'Gespeichert ✓';

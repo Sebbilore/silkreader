@@ -10,5 +10,13 @@
     Pop $0
     nsExec::Exec 'certutil -user -delstore Root 66923f7442aa9a51cee8ee2055b12e9fb722f9f1'
     Pop $0
+    ; Eintrag „Mit Silkreader lesen“ im Explorer-Rechtsklick entfernen
+    DeleteRegKey HKCU "Software\Classes\SystemFileAssociations\.pdf\shell\Silkreader"
+    DeleteRegKey HKCU "Software\Classes\SystemFileAssociations\.docx\shell\Silkreader"
+    DeleteRegKey HKCU "Software\Classes\SystemFileAssociations\.txt\shell\Silkreader"
+    DeleteRegKey HKCU "Software\Classes\SystemFileAssociations\.md\shell\Silkreader"
+    DeleteRegKey HKCU "Software\Classes\SystemFileAssociations\.png\shell\Silkreader"
+    DeleteRegKey HKCU "Software\Classes\SystemFileAssociations\.jpg\shell\Silkreader"
+    DeleteRegKey HKCU "Software\Classes\SystemFileAssociations\.jpeg\shell\Silkreader"
   ${endIf}
 !macroend

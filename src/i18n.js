@@ -158,6 +158,22 @@
     'Zu viele Anfragen – bitte kurz warten und erneut versuchen.': 'Too many requests – please wait a moment and try again.',
     'Keine Verbindung zu Claude – Internetverbindung prüfen.': 'No connection to Claude – please check your internet connection.',
 
+    // ---- 1.18: Nicht stören, Scans, Explorer, Privatmodus, Übung, Was ist neu ----
+    'Mit Silkreader lesen': 'Read with Silkreader', 'Auf diesem Bild wurde kein Text erkannt.': 'No text was recognized in this image.',
+    'Pause beenden': 'End pause', 'Nicht stören': 'Do not disturb', '1 Stunde': '1 hour', '3 Stunden': '3 hours', 'Bis morgen': 'Until tomorrow',
+    'Privatmodus (nichts im Notizbuch speichern)': 'Private mode (keep nothing in the notebook)',
+    'Privatmodus: nichts im Notizbuch speichern': 'Private mode: keep nothing in the notebook',
+    'Privatmodus: Neue Texte werden nicht gespeichert.': 'Private mode: new texts are not saved.',
+    'Bei Vollbild und Präsentationen ausblenden': 'Hide during fullscreen and presentations', 'In Bildschirmfreigaben unsichtbar': 'Invisible in screen shares',
+    'Bei Vollbild, Präsentationen und Spielen automatisch ausblenden': 'Hide automatically during fullscreen, presentations and games',
+    'In Bildschirmfreigaben (Teams, Zoom …) und Bildschirmfotos unsichtbar': 'Invisible in screen shares (Teams, Zoom …) and screenshots',
+    'an Claude': 'to Claude', 'auf diesem PC': 'on this PC',
+    'Dieser Text wird an Claude (Anthropic) geschickt.': 'This text is sent to Claude (Anthropic).', 'Dieser Text bleibt auf deinem PC.': 'This text stays on your PC.',
+    'Neu in Silkreader {v}': 'New in Silkreader {v}', 'Alle Änderungen': 'All changes',
+    'Probier es aus': 'Try it out', 'Markiere den Brief unten und klick dann auf mich – oben am Bildschirmrand.': 'Select the letter below, then click me – at the top of your screen.',
+    'Text für mich markieren': 'Select the text for me', 'Jetzt oben auf die Spinne klicken.': 'Now click the spider at the top.',
+    'Übung: Stromrechnung': 'Practice: electricity bill', 'Brief': 'Letter', 'Betrag': 'Amount', 'Neuer Abschlag': 'New instalment',
+
     // ---- Menüs, Tray, Dialoge (Hauptprozess) ----
     'Spinne anzeigen': 'Show spider', 'Markierten Text lesen': 'Read selected text', 'Lesemodus öffnen': 'Open reading mode', 'Weitere Funktionen': 'More functions',
     'Einstellungen …': 'Settings …', 'Protokoll öffnen (für Fehlersuche)': 'Open log (for troubleshooting)', 'Mit Windows starten': 'Start with Windows', 'Beenden': 'Quit',

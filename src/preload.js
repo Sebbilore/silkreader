@@ -87,6 +87,7 @@ contextBridge.exposeInMainWorld('spider', {
   setUiLang: (l) => ipcRenderer.invoke('set-ui-lang', l),
   welcomeState: () => ipcRenderer.invoke('welcome-state'),
   welcomeDone: (prefs) => ipcRenderer.send('welcome-done', prefs),
+  welcomePrefs: (prefs) => ipcRenderer.send('welcome-prefs', prefs),
   openPrivacy: () => ipcRenderer.invoke('open-privacy'),
   openLicenses: () => ipcRenderer.invoke('open-licenses'),
   openLog: () => ipcRenderer.invoke('open-log'),

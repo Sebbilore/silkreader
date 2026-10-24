@@ -29,7 +29,8 @@ function uiLang() {
 const { setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
 const { CocoonStore } = require('./cocoons');
 const { scanSelection } = require('./selectionScan');
-const { recognizeText } = require('./ocr');
+const { recognizeText, recognizePdf } = require('./ocr');
+const WHATS_NEW = require('./whatsnew');
 
 // Globale Tastenkürzel. Strg+Alt statt Strg+Umschalt, weil viele Programme Strg+Umschalt
 // selbst benutzen (z. B. Strg+Umschalt+Leertaste in Word, Strg+Umschalt+B in Chrome).
@@ -205,6 +206,7 @@ function createBubble() {
   });
   bubbleWin.setAlwaysOnTop(true, 'floating');
   bubbleWin.setVisibleOnAllWorkspaces(true);
+  protectFromCapture(bubbleWin);
   bubbleWin.setIgnoreMouseEvents(true, { forward: true });
   bubbleWin.loadFile(path.join(__dirname, 'bubble.html'));
   bubbleWin.webContents.on('did-finish-load', () => {
@@ -350,6 +352,7 @@ function createPopup() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
   });
   popupWin.setAlwaysOnTop(true, 'floating');
+  protectFromCapture(popupWin);
   popupWin.loadFile(path.join(__dirname, 'popup.html'));
   popupWin.on('closed', () => { popupWin = null; });
   popupWin.on('hide', () => scheduleFree(popupWin, 90 * 1000));
@@ -436,6 +439,7 @@ function createRing() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
   });
   ringWin.setAlwaysOnTop(true, 'screen-saver');
+  protectFromCapture(ringWin);
   ringWin.loadFile(path.join(__dirname, 'ring.html'));
   ringWin.on('closed', () => { ringWin = null; ring = null; });
   ringWin.on('hide', () => scheduleFree(ringWin, 60 * 1000));
@@ -524,6 +528,16 @@ function buildTrayMenu() {
     { label: T('Weitere Funktionen'), submenu: classicMenu() },
     { label: T('Einstellungen …'), click: openSettings },
     { type: 'separator' },
+    pauseUntil > Date.now()
+      ? { label: T('Pause beenden'), click: () => pauseSpider(0) }
+      : { label: T('Nicht stören'), submenu: [
+        { label: T('1 Stunde'), click: () => pauseSpider(3600e3) },
+        { label: T('3 Stunden'), click: () => pauseSpider(3 * 3600e3) },
+        { label: T('Bis morgen'), click: () => { const t = new Date(); t.setHours(24, 0, 0, 0); pauseSpider(t - Date.now() + 8 * 3600e3); } },
+      ] },
+    { label: T('Privatmodus (nichts im Notizbuch speichern)'), type: 'checkbox', checked: !!loadSettings().privateMode,
+      click: (item) => { const st = loadSettings(); st.privateMode = item.checked; saveSettings(st); } },
+    { type: 'separator' },
     { label: T('Über Silkreader'), click: () => showPopupPayload({ kind: 'about' }) },
     { label: T('Problem melden'), click: () => showPopupPayload({ kind: 'report' }) },
     { label: T(`Nach Updates suchen (v${app.getVersion()})`), click: checkUpdatesNow },
@@ -566,12 +580,19 @@ ipcMain.handle('welcome-state', () => {
 ipcMain.on('welcome-done', (_e, prefs) => {
   const st = loadSettings();
   st.onboarded = app.getVersion();
+  st.lastVersion = app.getVersion();
   for (const k of ['hatchAnimation', 'pinCopied', 'copyHint']) if (typeof prefs?.[k] === 'boolean') st[k] = prefs[k];
   saveSettings(st);
   logLine('Willkommen abgeschlossen');
   welcomeWin?.close();
   bubbleWin?.show();
   bubbleWin?.webContents.send('rig-trick', 'hello');
+});
+// Datenschutz-Entscheidungen schon vor dem Übungsschritt übernehmen (z. B. „Große Spinne liest mit“)
+ipcMain.on('welcome-prefs', (_e, prefs) => {
+  const st = loadSettings();
+  for (const k of ['hatchAnimation', 'pinCopied', 'copyHint']) if (typeof prefs?.[k] === 'boolean') st[k] = prefs[k];
+  saveSettings(st);
 });
 ipcMain.handle('set-ui-lang', (_e, l) => {
   if (l !== 'de' && l !== 'en') return uiLang();
@@ -617,12 +638,104 @@ ipcMain.handle('report-problem', (_e, { text, withLog }) => {
   return true;
 });
 
+// „Mit Silkreader lesen“ im Explorer-Rechtsklick: Silkreader wird mit --read <Datei> gestartet
+const fileFromArgs = (argv) => { const i = argv.indexOf('--read'); return i >= 0 && argv[i + 1] ? argv[i + 1] : null; };
+async function readFileToBubble(file) {
+  logLine('Datei aus dem Explorer');
+  bubbleWin?.showInactive();
+  try { showPopup(await readFileDoc(file), { autoStart: true }); }
+  catch (e) { showPopupPayload({ kind: 'message', title: 'Datei konnte nicht gelesen werden', text: String(e.message || e) }); }
+}
+const MENU_EXT = ['.pdf', '.docx', '.txt', '.md', '.png', '.jpg', '.jpeg'];
+// Eintrag im Explorer-Kontextmenü anlegen (nur installierte App, nur für den eigenen Benutzer)
+function registerExplorerMenu() {
+  if (process.platform !== 'win32' || !app.isPackaged) return;
+  const label = T('Mit Silkreader lesen');
+  const stamp = `${process.execPath}|${label}`;
+  const st = loadSettings();
+  if (st.explorerMenu === stamp) return;
+  const exe = process.execPath.replace(/\\/g, '\\\\');
+  let reg = 'Windows Registry Editor Version 5.00\r\n';
+  for (const ext of MENU_EXT) {
+    const key = `HKEY_CURRENT_USER\\Software\\Classes\\SystemFileAssociations\\${ext}\\shell\\Silkreader`;
+    reg += `\r\n[${key}]\r\n@="${label}"\r\n"Icon"="\\"${exe}\\",0"\r\n\r\n[${key}\\command]\r\n@="\\"${exe}\\" --read \\"%1\\""\r\n`;
+  }
+  const file = path.join(app.getPath('temp'), 'silkreader-menu.reg');
+  fs.writeFileSync(file, `\ufeff${reg}`, 'utf16le');
+  require('child_process').execFile('reg', ['import', file], { windowsHide: true }, (err) => {
+    fs.unlink(file, () => {});
+    if (err) return logLine(`Explorer-Menü nicht eingetragen: ${err.message}`);
+    const s2 = loadSettings(); s2.explorerMenu = stamp; saveSettings(s2);
+    logLine('Explorer-Menü „Mit Silkreader lesen“ eingetragen');
+  });
+}
+
+// ---------- Nicht stören: Vollbild, Präsentation, Spiele, Bildschirmfreigabe ----------
+let hiddenForFullscreen = false, pauseUntil = 0, pauseTimer = null;
+function watchFullscreen() {
+  if (process.platform !== 'win32') return;
+  setInterval(() => {
+    if (!bubbleWin || bubbleWin.isDestroyed() || loadSettings().hideFullscreen === false) return;
+    const busy = winkeys.fullscreenBusy();
+    if (busy && bubbleWin.isVisible() && !hiddenForFullscreen) {
+      hiddenForFullscreen = true;
+      bubbleWin.hide();
+      logLine('Vollbild/Präsentation erkannt: Spinne ausgeblendet');
+    } else if (!busy && hiddenForFullscreen) {
+      hiddenForFullscreen = false;
+      if (Date.now() >= pauseUntil && !rigHiddenForMain) bubbleWin.showInactive();
+    }
+  }, 2000);
+}
+// In Bildschirmfreigaben (Teams, Zoom …) und Bildschirmfotos unsichtbar – nur man selbst sieht die Spinne
+function protectFromCapture(win) {
+  if (process.platform === 'win32' && win && !win.isDestroyed()) win.setContentProtection(loadSettings().hideInShare !== false);
+}
+function pauseSpider(ms) {
+  clearTimeout(pauseTimer);
+  if (!ms) { pauseUntil = 0; bubbleWin?.showInactive(); buildTrayMenu(); return; }
+  pauseUntil = Date.now() + ms;
+  bubbleWin?.hide();
+  pauseTimer = setTimeout(() => { pauseUntil = 0; if (!hiddenForFullscreen) bubbleWin?.showInactive(); buildTrayMenu(); }, ms);
+  buildTrayMenu();
+}
+
+// ---------- Was ist neu? (nach einem Update einmal zeigen) ----------
+function maybeShowWhatsNew() {
+  const st = loadSettings();
+  const v = app.getVersion();
+  if (st.lastVersion === v) return;
+  st.lastVersion = v;
+  saveSettings(st);
+  const items = WHATS_NEW[v]?.[uiLang()] || WHATS_NEW[v]?.de;
+  if (st.onboarded && items) setTimeout(() => showPopupPayload({ kind: 'whatsnew', version: v, items }), 4000);
+}
+
+// ---------- Übung in der Ersteinrichtung ----------
+// Ist noch keine KI eingerichtet, zeigt die Spinne beim Übungstext ein Beispiel-Ergebnis
+function aiReady() {
+  const st = loadSettings();
+  return st.provider === 'claude' ? !!getApiKey() : st.provider === 'ollama' ? true : builtinModelReady();
+}
+const PRACTICE_MARK = /Stromrechnung für März|electricity bill for March/;
+function practiceResult(text) {
+  const en = uiLang() === 'en';
+  return {
+    title: en ? 'Practice: electricity bill' : 'Übung: Stromrechnung', doc_type: en ? 'Letter' : 'Brief',
+    summary: en ? '• The March bill is 84.20 euros.\n• Pay by 15 December 2026.\n• From January the monthly instalment rises to 92 euros.'
+      : '• Die Rechnung für März beträgt 84,20 Euro.\n• Zahlen bis zum 15. Dezember 2026.\n• Ab Januar steigt der Abschlag auf 92 Euro im Monat.',
+    key_points: [], findings: [],
+    figures: [{ label: en ? 'Amount' : 'Betrag', value: '84,20 €', quote: '84,20 Euro', page: 1 }, { label: en ? 'New instalment' : 'Neuer Abschlag', value: '92 €', quote: '92 Euro', page: 1 }],
+    note: en ? 'This is a sample result. As soon as an AI is set up, the spider really reads.' : 'Das ist ein Beispiel-Ergebnis. Sobald eine KI eingerichtet ist, liest die Spinne wirklich.',
+  };
+}
+
 // Datei auswählen und direkt in der Sprechblase lesen
 async function pickFileToBubble() {
   const r = await dialog.showOpenDialog({
     title: T('Dokument lesen'),
     properties: ['openFile'],
-    filters: [{ name: T('Dokumente'), extensions: ['pdf', 'docx', 'txt', 'md', 'csv', 'json', 'html', 'log'] }],
+    filters: [{ name: T('Dokumente'), extensions: DOC_EXT }],
   });
   if (r.canceled || !r.filePaths[0]) return;
   try { showPopup(await readFileDoc(r.filePaths[0]), { autoStart: true }); }
@@ -746,6 +859,8 @@ async function spiderTake({ autoStart = false, fromHotkey = false, mode = null }
       return;
     }
     const doc = { title: 'Markierter Text', source: 'selection', pages: [grabbed.text] };
+    // Übungsbrief aus der Ersteinrichtung, aber noch keine KI: große Spinne liest trotzdem, dann ein Beispiel-Ergebnis
+    const practice = PRACTICE_MARK.test(grabbed.text) && !aiReady();
 
     if (wantAnimation) {
       // Die kleine Spinne erschrickt und versteckt sich, die große kriecht herein
@@ -761,6 +876,7 @@ async function spiderTake({ autoStart = false, fromHotkey = false, mode = null }
       await runCrawlOverlay(anchor, rects, overlay);
       bubbleWin.webContents.send('rig-trick', 'return');
     }
+    if (practice) return showPopupPayload({ kind: 'analyze', doc, result: practiceResult(grabbed.text) });
     if (mode !== 'read') return transformSelection(mode, grabbed);
     showPopup(doc, { autoStart: true }); // In der Sprechblase geht's direkt los – Enter nur im großen Fenster
   } finally {
@@ -996,7 +1112,7 @@ async function pickFile() {
   const r = await dialog.showOpenDialog({
     title: T('Dokument analysieren'),
     properties: ['openFile'],
-    filters: [{ name: T('Dokumente'), extensions: ['pdf', 'docx', 'txt', 'md', 'csv', 'json', 'html', 'log'] }],
+    filters: [{ name: T('Dokumente'), extensions: DOC_EXT }],
   });
   if (!r.canceled && r.filePaths[0]) await openFile(r.filePaths[0]);
 }
@@ -1011,6 +1127,8 @@ async function openFile(filePath, opts) {
 
 // ---------- Dateien lesen ----------
 
+const IMAGE_EXT = ['.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff'];
+const DOC_EXT = ['pdf', 'docx', 'txt', 'md', 'csv', 'json', 'html', 'log', 'png', 'jpg', 'jpeg', 'bmp', 'gif', 'tif', 'tiff'];
 async function readDocument(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   const title = path.basename(filePath);
@@ -1021,8 +1139,19 @@ async function readDocument(filePath) {
     const pdf = await getDocumentProxy(new Uint8Array(buf));
     const { text } = await extractText(pdf, { mergePages: false });
     const pages = text.map((t) => t.trim());
-    if (!pages.some(Boolean)) throw new Error('Diese PDF enthält keinen auslesbaren Text (evtl. ein Scan).');
+    if (!pages.some(Boolean)) {
+      // Gescannte PDF (nur Bilder): mit der Windows-Texterkennung lesen
+      const scanned = await recognizePdf(filePath);
+      if (scanned.some(Boolean)) return { title, source: 'pdf', pages: scanned, ocr: true };
+      throw new Error('Diese PDF enthält keinen auslesbaren Text (evtl. ein Scan).');
+    }
     return { title, source: 'pdf', pages };
+  }
+  if (IMAGE_EXT.includes(ext)) {
+    // Foto oder Bildschirmfoto eines Dokuments
+    const text = await recognizeText(filePath);
+    if (!text.trim()) throw new Error('Auf diesem Bild wurde kein Text erkannt.');
+    return { title, source: 'image', pages: [text.trim()], ocr: true };
   }
   if (ext === '.docx') {
     const mammoth = require('mammoth');
@@ -1788,6 +1917,7 @@ ipcMain.handle('add-calendar', async (_e, { title, date, note }) => {
 const historyFile = () => path.join(app.getPath('userData'), 'history.json');
 function loadHistory() { try { return JSON.parse(fs.readFileSync(historyFile(), 'utf8')); } catch { return []; } }
 function addHistory(doc, result) {
+  if (loadSettings().privateMode) return; // Privatmodus: nichts merken
   const list = loadHistory().filter((h) => h.text !== doc.pages.join('\n\n').slice(0, 200000));
   list.unshift({ id: `${Date.now()}`, date: Date.now(), title: result.title || doc.title, docTitle: doc.title, path: doc.path, mtime: doc.mtime, pages: doc.pages.map((p) => p.slice(0, 100000)), text: doc.pages.join('\n\n').slice(0, 200000), result });
   fs.writeFileSync(historyFile(), JSON.stringify(list.slice(0, 20)));
@@ -1863,7 +1993,7 @@ ipcMain.handle('clipboard-text', async () => String((await clipboard.readText())
 ipcMain.handle('pick-file-bubble', async () => {
   const r = await dialog.showOpenDialog(popupWin && !popupWin.isDestroyed() ? popupWin : undefined, {
     title: T('Dokument lesen'), properties: ['openFile'],
-    filters: [{ name: T('Dokumente'), extensions: ['pdf', 'docx', 'txt', 'md', 'csv', 'json', 'html', 'log'] }],
+    filters: [{ name: T('Dokumente'), extensions: DOC_EXT }],
   });
   if (r.canceled || !r.filePaths[0]) return { ok: false };
   try { return { ok: true, doc: await readFileDoc(r.filePaths[0]) }; } catch (e) { return { ok: false, error: String(e.message || e) }; }
@@ -1941,6 +2071,9 @@ ipcMain.handle('get-settings', () => {
     lowPower: !!s.lowPower,
     pinCopied: s.pinCopied !== false,
     copyHint: s.copyHint !== false,
+    privateMode: !!s.privateMode,
+    hideFullscreen: s.hideFullscreen !== false,
+    hideInShare: s.hideInShare !== false,
     clickMode: clickMode(),
     hasKey: !!getApiKey(), models: MODELS, hotkey: SHORTCUTS[0].label,
   };
@@ -1958,7 +2091,7 @@ ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await
 ipcMain.handle('ollama-models', async () => {
   try { return { ok: true, models: await ollamaModels() }; } catch { return { ok: false, models: [] }; }
 });
-ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied, copyHint, clickMode: cm }) => {
+ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied, copyHint, privateMode, hideFullscreen, hideInShare, clickMode: cm }) => {
   if (apiKey) setApiKey(apiKey.trim());
   const s = loadSettings();
   if (['builtin', 'claude', 'ollama'].includes(provider)) s.provider = provider;
@@ -1968,6 +2101,9 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   if (typeof lowPower === 'boolean') s.lowPower = lowPower;
   if (typeof pinCopied === 'boolean') s.pinCopied = pinCopied;
   if (typeof copyHint === 'boolean') s.copyHint = copyHint;
+  if (typeof privateMode === 'boolean') s.privateMode = privateMode;
+  if (typeof hideFullscreen === 'boolean') s.hideFullscreen = hideFullscreen;
+  if (typeof hideInShare === 'boolean') { s.hideInShare = hideInShare; setImmediate(() => [bubbleWin, popupWin, ringWin].forEach(protectFromCapture)); }
   if (CLICK_MODES.includes(cm)) { s.clickMode = cm; bubbleWin?.webContents.send('click-mode', cm); }
   if (model && MODELS[model]) s.model = model;
   if (language) { if (language !== s.language) s.languageSet = true; s.language = language; }
@@ -2138,7 +2274,11 @@ app.commandLine.appendSwitch('enable-features', 'NetworkServiceInProcess2');
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => { bubbleWin?.show(); showMain(); });
+  app.on('second-instance', (_e, argv) => {
+    const f = fileFromArgs(argv);
+    if (f) readFileToBubble(f);
+    else { bubbleWin?.show(); showHome(); }
+  });
 
   app.whenReady().then(() => {
     I18N.setLang(uiLang());
@@ -2166,8 +2306,13 @@ if (!app.requestSingleInstanceLock()) {
     // (Fenster werden erst bei Bedarf erzeugt und nach einer Weile im Hintergrund wieder freigegeben – spart RAM)
     setupUpdates();
 
+    registerExplorerMenu();
+    watchFullscreen();
+    const startFile = fileFromArgs(process.argv);
+    if (startFile) setTimeout(() => readFileToBubble(startFile), 1500);
     const s = loadSettings();
     if (!s.onboarded && (!TESTING || process.env.SILK_WELCOME)) { showWelcome(); return; }
+    maybeShowWhatsNew();
     if (s.provider === 'claude' && !getApiKey()) openSettings();
     if (s.provider === 'builtin' && !builtinModelReady()) openSettings();
     if (s.provider === 'ollama') ollamaModels().then((m) => { if (!m.length) openSettings(); }).catch(openSettings);
@@ -2191,6 +2336,25 @@ if (TESTING) global.__silk = { showPopupPayload, showNotebook, showHome, openRin
   verify: (file) => verifyUpdateSignature(['Silkreader'], file),
   spiderPos: () => spiderScreenPos(),
   modelReady: (k = 'fast') => modelReady(k),
+  readFile: (f) => readFileDoc(f),
+  fullscreenBusy: () => winkeys.fullscreenBusy(),
+  protectedWindows: () => [bubbleWin, popupWin].filter((w) => w && !w.isDestroyed()).length,
+  maybeShowWhatsNew: () => maybeShowWhatsNew(),
+  async makeScan() {
+    // Bild-PDF ohne Textebene erzeugen (wie ein Scan) und dazu ein PNG – für den OCR-Test
+    const w = new BrowserWindow({ width: 800, height: 300, show: false, webPreferences: { offscreen: true } });
+    await w.loadURL('data:text/html,' + encodeURIComponent('<body style="margin:0;background:#fff;font:44px Arial;padding:30px">Rechnung Nummer 4711<br>Betrag 84 Euro</body>'));
+    await new Promise((r) => setTimeout(r, 400));
+    const png = (await w.capturePage()).toPNG();
+    const pngFile = path.join(app.getPath('temp'), 'silk-scan.png');
+    fs.writeFileSync(pngFile, png);
+    await w.loadURL('data:text/html,' + encodeURIComponent(`<body style="margin:0"><img src="data:image/png;base64,${png.toString('base64')}" style="width:100%"></body>`));
+    const pdf = await w.webContents.printToPDF({ printBackground: true });
+    w.destroy();
+    const pdfFile = path.join(app.getPath('temp'), 'silk-scan.pdf');
+    fs.writeFileSync(pdfFile, pdf);
+    return { png: pngFile, pdf: pdfFile };
+  },
   async downloadModel(k = 'fast') {
     let last = 0;
     const sender = { isDestroyed: () => false, send: (_ch, p) => { if (p?.error) global.__dlError = p.error; if (p?.done) last = p.done; } };

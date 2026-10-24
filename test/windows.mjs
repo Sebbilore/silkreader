@@ -75,10 +75,8 @@ const focusNotepad = async () => {
 // ---------- Silkreader starten ----------
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'silk-'));
 fs.writeFileSync(path.join(userData, 'settings.json'), JSON.stringify({ pinCopied: true, onboarded: 'test', uiLang: 'de' }));
-const app = await electron.launch({
-  executablePath: electronPath, args: ['.'],
-  env: { ...process.env, SPIDER_MOCK: 'test/mock.json', SILK_USERDATA: userData, SILK_MODEL_PATH: 'C:\\nonexistent' },
-});
+const appEnv = { ...process.env, SPIDER_MOCK: 'test/mock.json', SILK_USERDATA: userData, SILK_MODEL_PATH: 'C:\\nonexistent' };
+const app = await electron.launch({ executablePath: electronPath, args: ['.'], env: appEnv });
 const errs = [];
 app.on('window', (w) => w.on('pageerror', (e) => errs.push(String(e))));
 const silk = (fn, arg) => app.evaluate(fn, arg);
@@ -249,6 +247,19 @@ try {
   } else {
     check('Update-Signaturprüfung', false, 'kein signierter Installer übergeben', false);
   }
+
+  // 10) Scans und Fotos, Explorer-Aufruf, Vollbild-Erkennung (1.18)
+  const scan = await silk(() => global.__silk.makeScan());
+  const pngDoc = await silk((_e, f) => global.__silk.readFile(f), scan.png).catch((e) => ({ error: e.message }));
+  check('Foto eines Dokuments gelesen (Texterkennung)', /4711|Rechnung/i.test((pngDoc.pages || []).join(' ')), pngDoc.error || (pngDoc.pages || []).join(' ').slice(0, 80), false);
+  const pdfDoc = await silk((_e, f) => global.__silk.readFile(f), scan.pdf).catch((e) => ({ error: e.message }));
+  check('Gescannte PDF gelesen (Texterkennung)', /4711|Rechnung/i.test((pdfDoc.pages || []).join(' ')), pdfDoc.error || (pdfDoc.pages || []).join(' ').slice(0, 80), false);
+  const fsBusy = await silk(() => global.__silk.fullscreenBusy());
+  check('Vollbild-Erkennung abfragbar', typeof fsBusy === 'boolean', `gerade Vollbild: ${fsBusy}`, false);
+  await hidePopup();
+  spawn(electronPath, ['.', '--read', txt], { env: appEnv, detached: true, stdio: 'ignore' }).unref();
+  const t4 = await waitFor(async () => { const t = await popupTitle(); return (await visible('popup.html')) && t === path.basename(txt) ? t : null; }, 20000);
+  check('Explorer „Mit Silkreader lesen“ (Start mit --read)', !!t4, t4 || 'keine Blase', false);
 
   check('Keine Fehler in den Fenstern', !errs.length, errs.join(' | '), false);
   const log = await silk(() => global.__silk.log());

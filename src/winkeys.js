@@ -15,6 +15,10 @@ function load() {
       GetAsyncKeyState: user32.func('int16_t __stdcall GetAsyncKeyState(int vKey)'),
       GetClipboardSequenceNumber: user32.func('uint32_t __stdcall GetClipboardSequenceNumber()'),
     };
+    try {
+      const shell32 = koffi.load('shell32.dll');
+      api.SHQueryUserNotificationState = shell32.func('int __stdcall SHQueryUserNotificationState(_Out_ int *pquns)');
+    } catch { /* ältere Windows-Versionen */ }
   } catch (e) {
     api = null;
     load.error = e;
@@ -47,5 +51,15 @@ const leftDown = () => (load() ? down(0x01) : null);
 /** Ist noch Umschalt, Strg, Alt oder die Windows-Taste gedrückt? */
 const modifiersDown = () => (load() ? [0x10, 0x11, 0x12, 0x5b, 0x5c].some(down) : false);
 const clipboardSeq = () => (load() ? api.GetClipboardSequenceNumber() : null);
+/**
+ * Läuft gerade etwas im Vollbild? Windows weiß es selbst (wie bei „Benachrichtigungen unterdrücken“):
+ * 2 = Vollbild-App, 3 = Spiel (Direct3D), 4 = Präsentationsmodus, 7 = Store-App im Vollbild, 1 = gesperrt/Bildschirmschoner.
+ */
+function fullscreenBusy() {
+  if (!load() || !api.SHQueryUserNotificationState) return false;
+  const out = [0];
+  if (api.SHQueryUserNotificationState(out) !== 0) return false;
+  return [1, 2, 3, 4, 7].includes(out[0]);
+}
 
-module.exports = { load, copy, leftDown, modifiersDown, clipboardSeq };
+module.exports = { load, copy, leftDown, modifiersDown, clipboardSeq, fullscreenBusy };

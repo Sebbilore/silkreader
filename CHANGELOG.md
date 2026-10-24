@@ -2,6 +2,14 @@
 
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
+## 1.18.0
+- Hides automatically during fullscreen apps, presentations and games; invisible in screen shares and screenshots; “Do not disturb” for 1 h / 3 h / until tomorrow.
+- Reads scanned PDFs and photos of documents (Windows text recognition).
+- Explorer right-click: “Read with Silkreader”.
+- Practice letter in the first-run setup (works even before an AI is set up).
+- Private mode (notebook keeps nothing) and a small “on this PC / to Claude” indicator in the bubble.
+- “What's new” bubble after updates.
+
 ## 1.17.0
 - Built-in AI tested on real Windows (download, analysis, long documents, translation, reply drafts, memory and CPU) before every release; reading in Chrome and Edge tested too.
 - Translation with the built-in model fixed: no more contradicting language instruction, direction detected automatically, retried if the model echoes the original.
