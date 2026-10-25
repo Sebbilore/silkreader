@@ -509,6 +509,7 @@ async function runRingAction(id) {
       return;
     }
     case 'notebook': return showNotebook();
+    case 'deadlines': return showPopupPayload({ kind: 'deadlines' });
     case 'file': return pickFileToBubble();
     case 'clip': {
       const text = String((await clipboard.readText()) || '').trim();
@@ -529,6 +530,7 @@ function buildTrayMenu() {
     { label: T('Markierten Text lesen'), click: () => spiderTake({ mode: 'read' }) },
     { label: T('Datei lesen …'), click: pickFileToBubble },
     { label: T('Lesemodus öffnen'), click: () => showMain() },
+    { label: deadlinesSoon ? T('Fristen ({n} bald)', { n: deadlinesSoon }) : T('Fristen'), click: () => showPopupPayload({ kind: 'deadlines' }) },
     { label: T('Weitere Funktionen'), submenu: classicMenu() },
     { label: T('Einstellungen …'), click: openSettings },
     { type: 'separator' },
@@ -1874,9 +1876,10 @@ ipcMain.handle('ask', async (event, doc, question) => {
 });
 
 ipcMain.handle('transform', async (event, mode, text, extra = '') => {
-  if (!pro.allowed(mode)) return { ok: false, error: T('{f} gibt es mit Silkreader Pro.', { f: T(pro.FEATURES[mode]) }), pro: mode };
+  if (mode.startsWith('explain:')) { const s = loadSettings(); s.explainLang = mode.slice(8); saveSettings(s); }
+  if (!pro.allowed(mode.split(':')[0])) return { ok: false, error: T('{f} gibt es mit Silkreader Pro.', { f: T(pro.FEATURES[mode]) }), pro: mode };
   try {
-    bubbleWin?.webContents.send('rig-task', mode);
+    bubbleWin?.webContents.send('rig-task', mode.startsWith('explain:') ? 'translate' : mode);
     setBusy(true);
     let out = '';
     const { value, truncated } = await runTransform(mode, text, extra, (c) => { out += c; event.sender.send('transform-progress', out); });
@@ -1886,7 +1889,25 @@ ipcMain.handle('transform', async (event, mode, text, extra = '') => {
 });
 
 // Übersetzen / einfache Sprache / Antwort-Entwurf
+// „In deiner Sprache“: Briefe für Menschen erklären, die kaum Deutsch können
+const EXPLAIN_LANGS = {
+  tr: ['Türkçe', 'Turkish', /[ğışçöüİ]/i], ar: ['العربية', 'Arabic', /[\u0600-\u06FF]/], uk: ['Українська', 'Ukrainian', /[\u0400-\u04FF]/],
+  ru: ['Русский', 'Russian', /[\u0400-\u04FF]/], pl: ['Polski', 'Polish', /[ąęłńśźżó]/i], ro: ['Română', 'Romanian', /[ăâîșțşţ]/i],
+  en: ['English', 'English', /\b(the|and|you|is|to)\b/i],
+};
+function runExplain(code, text, extra = '', onChunk = () => {}) {
+  const [, lang, looksRight] = EXPLAIN_LANGS[code] || EXPLAIN_LANGS.en;
+  const instr = `Explain the following text (for example a letter from an authority, a company or a doctor) to someone who barely understands German. Write ONLY in ${lang}, in short and simple sentences. Say what it is about, what the recipient has to do, by when, and how much it costs (if stated). Keep numbers, amounts, dates, names, reference numbers and IBAN exactly as in the text. Output only the explanation.`;
+  const run = (i) => llmGenerate({ instruction: i + (extra ? ` ${extra}` : ''), material: text, maxTokens: 1500, langHint: false, onChunk });
+  return run(instr).then(async (r) => {
+    // Kleine Modelle rutschen manchmal ins Deutsche – dann einmal deutlicher nachfassen
+    if (looksRight.test(String(r.value || ''))) return r;
+    const again = await run(`${instr} IMPORTANT: The answer must be written in ${lang}, not in German.`);
+    return looksRight.test(String(again.value || '')) ? again : r;
+  });
+}
 function runTransform(mode, text, extra = '', onChunk = () => {}) {
+  if (mode.startsWith('explain:')) return runExplain(mode.slice(8), text, extra, onChunk);
   const st = loadSettings();
   const target = !st.language || st.language === 'der Sprache des Dokuments' ? (uiLang() === 'en' ? 'Englisch' : 'Deutsch') : st.language;
   const other = target === 'Deutsch' ? 'Englische' : 'Deutsche';
@@ -1980,6 +2001,66 @@ ipcMain.handle('review-answer', (_e, answer) => {
   if (answer === 'yes') shell.openExternal(`ms-windows-store://review/?ProductId=${STORE_PRODUCT_ID}`).catch(() => {});
 });
 
+// ---------- Fristen-Netz: alle Fristen aus dem Notizbuch, mit Erinnerung ----------
+// Fristen kommen aus den gelesenen Briefen (feste Regeln, keine KI). Erledigte und bereits gemeldete
+// Fristen stehen in deadlines.json – die Texte selbst bleiben im Notizbuch.
+const deadlinesFile = () => path.join(app.getPath('userData'), 'deadlines.json');
+function loadDeadlineState() { try { return { done: {}, told: {}, ...JSON.parse(fs.readFileSync(deadlinesFile(), 'utf8')) }; } catch { return { done: {}, told: {} }; } }
+function saveDeadlineState(st) { fs.writeFileSync(deadlinesFile(), JSON.stringify(st)); }
+const dayStart = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+function collectDeadlines({ withDone = false } = {}) {
+  const st = loadDeadlineState();
+  const today = dayStart(new Date());
+  const out = [];
+  for (const h of loadHistory()) {
+    const found = facts.findDeadlines(h.text || '', { max: 6, now: new Date(h.date || Date.now()) }).filter((d) => d.deadline);
+    for (const d of found) {
+      const key = `${h.id}|${d.iso}`;
+      const date = dayStart(`${d.iso}T00:00:00`);
+      if (date < today) continue;
+      if (st.done[key] && !withDone) continue;
+      out.push({ key, iso: d.iso, days: Math.round((date - today) / 864e5), sentence: d.sentence, relative: !!d.relative, title: h.title || h.docTitle, histId: h.id, done: !!st.done[key] });
+    }
+  }
+  return out.sort((a, b) => a.iso.localeCompare(b.iso));
+}
+ipcMain.handle('deadlines-list', () => collectDeadlines({ withDone: true }));
+ipcMain.handle('deadline-done', (_e, key, done = true) => {
+  const st = loadDeadlineState();
+  if (done) st.done[key] = Date.now(); else delete st.done[key];
+  saveDeadlineState(st);
+  updateDeadlineBadge();
+});
+// Erinnerung als Windows-Benachrichtigung: 3 Tage vorher und am Tag davor (je einmal)
+function remindDeadlines() {
+  const { Notification } = require('electron');
+  if (!Notification.isSupported()) return;
+  const st = loadDeadlineState();
+  let changed = false;
+  for (const d of collectDeadlines()) {
+    const stage = d.days <= 1 ? 2 : d.days <= 3 ? 1 : 0;
+    if (!stage || (st.told[d.key] || 0) >= stage) continue;
+    st.told[d.key] = stage; changed = true;
+    const when = d.days === 0 ? T('heute') : d.days === 1 ? T('morgen') : T('in {n} Tagen', { n: d.days });
+    const n = new Notification({ title: T('Frist {w}: {t}', { w: when, t: d.title }), body: d.sentence.slice(0, 180), silent: false });
+    n.on('click', () => showPopupPayload({ kind: 'deadlines' }));
+    n.show();
+    logLine(`Frist-Erinnerung (${when})`);
+  }
+  if (changed) saveDeadlineState(st);
+}
+// Zahl der offenen Fristen der nächsten 7 Tage für das Tray-Menü
+let deadlinesSoon = 0;
+function updateDeadlineBadge() {
+  const n = collectDeadlines().filter((d) => d.days <= 7).length;
+  if (n !== deadlinesSoon) { deadlinesSoon = n; buildTrayMenu(); }
+}
+function watchDeadlines() {
+  const tick = () => { try { remindDeadlines(); updateDeadlineBadge(); } catch (e) { logLine(`Fristen: ${e.message}`); } };
+  setTimeout(tick, 60 * 1000);
+  setInterval(tick, 60 * 60 * 1000);
+}
+
 // ---------- Notizbuch: die letzten 20 Analysen ----------
 const historyFile = () => path.join(app.getPath('userData'), 'history.json');
 function loadHistory() { try { return JSON.parse(fs.readFileSync(historyFile(), 'utf8')); } catch { return []; } }
@@ -2035,7 +2116,7 @@ ipcMain.handle('analyze', async (event, doc) => {
       const text = doc.pages.join('\n');
       result = { ...facts.verifyResult(result, text), letter: pro.allowed('letter') ? facts.letterFacts(text) : null };
     } catch (e) { logLine(`Prüfung fehlgeschlagen: ${e.message}`); }
-    try { addHistory(doc, result); } catch (e) { console.error('Notizbuch:', e); }
+    try { addHistory(doc, result); updateDeadlineBadge(); } catch (e) { console.error('Notizbuch:', e); }
     countSuccess();
     return { ok: true, result };
   } catch (e) {
@@ -2149,6 +2230,8 @@ ipcMain.handle('get-settings', () => {
     hideFullscreen: s.hideFullscreen !== false,
     hideInShare: s.hideInShare !== false,
     clickMode: clickMode(),
+    explainLang: s.explainLang || null,
+    explainLangs: Object.fromEntries(Object.entries(EXPLAIN_LANGS).map(([k, v]) => [k, v[0]])),
     hasKey: !!getApiKey(), models: MODELS, hotkey: SHORTCUTS[0].label,
   };
 });
@@ -2382,6 +2465,7 @@ if (!app.requestSingleInstanceLock()) {
 
     registerExplorerMenu();
     watchFullscreen();
+    watchDeadlines();
     const startFile = fileFromArgs(process.argv);
     if (startFile) setTimeout(() => readFileToBubble(startFile), 1500);
     const s = loadSettings();
@@ -2435,6 +2519,8 @@ if (TESTING) global.__silk = { showPopupPayload, showNotebook, showHome, openRin
     await startModelDownload(sender, k);
     return { ready: modelReady(k), error: global.__dlError || null, bytes: last };
   },
+  remindDeadlines: () => remindDeadlines(),
+  collectDeadlines: () => collectDeadlines({ withDone: true }),
   async analyzeTimed(doc) {
     const t0 = Date.now();
     global.__lastNotes = '';

@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('spider', {
   compare: (a, b) => ipcRenderer.invoke('compare', a, b),
   addCalendar: (ev) => ipcRenderer.invoke('add-calendar', ev),
   reviewState: () => ipcRenderer.invoke('review-state'),
+  deadlinesList: () => ipcRenderer.invoke('deadlines-list'),
+  deadlineDone: (key, done) => ipcRenderer.invoke('deadline-done', key, done),
   reviewAnswer: (a) => ipcRenderer.invoke('review-answer', a),
   onTransformProgress: (cb) => ipcRenderer.on('transform-progress', (_e, t) => cb(t)),
   regionDone: (r) => ipcRenderer.send('region-done', r),

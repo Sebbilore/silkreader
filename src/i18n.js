@@ -34,6 +34,10 @@
     'Brief-Hilfe (Was muss ich tun?, IBAN, Widerspruch)': 'Letter help (what to do, IBAN, objection)', 'Gescannte PDFs und Bilder lesen': 'Reading scanned PDFs and images',
     'Gründliches KI-Modell': 'Thorough AI model',
 
+    'Sprache': 'Language', 'In meiner Sprache erklären': 'Explain in my language', 'Erklären auf …': 'Explain in …',
+    'Fristen': 'Deadlines', 'Fristen ({n} bald)': 'Deadlines ({n} soon)', 'heute': 'today', 'morgen': 'tomorrow', 'in {n} Tagen': 'in {n} days',
+    'Frist {w}: {t}': 'Deadline {w}: {t}', 'Wieder offen': 'Mark as open', 'Erledigt': 'Done', 'Brief öffnen': 'Open letter', 'Erledigt ({n})': 'Done ({n})',
+    'Keine offenen Fristen. Lies einen Brief, eine Rechnung oder einen Bescheid – die Spinne sammelt die Fristen hier und erinnert dich rechtzeitig.': 'No open deadlines. Read a letter, an invoice or an official notice – the spider collects the deadlines here and reminds you in time.',
     // ---- Sprechblase ----
     'Die Spinne liest …': 'The spider is reading …', 'Die Spinne schreibt …': 'The spider is writing …',
     'Die Spinne sucht …': 'The spider is searching …', 'Die Spinne vergleicht …': 'The spider is comparing …',

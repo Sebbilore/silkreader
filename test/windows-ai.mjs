@@ -90,6 +90,11 @@ try {
   check('Antwort-Entwurf mit echter KI', (rp.text || '').length > 30 && /Donnerstag|14|Termin/i.test(rp.text || ''), `${(rp.ms / 1000).toFixed(1)} s: ${String(rp.text).slice(0, 160)}`, false);
   const sm = await silk(() => global.__silk.transformTimed('simplify', 'Die Nettoverschuldung erhöhte sich infolge des negativen Free Cashflows auf 238 Millionen Euro.'));
   check('Einfache Sprache mit echter KI', (sm.text || '').length > 20, `${(sm.ms / 1000).toFixed(1)} s: ${String(sm.text).slice(0, 160)}`, false);
+  // In meiner Sprache: Brief für Menschen erklären, die kaum Deutsch können
+  for (const [code, re, name] of [['uk', /[\u0400-\u04FF]/, 'Ukrainisch'], ['tr', /[ğışçöüİ]/i, 'Türkisch'], ['ar', /[\u0600-\u06FF]/, 'Arabisch']]) {
+    const ex = await silk((_e, [c, t]) => global.__silk.transformTimed(`explain:${c}`, t), [code, brief]);
+    check(`Brief auf ${name} erklären`, re.test(ex.text || '') && /98[,.]90/.test(ex.text || ''), `${(ex.ms / 1000).toFixed(1)} s: ${String(ex.text).slice(0, 160)}`, false);
+  }
 
   // 6) Nach der Arbeit: Modell wird nach 3 Minuten wieder freigegeben – hier nur Momentaufnahme
   const after = await silk(() => global.__silk.metrics());

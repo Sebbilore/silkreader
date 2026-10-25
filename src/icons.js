@@ -33,6 +33,7 @@
     pause: '<path d="M-3 -6v12M3 -6v12"/>',
     trash: '<path d="M-6 -5h12M-4 -5l1 12h6l1 -12M-2 -5v-2h4v2"/>',
   };
+  P.deadlines = P.calendar;
   window.SILK_ICONS = P;
   /** SVG-Text für ein Symbol, z. B. silkIcon('copy') */
   window.silkIcon = (name, cls = 'icon') => `<svg class="${cls}" viewBox="-10 -10 20 20" aria-hidden="true">${P[name] || ''}</svg>`;

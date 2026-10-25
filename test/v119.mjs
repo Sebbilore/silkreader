@@ -4,7 +4,7 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 const [out, home] = process.argv.slice(2);
 fs.mkdirSync(`${home}/.config/Silkreader`, { recursive: true });
-fs.writeFileSync(`${home}/.config/Silkreader/settings.json`, JSON.stringify({ onboarded: true, uses: 4 }));
+fs.writeFileSync(`${home}/.config/Silkreader/settings.json`, JSON.stringify({ onboarded: true, uses: 4, lastVersion: JSON.parse(fs.readFileSync('package.json', 'utf8')).version }));
 const app = await electron.launch({ executablePath: './node_modules/electron/dist/electron', args: ['--no-sandbox', '.'],
   env: { ...process.env, SPIDER_MOCK: 'test/mock.json', HOME: home, SILK_MODEL_PATH: '/nonexistent', SILK_REVIEW: '1' } });
 const errs = [];
