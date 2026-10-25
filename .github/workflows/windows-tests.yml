@@ -53,7 +53,7 @@ jobs:
           retention-days: 14
 
   # Echte KI (eingebautes Modell, nur Prozessor) auf echtem Windows: Analyse, langes Dokument,
-  # Übersetzen, Dauer, Arbeitsspeicher und Prozessorlast. Das Modell (1 GB) wird zwischengespeichert.
+  # Übersetzen, Dauer, Arbeitsspeicher und Prozessorlast. Die Modelle (1 GB und 2,5 GB) werden zwischengespeichert.
   ai:
     runs-on: windows-latest
     timeout-minutes: 45
@@ -76,7 +76,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: silk-models
-          key: silk-model-qwen2.5-1.5b-q4km-v1
+          key: silk-models-qwen2.5-1.5b-qwen3-4b-v1
 
       - name: Echte KI auf Windows testen
         shell: pwsh

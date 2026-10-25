@@ -1740,14 +1740,14 @@ function friendlyError(e) {
 
 // Eine Anfrage an die eingestellte KI. "material" ist der (lange) Text; beim eingebauten Modell
 // wird er bei Bedarf gekürzt. Mit schema kommt JSON zurück, sonst Text (gestreamt über onChunk).
-async function llmGenerate({ instruction, material = '', schema = null, maxTokens = 1200, onChunk = () => {}, budget = null, langHint = true }) {
+async function llmGenerate({ instruction, material = '', schema = null, maxTokens = 1200, onChunk = () => {}, budget = null, langHint = true, modelKey = null }) {
   const s = loadSettings();
   if (process.env.SPIDER_MOCK) return mockGenerate(instruction, schema, onChunk);
   // Nicht beim Übersetzen/Antworten: dort legt die Aufgabe die Sprache fest (sonst widerspricht sich die Anweisung)
   const lang = langHint ? `Antworte auf ${s.language}, in einfacher, klarer Sprache.` : 'Antworte klar und natürlich.';
 
   if (s.provider === 'builtin') {
-    const key = builtinKey(s);
+    const key = modelKey && modelReady(modelKey) ? modelKey : builtinKey(s);
     if (!modelReady(key)) throw Object.assign(new Error('Das eingebaute KI-Modell ist noch nicht heruntergeladen (Einstellungen → Herunterladen).'), { code: 'NO_MODEL' });
     const { LlamaChatSession } = await import('node-llama-cpp');
     lastModelUse = Date.now();
@@ -1882,28 +1882,35 @@ ipcMain.handle('transform', async (event, mode, text, extra = '') => {
     bubbleWin?.webContents.send('rig-task', mode.startsWith('explain:') ? 'translate' : mode);
     setBusy(true);
     let out = '';
-    const { value, truncated } = await runTransform(mode, text, extra, (c) => { out += c; event.sender.send('transform-progress', out); });
+    const { value, truncated, fastModel } = await runTransform(mode, text, extra, (c) => { out += c; event.sender.send('transform-progress', out); });
     countSuccess();
-    return { ok: true, text: value, truncated };
+    return { ok: true, text: value, truncated, fastModel: !!fastModel };
   } catch (e) { return friendlyErr(e); } finally { setBusy(false); }
 });
 
 // Übersetzen / einfache Sprache / Antwort-Entwurf
 // „In deiner Sprache“: Briefe für Menschen erklären, die kaum Deutsch können
 const EXPLAIN_LANGS = {
-  tr: ['Türkçe', 'Turkish', /[ğışçöüİ]/i], ar: ['العربية', 'Arabic', /[\u0600-\u06FF]/], uk: ['Українська', 'Ukrainian', /[\u0400-\u04FF]/],
-  ru: ['Русский', 'Russian', /[\u0400-\u04FF]/], pl: ['Polski', 'Polish', /[ąęłńśźżó]/i], ro: ['Română', 'Romanian', /[ăâîșțşţ]/i],
+  tr: ['Türkçe', 'Turkish', /[ğışİ]/], ar: ['العربية', 'Arabic', /[\u0600-\u06FF]{3}/],
+  uk: ['Українська', 'Ukrainian', /[іїєґ]/i, /[ыэъё]/i], ru: ['Русский', 'Russian', /[ыэъ]/i, /[іїєґ]/i],
+  pl: ['Polski', 'Polish', /[ąęłńśźż]/i], ro: ['Română', 'Romanian', /[ăâîșțşţ]/i],
   en: ['English', 'English', /\b(the|and|you|is|to)\b/i],
 };
+// Andere Sprachen kann das gründliche Modell deutlich besser – ist es geladen (und genug Arbeitsspeicher da), nimmt die Erklärung es
+const explainModel = () => (modelReady('quality') && ramGB() >= BUILTIN_MODELS.quality.minRamGB ? 'quality' : null);
 function runExplain(code, text, extra = '', onChunk = () => {}) {
-  const [, lang, looksRight] = EXPLAIN_LANGS[code] || EXPLAIN_LANGS.en;
-  const instr = `Explain the following text (for example a letter from an authority, a company or a doctor) to someone who barely understands German. Write ONLY in ${lang}, in short and simple sentences. Say what it is about, what the recipient has to do, by when, and how much it costs (if stated). Keep numbers, amounts, dates, names, reference numbers and IBAN exactly as in the text. Output only the explanation.`;
-  const run = (i) => llmGenerate({ instruction: i + (extra ? ` ${extra}` : ''), material: text, maxTokens: 1500, langHint: false, onChunk });
+  const [, lang, looksRight, looksWrong] = EXPLAIN_LANGS[code] || EXPLAIN_LANGS.en;
+  const instr = `Explain the following text (for example a letter from an authority, a company or a doctor) to someone who barely understands German. Write ONLY in ${lang}, in short and simple sentences. Say what it is about, what the recipient has to do, by when, and how much it costs (if stated). Keep numbers, amounts, dates, names, reference numbers and IBAN exactly as in the text. Do not invent names, places or facts that are not in the text, and do not address the reader by name. Output only the explanation.`;
+  const modelKey = explainModel();
+  const count = (re, t) => (t.match(new RegExp(re.source, 'gi')) || []).length;
+  const right = (t) => looksRight.test(t) && (!looksWrong || count(looksRight, t) >= count(looksWrong, t));
+  const run = (i) => llmGenerate({ instruction: i + (extra ? ` ${extra}` : ''), material: text, maxTokens: 1500, langHint: false, onChunk, modelKey });
   return run(instr).then(async (r) => {
-    // Kleine Modelle rutschen manchmal ins Deutsche – dann einmal deutlicher nachfassen
-    if (looksRight.test(String(r.value || ''))) return r;
-    const again = await run(`${instr} IMPORTANT: The answer must be written in ${lang}, not in German.`);
-    return looksRight.test(String(again.value || '')) ? again : r;
+    // Kleine Modelle rutschen manchmal ins Deutsche (oder ins Russische statt Ukrainische) – dann einmal deutlicher nachfassen
+    const out = { ...r, fastModel: loadSettings().provider === 'builtin' && !modelKey };
+    if (right(String(r.value || ''))) return out;
+    const again = await run(`${instr} IMPORTANT: The answer must be written in ${lang}${looksWrong ? ` (not Russian, not German)` : ', not in German'}.`);
+    return right(String(again.value || '')) ? { ...out, ...again } : out;
   });
 }
 function runTransform(mode, text, extra = '', onChunk = () => {}) {

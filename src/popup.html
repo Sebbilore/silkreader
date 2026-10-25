@@ -402,7 +402,8 @@
     if (myRun !== run) return;
     if (!res.ok) return showError(res, transform);
     state = 'done';
-    $('main').innerHTML = `<div class="out rise" data-noi18n dir="auto">${esc(res.text)}</div>${res.truncated ? '<div class="muted" style="margin-top:8px">Nur der Anfang wurde bearbeitet (eingebautes Modell).</div>' : ''}`;
+    $('main').innerHTML = `<div class="out rise" data-noi18n dir="auto">${esc(res.text)}</div>${res.truncated ? '<div class="muted" style="margin-top:8px">Nur der Anfang wurde bearbeitet (eingebautes Modell).</div>' : ''}${res.fastModel && P.mode?.startsWith('explain:') ? `<div class="muted" style="margin-top:10px">${T('Tipp: Mit dem gründlichen KI-Modell werden andere Sprachen deutlich besser.')} <button class="link" id="qualityLink">${T('Einstellungen')}</button></div>` : ''}`;
+    $('qualityLink')?.addEventListener('click', () => window.spider.openSettings());
     // Nachschärfen mit einem Klick: kürzer, förmlicher, lockerer
     const again = (extra) => () => { P = { ...P, extra: `${P.extra || ''} ${extra}`.trim() }; transform(); };
     footer({ actions: [

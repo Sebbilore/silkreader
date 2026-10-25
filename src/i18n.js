@@ -34,6 +34,7 @@
     'Brief-Hilfe (Was muss ich tun?, IBAN, Widerspruch)': 'Letter help (what to do, IBAN, objection)', 'Gescannte PDFs und Bilder lesen': 'Reading scanned PDFs and images',
     'Gründliches KI-Modell': 'Thorough AI model',
 
+    'Tipp: Mit dem gründlichen KI-Modell werden andere Sprachen deutlich besser.': 'Tip: other languages work much better with the thorough AI model.',
     'Sprache': 'Language', 'In meiner Sprache erklären': 'Explain in my language', 'Erklären auf …': 'Explain in …',
     'Fristen': 'Deadlines', 'Fristen ({n} bald)': 'Deadlines ({n} soon)', 'heute': 'today', 'morgen': 'tomorrow', 'in {n} Tagen': 'in {n} days',
     'Frist {w}: {t}': 'Deadline {w}: {t}', 'Wieder offen': 'Mark as open', 'Erledigt': 'Done', 'Brief öffnen': 'Open letter', 'Erledigt ({n})': 'Done ({n})',
