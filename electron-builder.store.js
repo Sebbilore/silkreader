@@ -8,9 +8,9 @@ module.exports = {
   ...base,
   win: { ...base.win, target: ['appx'], signtoolOptions: undefined },
   appx: {
-    identityName: process.env.STORE_IDENTITY_NAME || 'Silkreader.Silkreader',
-    publisher: process.env.STORE_PUBLISHER || 'CN=00000000-0000-0000-0000-000000000000',
-    publisherDisplayName: process.env.STORE_PUBLISHER_NAME || 'Silkreader',
+    identityName: process.env.STORE_IDENTITY_NAME || 'SebbiLore.Silkreader',
+    publisher: process.env.STORE_PUBLISHER || 'CN=5B8315BE-3B5E-4EC9-8861-32B3317991B7',
+    publisherDisplayName: process.env.STORE_PUBLISHER_NAME || 'SebbiLore',
     displayName: 'Silkreader',
     applicationId: 'Silkreader',
     backgroundColor: '#0c0c11',

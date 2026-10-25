@@ -1,5 +1,5 @@
 # Baut das Paket für den Microsoft Store (MSIX/AppX). Signiert wird es vom Store selbst.
-# Start von Hand: Actions → Store-Paket → Run workflow. Die drei Werte stehen im Partner Center
+# Start von Hand: Actions → Store-Paket → Run workflow. Die drei Werte (vorbelegt) stehen im Partner Center
 # unter „Produktidentität“. Das fertige Paket hängt danach an einem Entwurfs-Release „store-v<Version>“.
 name: Store-Paket
 
@@ -8,13 +8,13 @@ on:
     inputs:
       identity_name:
         description: Package/Identity/Name
-        required: true
+        default: SebbiLore.Silkreader
       publisher:
         description: Package/Identity/Publisher (CN=…)
-        required: true
+        default: CN=5B8315BE-3B5E-4EC9-8861-32B3317991B7
       publisher_name:
         description: Package/Properties/PublisherDisplayName
-        required: true
+        default: SebbiLore
 
 permissions:
   contents: write
