@@ -33,6 +33,8 @@ const { CocoonStore } = require('./cocoons');
 const { scanSelection } = require('./selectionScan');
 const { recognizeText, recognizePdf } = require('./ocr');
 const WHATS_NEW = require('./whatsnew');
+const facts = require('./facts');
+const pro = require('./pro');
 
 // Globale Tastenkürzel. Strg+Alt statt Strg+Umschalt, weil viele Programme Strg+Umschalt
 // selbst benutzen (z. B. Strg+Umschalt+Leertaste in Word, Strg+Umschalt+B in Chrome).
@@ -1150,6 +1152,7 @@ async function readDocument(filePath) {
     const pages = text.map((t) => t.trim());
     if (!pages.some(Boolean)) {
       // Gescannte PDF (nur Bilder): mit der Windows-Texterkennung lesen
+      if (!pro.allowed('ocr')) throw new Error(T('{f} gibt es mit Silkreader Pro.', { f: T(pro.FEATURES.ocr) }));
       const scanned = await recognizePdf(filePath);
       if (scanned.some(Boolean)) return { title, source: 'pdf', pages: scanned, ocr: true };
       throw new Error('Diese PDF enthält keinen auslesbaren Text (evtl. ein Scan).');
@@ -1158,6 +1161,7 @@ async function readDocument(filePath) {
   }
   if (IMAGE_EXT.includes(ext)) {
     // Foto oder Bildschirmfoto eines Dokuments
+    if (!pro.allowed('ocr')) throw new Error(T('{f} gibt es mit Silkreader Pro.', { f: T(pro.FEATURES.ocr) }));
     const text = await recognizeText(filePath);
     if (!text.trim()) throw new Error('Auf diesem Bild wurde kein Text erkannt.');
     return { title, source: 'image', pages: [text.trim()], ocr: true };
@@ -1309,6 +1313,7 @@ async function loadBuiltinModel(key = builtinKey()) {
     const { getLlama } = await import('node-llama-cpp');
     const llama = await getLlama({ gpu: 'auto' }); // nutzt die Grafikkarte, falls möglich, sonst den Prozessor
     const model = await llama.loadModel({ modelPath: modelPathFor(key) });
+    logLine(`KI-Modell ${key} geladen (Grafikkarte: ${llama.gpu || 'keine, Prozessor'})`);
     llamaRuntime = { key, llama, model };
     return llamaRuntime;
   })();
@@ -1372,16 +1377,17 @@ const FINAL_SCHEMA = {
     findings: { type: 'array', items: FINDING_SCHEMA, maxItems: 5 },
   },
 };
-const SHORT_SCHEMA = {
-  type: 'object', additionalProperties: false, required: ['title', 'doc_type', 'summary', 'key_points', 'figures', 'findings'],
-  properties: { ...FINAL_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, maxItems: 8 } },
-};
 // Eingebautes (kleines) Modell: Stichpunkte als Liste mit 3–5 Einträgen erzwingen (sonst kommt manchmal nur einer),
 // und enthält der Text Zahlen, auch Angaben (es lässt sie sonst gern weg)
 const BULLETS = { type: 'array', items: str(140), minItems: 3, maxItems: 5 };
 const BUILTIN_FINAL_SCHEMA = { ...FINAL_SCHEMA, properties: { ...FINAL_SCHEMA.properties, summary: BULLETS } };
-const BUILTIN_SHORT_SCHEMA = { ...SHORT_SCHEMA, properties: { ...SHORT_SCHEMA.properties, summary: BULLETS } };
-const SHORT_SCHEMA_NUMBERS = { ...BUILTIN_SHORT_SCHEMA, properties: { ...BUILTIN_SHORT_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, minItems: 2, maxItems: 8 } } };
+// Zweistufig (kurze Texte): erst Titel + Stichpunkte, dann die Details im selben Gespräch
+const BUILTIN_QUICK_SCHEMA = { type: 'object', additionalProperties: false, required: ['title', 'doc_type', 'summary'], properties: { title: str(80), doc_type: str(40), summary: BULLETS } };
+const DETAIL_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['key_points', 'figures', 'findings'],
+  properties: { key_points: FINAL_SCHEMA.properties.key_points, figures: { type: 'array', items: FIGURE_SCHEMA, maxItems: 8 }, findings: FINAL_SCHEMA.properties.findings },
+};
+const DETAIL_SCHEMA_NUMBERS = { ...DETAIL_SCHEMA, properties: { ...DETAIL_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, minItems: 2, maxItems: 8 } } };
 
 // Ereignis-Sätze (Rücktritt, Kündigung, Frist, Ablauf … mit Datum oder Jahr) aus dem Originaltext, die im Ergebnis
 // fehlen, als Kernaussage ergänzen – kleine Modelle überlesen solche Einzelsätze gern, sie sind aber oft das Wichtigste.
@@ -1474,18 +1480,25 @@ async function analyzeBuiltin(doc, s, onProgress) {
 
   const chunks = splitIntoChunks(model, doc, info.chunkTokens);
   const systemPrompt = `Du bist ein sorgfältiger Analyst. Antworte auf ${s.language} in einfacher, verständlicher Sprache, kurz und präzise, ausschließlich mit JSON nach dem Schema.`;
-  let context = await model.createContext({ contextSize: info.chunkTokens + 2600, flashAttention: 'auto' });
+  let context = await model.createContext({ contextSize: info.chunkTokens + 3000, flashAttention: 'auto' });
   let session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt });
   try {
-    const ask = async (prompt, schema, maxTokens, stream) => {
-      // Reicht der Platz nicht (z. B. viele Notizen am Schluss), größeren Kontext anlegen
-      const need = model.tokenize(prompt).length + maxTokens + 400;
-      if (need > context.contextSize) {
-        await context.dispose();
-        context = await model.createContext({ contextSize: Math.min(need, model.trainContextSize || need), flashAttention: 'auto' });
-        session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt });
+    const ask = async (prompt, schema, maxTokens, stream, { keep = false } = {}) => {
+      if (keep) {
+        // Nachfrage im selben Gespräch: Das Dokument ist schon gelesen (spart die ganze Lesezeit) –
+        // die Antwort muss nur in den restlichen Platz passen
+        const free = context.contextSize - session.sequence.nextTokenIndex - model.tokenize(prompt).length - 200;
+        maxTokens = Math.max(300, Math.min(maxTokens, free));
+      } else {
+        // Reicht der Platz nicht (z. B. viele Notizen am Schluss), größeren Kontext anlegen
+        const need = model.tokenize(prompt).length + maxTokens + 400;
+        if (need > context.contextSize) {
+          await context.dispose();
+          context = await model.createContext({ contextSize: Math.min(need, model.trainContextSize || need), flashAttention: 'auto' });
+          session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt });
+        }
+        session.resetChatHistory();
       }
-      session.resetChatHistory();
       const grammar = await llama.createGrammarForJsonSchema(schema);
       const text = await session.prompt(prompt, {
         grammar, maxTokens, temperature: 0.2,
@@ -1494,15 +1507,24 @@ async function analyzeBuiltin(doc, s, onProgress) {
       return grammar.parse(text);
     };
 
-    // Kurzes Dokument: ein Durchgang reicht
+    // Kurzes Dokument: erst schnell das Wichtigste (steht nach wenigen Sekunden da),
+    // dann im selben Gespräch die Details – das Dokument muss dafür nicht noch einmal gelesen werden
     if (chunks.length <= 1) {
-      onProgress({ stage: 'Analysiere …', step: 1, steps: 1 });
-      const r = await ask([
-        `Analysiere das folgende Dokument („${doc.title}“).`,
-        'Liefere Titel, Art, als "summary" das Wichtigste in 3 bis 5 kurzen Stichpunkten, bis zu 6 Kernaussagen, bis zu 8 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "quote" = wörtliche Stelle aus dem Text) und bis zu 5 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
-        '', '<document>', chunks[0]?.text || '', '</document>',
-      ].join('\n'), /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(chunks[0]?.text || '') ? SHORT_SCHEMA_NUMBERS : BUILTIN_SHORT_SCHEMA, 2200, true);
-      return addEventSentences(normalizeResult(r), doc.pages.join('\n'));
+      const docText = chunks[0]?.text || '';
+      onProgress({ stage: 'Analysiere …', step: 1, steps: 2 });
+      const quick = await ask([
+        `Lies das folgende Dokument („${doc.title}“).`,
+        'Liefere Titel, Art und als "summary" das Wichtigste in 3 bis 5 kurzen Stichpunkten (mit den wichtigsten Zahlen, Beträgen und Fristen).',
+        '', '<document>', docText, '</document>',
+      ].join('\n'), BUILTIN_QUICK_SCHEMA, 450, true);
+      onProgress({ quick: normalizeResult(quick) });
+      onProgress({ stage: 'Sucht Zahlen, Fristen und Details …', step: 2, steps: 2 });
+      const details = await ask([
+        'Jetzt die Details zu genau diesem Dokument:',
+        'bis zu 6 Kernaussagen, die nicht schon in den Stichpunkten stehen, bis zu 8 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "quote" = wörtliche Stelle aus dem Text) und bis zu 5 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
+        'Ist es ein Brief, eine Rechnung oder ein Bescheid: Was muss der Empfänger tun? Das gehört als Erkenntnis der Art „Handlung“ dazu.',
+      ].join('\n'), /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(docText) ? DETAIL_SCHEMA_NUMBERS : DETAIL_SCHEMA, 1700, false, { keep: true });
+      return addEventSentences(normalizeResult({ ...quick, ...details }), doc.pages.join('\n'));
     }
 
     // Langes Dokument: jeden Abschnitt lesen und Notizen machen …
@@ -1519,6 +1541,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
         '', '<abschnitt>', c.text, '</abschnitt>',
       ].join('\n'), NOTES_SCHEMA, 700, false);
       chunkPoints.push(n.points);
+      onProgress({ notes: n.points }); // Zwischenstand schon zeigen, während die Spinne weiterliest
       if (TESTING) global.__lastNotes = chunkPoints.map((p, k) => `A${k + 1}: ${p.join(' | ')}`).join(' || ');
       notes.push(`Abschnitt ${i + 1} (S. ${c.firstPage}${c.lastPage !== c.firstPage ? `–${c.lastPage}` : ''}):\n- ${n.points.join('\n- ')}`
         + (n.figures.length ? `\n  Angaben: ${n.figures.map((f) => `${f.label}: ${f.value}`).join('; ')}` : ''));
@@ -1825,7 +1848,7 @@ const COMPARE_SCHEMA = {
 const TRANSFORMS = {
   translate: { title: 'Übersetzung', instruction: 'Übersetze den folgenden Text ins Deutsche. Ist er schon auf Deutsch, übersetze ihn ins Englische. Gib nur die Übersetzung aus, ohne Kommentar.' },
   simplify: { title: 'Einfach erklärt', instruction: 'Schreibe den folgenden Text in einfacher Sprache neu: kurze Sätze, bekannte Wörter, Fachbegriffe kurz erklären. Gib nur den neuen Text aus.' },
-  reply: { title: 'Antwort-Entwurf', instruction: 'Der folgende Text ist eine E-Mail oder Nachricht. Schreibe einen kurzen, freundlichen Antwortentwurf in derselben Sprache und im passenden Ton (Du oder Sie wie in der Nachricht). Gib nur den Entwurf aus, ohne Betreffzeile.' },
+  reply: { title: 'Antwort-Entwurf', instruction: 'Der folgende Text ist eine E-Mail, Nachricht oder ein Brief. Schreibe einen kurzen, freundlichen Antwortentwurf in derselben Sprache und im passenden Ton (Du oder Sie wie im Text). Bei einem Brief (z. B. von einer Firma oder Behörde): mit Anrede und Grußformel, nenne den Bezug (Aktenzeichen, Kunden- oder Rechnungsnummer, Datum des Schreibens) und setze fehlende persönliche Angaben als [Platzhalter]. Gib nur den Entwurf aus, ohne Betreffzeile.' },
 };
 
 const friendlyErr = (e) => ({ ok: false, error: friendlyError(e), needsKey: ['NO_KEY', 'NO_OLLAMA', 'NO_MODEL'].includes(e.code) });
@@ -1844,11 +1867,13 @@ ipcMain.handle('ask', async (event, doc, question) => {
 });
 
 ipcMain.handle('transform', async (event, mode, text, extra = '') => {
+  if (!pro.allowed(mode)) return { ok: false, error: T('{f} gibt es mit Silkreader Pro.', { f: T(pro.FEATURES[mode]) }), pro: mode };
   try {
     bubbleWin?.webContents.send('rig-task', mode);
     setBusy(true);
     let out = '';
     const { value, truncated } = await runTransform(mode, text, extra, (c) => { out += c; event.sender.send('transform-progress', out); });
+    countSuccess();
     return { ok: true, text: value, truncated };
   } catch (e) { return friendlyErr(e); } finally { setBusy(false); }
 });
@@ -1922,6 +1947,32 @@ ipcMain.handle('add-calendar', async (_e, { title, date, note }) => {
   return !err;
 });
 
+// ---------- Bewertung im Store: nach ein paar erfolgreichen Nutzungen einmal freundlich fragen ----------
+// Nur in der Store-Version (dort kann man bewerten). „Geht so“ führt zu „Problem melden“ statt in den Store.
+const STORE_PRODUCT_ID = '9PHKJW54RGDS';
+const REVIEW_AFTER = 5;
+function countSuccess() {
+  const s = loadSettings();
+  s.uses = (s.uses || 0) + 1;
+  saveSettings(s);
+}
+ipcMain.handle('review-state', () => {
+  const s = loadSettings();
+  if (!(STORE || process.env.SILK_REVIEW) || s.reviewDone || (s.uses || 0) < REVIEW_AFTER) return false;
+  return Date.now() - (s.reviewLaterAt || 0) > 7 * 24 * 3600e3; // nach „Später“ frühestens in einer Woche wieder
+});
+ipcMain.handle('review-answer', (_e, answer) => {
+  const s = loadSettings();
+  if (answer === 'later') {
+    s.reviewLater = (s.reviewLater || 0) + 1;
+    s.reviewLaterAt = Date.now();
+    if (s.reviewLater >= 2) s.reviewDone = true; // zweimal „Später“ → nie wieder fragen
+  } else s.reviewDone = true;
+  saveSettings(s);
+  logLine(`Bewertungs-Frage: ${answer}`);
+  if (answer === 'yes') shell.openExternal(`ms-windows-store://review/?ProductId=${STORE_PRODUCT_ID}`).catch(() => {});
+});
+
 // ---------- Notizbuch: die letzten 20 Analysen ----------
 const historyFile = () => path.join(app.getPath('userData'), 'history.json');
 function loadHistory() { try { return JSON.parse(fs.readFileSync(historyFile(), 'utf8')); } catch { return []; } }
@@ -1958,7 +2009,8 @@ ipcMain.handle('analyze', async (event, doc) => {
     // damit man nicht bis zum Ende warten muss.
     let text = '', lastSent = 0;
     let stage = null;
-    const result = await analyze(doc, (chunk) => {
+    let result = await analyze(doc, (chunk) => {
+      if (chunk?.quick || chunk?.notes) { event.sender.send('progress', chunk); return; } // Kurzfassung / Zwischenstand
       if (typeof chunk === 'object') { // Statusmeldung (z. B. „Liest Abschnitt 2 von 5“)
         stage = chunk;
         text = '';
@@ -1971,7 +2023,13 @@ ipcMain.handle('analyze', async (event, doc) => {
       lastSent = now;
       event.sender.send('progress', { chars: text.length, summary: partialField(text, 'summary'), stage });
     });
+    // Feste Regeln obendrauf: Zahlen gegen den Originaltext prüfen, Briefe (Rechnung, Bescheid …) erkennen
+    try {
+      const text = doc.pages.join('\n');
+      result = { ...facts.verifyResult(result, text), letter: pro.allowed('letter') ? facts.letterFacts(text) : null };
+    } catch (e) { logLine(`Prüfung fehlgeschlagen: ${e.message}`); }
     try { addHistory(doc, result); } catch (e) { console.error('Notizbuch:', e); }
+    countSuccess();
     return { ok: true, result };
   } catch (e) {
     return { ok: false, error: friendlyError(e), needsKey: e.code === 'NO_KEY' || e.code === 'NO_OLLAMA' || e.code === 'NO_MODEL' || Anthropic && e instanceof Anthropic.AuthenticationError };
@@ -2373,8 +2431,10 @@ if (TESTING) global.__silk = { showPopupPayload, showNotebook, showHome, openRin
   async analyzeTimed(doc) {
     const t0 = Date.now();
     global.__lastNotes = '';
-    const result = await analyze(doc, () => {});
-    return { ms: Date.now() - t0, result, notes: global.__lastNotes };
+    let quickMs = null;
+    const result = await analyze(doc, (c) => { if (c?.quick && quickMs === null) quickMs = Date.now() - t0; });
+    const text = doc.pages.join('\n');
+    return { ms: Date.now() - t0, quickMs, result: { ...facts.verifyResult(result, text), letter: facts.letterFacts(text) }, notes: global.__lastNotes };
   },
   async transformTimed(mode, text) {
     const t0 = Date.now();

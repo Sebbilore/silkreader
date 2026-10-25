@@ -16,6 +16,24 @@
     'Löschen': 'Delete', 'Schließen (Esc)': 'Close (Esc)', 'Schließen': 'Close', 'Speichern': 'Save', 'Gespeichert ✓': 'Saved ✓',
     'Abbrechen': 'Cancel', 'Herunterladen': 'Download', 'Weiter': 'Next', "Los geht's": "Let's go",
 
+    // ---- 1.19: Zahlen-Prüfung, Brief-Hilfe, Bewertung, Pro ----
+    'Steht so nicht im Text – bitte prüfen': 'Not in the text like this – please check', 'Steht so im Text': 'Appears like this in the text',
+    'Aus dem Text berechnet': 'Calculated from the text', 'Nicht im Text gefunden – bitte prüfen': 'Not found in the text – please check',
+    'Gestrichelte Zahlen stehen so nicht im Text – bitte prüfen.': 'Underlined numbers do not appear like this in the text – please check.',
+    '{a} bezahlen bis {d}': 'Pay {a} by {d}', '{a} bezahlen': 'Pay {a}', 'Bei Bedarf Widerspruch einlegen bis {d}': 'If needed, file an objection by {d}',
+    'Prüfen, ob du Widerspruch einlegen willst': 'Check whether you want to file an objection', 'Frist beachten: {d}': 'Note the deadline: {d}',
+    'An': 'To', 'Frist': 'Deadline', 'Verwendungszweck': 'Payment reference', 'Aktenzeichen': 'File number',
+    'Rechnungsnummer': 'Invoice number', 'Kundennummer': 'Customer number', 'Steuernummer': 'Tax number',
+    '(ab Briefdatum)': '(from the letter date)', '(ca., ab heute)': '(approx., from today)', 'Was muss ich tun?': 'What do I need to do?',
+    'Mahnung': 'Payment reminder', 'Rechnung': 'Invoice', 'Bescheid': 'Official notice', 'Vertrag': 'Contract', 'Kündigung': 'Cancellation',
+    'Antwort schreiben': 'Write a reply', 'Widerspruch schreiben': 'Write an objection',
+    'Hilft dir die Spinne? Eine kurze Bewertung im Store hilft ihr sehr.': 'Is the spider helping you? A short review in the Store helps it a lot.',
+    'Ja, bewerten': 'Yes, rate it', 'Geht so': 'So-so', 'Danke! 🕷': 'Thank you! 🕷', 'Schade – was können wir besser machen?': 'Too bad – what could we do better?',
+    'Bisher gefunden': 'Found so far', 'Sucht Zahlen, Fristen und Details …': 'Looking for figures, deadlines and details …',
+    '{f} gibt es mit Silkreader Pro.': '{f} is available with Silkreader Pro.', 'Einfach erklären': 'Simple explanations', 'Antworten schreiben': 'Writing replies',
+    'Brief-Hilfe (Was muss ich tun?, IBAN, Widerspruch)': 'Letter help (what to do, IBAN, objection)', 'Gescannte PDFs und Bilder lesen': 'Reading scanned PDFs and images',
+    'Gründliches KI-Modell': 'Thorough AI model',
+
     // ---- Sprechblase ----
     'Die Spinne liest …': 'The spider is reading …', 'Die Spinne schreibt …': 'The spider is writing …',
     'Die Spinne sucht …': 'The spider is searching …', 'Die Spinne vergleicht …': 'The spider is comparing …',

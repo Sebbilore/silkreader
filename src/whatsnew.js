@@ -1,5 +1,19 @@
 // „Was ist neu?“ – erscheint nach einem Update einmal als Sprechblase an der Spinne.
 module.exports = {
+  '1.19.0': {
+    de: [
+      'Briefe, Rechnungen und Bescheide: Die Spinne zeigt „Was muss ich tun?“, den Betrag, die IBAN zum Kopieren und die Frist mit Kalender-Knopf – und schreibt auf Wunsch die Antwort oder einen Widerspruch.',
+      'Zahlen-Prüfung: Jede Zahl wird mit dem Originaltext abgeglichen. ✓ heißt „steht so im Text“, gestrichelt heißt „bitte prüfen“.',
+      'Schneller: Die Kurzfassung steht nach wenigen Sekunden da, die Details folgen darunter. Bei langen Dokumenten siehst du schon beim Lesen, was gefunden wurde.',
+      'Fristen werden besser erkannt – auch „innerhalb von 4 Wochen“ oder „bis zum 15.11.“.',
+    ],
+    en: [
+      'Letters, invoices and official notices: the spider shows “What do I need to do?”, the amount, the IBAN to copy and the deadline with a calendar button – and writes a reply or an objection if you like.',
+      'Number check: every number is compared with the original text. ✓ means “appears like this in the text”, underlined means “please check”.',
+      'Faster: the short summary appears within seconds, the details follow below. With long documents you see what was found while the spider is still reading.',
+      'Deadlines are recognized better – including “within 4 weeks” or “by 15 Nov”.',
+    ],
+  },
   '1.18.0': {
     de: [
       'Bei Vollbild, Präsentationen und Spielen versteckt sich die Spinne von selbst – und in Bildschirmfreigaben (Teams, Zoom) sieht sie niemand außer dir.',

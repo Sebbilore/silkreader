@@ -63,6 +63,15 @@ try {
   check('Echte Analyse liefert ein Ergebnis', r && r.summary && bullets >= 2, `${(a.value.ms / 1000).toFixed(1)} s, ${bullets} Stichpunkte: ${String(r.summary).slice(0, 160)}`);
   check('Ergebnis enthält Angaben (Zahlen mit Fundstelle)', (r.figures || []).length >= 2, `${(r.figures || []).length} Angaben: ${(r.figures || []).slice(0, 4).map((f) => `${f.label}=${f.value}`).join(', ')}`, false);
   check('Analyse: Dauer (kurzer Text, nur Prozessor)', a.value.ms < 180000, `${(a.value.ms / 1000).toFixed(1)} s`, false);
+  check('Kurzfassung kommt vor den Details', a.value.quickMs && a.value.quickMs < a.value.ms * 0.7, `Kurzfassung nach ${((a.value.quickMs || 0) / 1000).toFixed(1)} s, fertig nach ${(a.value.ms / 1000).toFixed(1)} s`, false);
+  const unsure = r.checks?.unsure || [];
+  check('Zahlen-Prüfung: keine erfundenen Zahlen in den Stichpunkten', unsure.length === 0, unsure.length ? `nicht im Text: ${unsure.join(', ')}` : `${(r.figures || []).map((f) => f.check).join(' ')}`, false);
+
+  // Brief: Rechnung mit IBAN und Frist
+  const brief = 'Stadtwerke Musterstadt GmbH\nMusterstadt, 20. Oktober 2026\n\nRechnungsnummer: RE-2026-4711\n\nSehr geehrte Frau Beispiel,\n\nfür Ihren Stromverbrauch im September berechnen wir Ihnen 98,90 €.\nRechnungsbetrag: 98,90 €\n\nBitte überweisen Sie den Betrag bis zum 15.11.2030 auf folgendes Konto:\nEmpfänger: Stadtwerke Musterstadt GmbH\nIBAN: DE89 3704 0044 0532 0130 00\nVerwendungszweck: RE-2026-4711\n\nMit freundlichen Grüßen\nIhre Stadtwerke';
+  const lb = await silk((_e, t) => global.__silk.analyzeTimed({ title: 'Brief', source: 'text', pages: [t] }), brief);
+  const L = lb.result.letter;
+  check('Brief erkannt: Rechnung, Betrag, IBAN, Frist', L?.kind === 'rechnung' && L.amount?.value === 98.9 && L.iban && L.deadlines.length, `${(lb.ms / 1000).toFixed(1)} s (Kurzfassung ${((lb.quickMs || 0) / 1000).toFixed(1)} s) | ${String(lb.result.summary).slice(0, 140)} | Handlungen: ${(lb.result.findings || []).filter((f) => f.kind === 'Handlung').map((f) => f.title).join(' / ')}`);
   check('Analyse: Arbeitsspeicher (Spitze)', a.peakMb < 4000, `${a.peakMb} MB, Prozessor Ø ${a.avgCpu} %`, false);
 
   // 4) Langes Dokument: wird bis zum Ende gelesen (abschnittsweise)

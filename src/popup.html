@@ -8,6 +8,7 @@
 <script src="i18n.js"></script>
 <script src="a11y.js"></script>
 <script src="icons.js"></script>
+<script src="facts.js"></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font: 13.5px/1.6 var(--font); color: var(--text); }
@@ -71,6 +72,20 @@
   .actions .link .icon { width: 13px; height: 13px; }
   .actions .link:hover { color: var(--pink); text-decoration: none; }
   .hidden { display: none !important; }
+  /* Zahlen-Prüfung: ✓ steht im Text, ≈ gerechnet, ? nicht gefunden */
+  .ck { font-size: 10px; margin-left: 4px; color: #6fd39a; font-weight: 700; } .ck.calc { color: var(--muted); } .ck.miss { color: #ffb84d; }
+  .unsure { text-decoration: underline dotted #ffb84d; text-underline-offset: 3px; cursor: help; }
+  /* Brief-Karte: Was muss ich tun? */
+  .letter { margin: 10px 0 4px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: var(--r-m); background: rgba(255,255,255,.035); }
+  .letter .lh { display: flex; align-items: baseline; gap: 8px; font-size: 11px; color: var(--muted); letter-spacing: .3px; margin-bottom: 6px; }
+  .letter .lh b { color: var(--pink); font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; }
+  .todo { list-style: none; padding: 0; margin: 0 0 6px; } .todo li { display: flex; gap: 8px; align-items: baseline; font-size: 13px; margin: 3px 0; }
+  .todo li::before { content: ""; flex: none; width: 11px; height: 11px; border: 1.5px solid var(--pink); border-radius: 3px; transform: translateY(1px); }
+  .kv { display: grid; grid-template-columns: auto 1fr auto; gap: 3px 10px; font-size: 12.5px; align-items: baseline; }
+  .kv > span:nth-child(3n+1) { color: var(--muted); } .kv code { font: inherit; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .letter .row { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; }
+  .review { margin: 12px 0 2px; padding: 10px 12px; border-radius: var(--r-m); background: var(--pink-soft); border: 1px solid rgba(255,45,138,.35); font-size: 12.5px; }
+  .review .row { display: flex; gap: 14px; margin-top: 6px; } .review .link.dim { color: var(--muted); }
   .aiNote { font-size: 10.5px; color: var(--faint); margin: 10px 0 2px; }
   .where { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--faint); white-space: nowrap; }
   .where .icon { width: 13px; height: 13px; }
@@ -135,7 +150,7 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   // Zahlen, Beträge und Prozente fett
-  const emph = (s) => esc(s).replace(/(\d[\d.,]*\s?(?:%|€|Prozent|Euro|Mio\.?|Mrd\.?|Millionen|Milliarden|Tage|Monate|Jahre)?)/g, '<b>$1</b>');
+  const emph = (s) => esc(s).replace(/(?<![\p{L}\d][-/]|[\p{L}\d])(\d[\d.,]*\s?(?:%|€|Prozent|Euro|Mio\.?|Mrd\.?|Millionen|Milliarden|Tage|Monate|Jahre)?)/gu, '<b>$1</b>');
   function bullets(text) {
     let parts = String(text || '').split(/\n+|\s*•\s*/).map((t) => t.replace(/^[-–*]\s+/, '').trim()).filter(Boolean);
     if (parts.length === 1 && parts[0].length > 160) parts = parts[0].split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ0-9])/);
@@ -161,34 +176,15 @@
     w.querySelector('.spiral').style.strokeDashoffset = (190 * (1 - Math.max(0.04, Math.min(1, p)))).toFixed(1);
   }
 
-  // ---------- Fristen im Text finden (für den Kalender) ----------
-  const MONTHS = { januar: 1, februar: 2, märz: 3, maerz: 3, april: 4, mai: 5, juni: 6, juli: 7, august: 8, september: 9, oktober: 10, november: 11, dezember: 12 };
-  function findDeadlines(text) {
-    const out = [];
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const re = /(\d{1,2})\.\s?(?:(\d{1,2})\.\s?|\s*(Januar|Februar|März|Maerz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+)(\d{4}|\d{2}\b)|(\d{4})-(\d{2})-(\d{2})/gi;
-    let m;
-    while ((m = re.exec(text)) && out.length < 12) {
-      let d, mo, y;
-      if (m[5]) { y = +m[5]; mo = +m[6]; d = +m[7]; }
-      else { d = +m[1]; mo = m[2] ? +m[2] : MONTHS[m[3].toLowerCase()]; y = +m[4]; if (y < 100) y += 2000; }
-      const date = new Date(y, mo - 1, d);
-      if (isNaN(date) || date.getDate() !== d || date < today || y > today.getFullYear() + 5) continue;
-      // Satz um das Datum herum als Beschreibung
-      const from = Math.max(text.lastIndexOf('.', m.index - 2) + 1, m.index - 120);
-      const to = Math.min(text.length, (text.indexOf('.', m.index + m[0].length) + 1) || text.length, m.index + 160);
-      const sentence = text.slice(from, to).replace(/\s+/g, ' ').trim();
-      const iso = `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      if (!out.some((o) => o.iso === iso)) out.push({ iso, date, sentence });
-    }
-    return out.sort((a, b) => a.date - b.date).slice(0, 3);
-  }
+  // ---------- Fristen im Text finden (für den Kalender) – feste Regeln aus facts.js ----------
+  const findDeadlines = (text) => SilkFacts.findDeadlines(text, { max: 3 });
 
   // ---------- Analyse ----------
   async function analyze() {
     state = 'running';
     const myRun = ++run;
     $('foot').classList.add('hidden');
+    P.quickShown = false;
     $('main').innerHTML = `${weave('Die Spinne liest …')}<div id="live"></div>`;
     const res = await window.spider.analyze(P.doc);
     if (myRun !== run) return;
@@ -197,44 +193,134 @@
     showResult();
   }
 
-  window.spider.onProgress(({ summary, stage }) => {
+  window.spider.onProgress(({ summary, stage, quick, notes }) => {
     if (state !== 'running' || !$('stage')) return;
+    if (quick) {
+      // Kurzfassung steht – Details kommen darunter
+      P.quickShown = true;
+      if (quick.title) $('title').textContent = quick.title;
+      $('main').innerHTML = `<ul class="lead" data-noi18n>${bullets(quick.summary).map((b) => `<li>${emph(b)}</li>`).join('')}</ul>${weave('Sucht Zahlen, Fristen und Details …')}<div id="live"></div>`;
+      return;
+    }
+    if (notes?.length) {
+      // Langes Dokument: Zwischenstand aus den bisher gelesenen Abschnitten
+      const box = $('live');
+      if (!box.querySelector('.sofar')) box.innerHTML = `<div class="sec sofar"><div class="h">${T('Bisher gefunden')}</div><ul class="muted" data-noi18n></ul></div>`;
+      box.querySelector('.sofar ul').insertAdjacentHTML('beforeend', notes.slice(0, 2).map((n) => `<li class="rise">${emph(n)}</li>`).join(''));
+      return;
+    }
     if (stage?.stage) $('stage').textContent = stage.stage;
     if (stage?.steps) weaveProgress(stage.step / stage.steps);
-    if (summary) $('live').innerHTML = `<ul class="lead" data-noi18n>${bullets(summary).map((b) => `<li>${emph(b)}</li>`).join('')}</ul><span class="cur">▍</span>`;
+    if (summary && !P.quickShown) $('live').innerHTML = `<ul class="lead" data-noi18n>${bullets(summary).map((b) => `<li>${emph(b)}</li>`).join('')}</ul><span class="cur">▍</span>`;
+    else if (summary) $('live').innerHTML = '';
   });
+
+  // Zahlen-Prüfung: Zahlen, die so nicht im Originaltext stehen, gestrichelt markieren
+  let srcNums = null;
+  function emphChecked(t) {
+    const html = emph(t);
+    if (!srcNums) return html;
+    return html.replace(/<b>([^<]*)<\/b>/g, (all, inner) => (SilkFacts.unknownNumbers(inner.replace(/&amp;/g, '&'), srcNums).length
+      ? `<b class="unsure" title="${T('Steht so nicht im Text – bitte prüfen')}">${inner}</b>` : all));
+  }
+  const CK = { ok: ['✓', 'Steht so im Text'], calc: ['≈', 'Aus dem Text berechnet'], missing: ['?', 'Nicht im Text gefunden – bitte prüfen'] };
+  const ck = (f) => { const c = CK[f.check]; return c ? `<span class="ck ${f.check === 'missing' ? 'miss' : f.check === 'calc' ? 'calc' : ''}" title="${T(c[1])}">${c[0]}</span>` : ''; };
+
+  // Brief-Karte: Was muss ich tun? Bis wann? Was kostet es? (feste Regeln + Handlungen der KI)
+  function letterCard(L, r) {
+    const day = (d) => d.date.toLocaleDateString(I18N.locale);
+    const due = L.deadlines[0];
+    const todo = [];
+    const pay = L.amount && (L.iban || /rechnung|mahnung/.test(L.kind) || /nachzahlung|zu zahlen|offen|forderung/.test(L.amount.label));
+    if (pay) todo.push(due ? T('{a} bezahlen bis {d}', { a: L.amount.text, d: day(due) }) : T('{a} bezahlen', { a: L.amount.text }));
+    const actions = (r.findings || []).filter((f) => f.kind === 'Handlung').slice(0, 3).map((f) => f.title);
+    if (L.canObject) {
+      const obj = L.deadlines.find((d) => /widerspruch|einspruch|rechtsbehelf/i.test(d.sentence));
+      todo.push(obj ? T('Bei Bedarf Widerspruch einlegen bis {d}', { d: day(obj) }) : T('Prüfen, ob du Widerspruch einlegen willst'));
+    }
+    if (!pay && due && !L.canObject) todo.push(T('Frist beachten: {d}', { d: day(due) }));
+    const kv = [];
+    if (L.amount) kv.push([T('Betrag'), `<b>${esc(L.amount.text)}</b>`, '']);
+    if (L.recipient) kv.push([T('An'), `<span data-noi18n>${esc(L.recipient)}</span>`, '']);
+    if (L.iban) kv.push(['IBAN', `<code data-noi18n>${esc(L.iban)}</code>`, `<button class="link" data-copy="${esc(L.iban.replace(/\s+/g, ''))}">${T('Kopieren')}</button>`]);
+    for (const ref of L.refs) kv.push([T(ref.label), `<code data-noi18n>${esc(ref.value)}</code>`, `<button class="link" data-copy="${esc(ref.value)}">${T('Kopieren')}</button>`]);
+    L.deadlines.slice(0, 2).forEach((d, i) => kv.push([T('Frist'), `<b>${day(d)}</b>${d.relative ? ` <span class="muted">${T(d.fromLetter ? '(ab Briefdatum)' : '(ca., ab heute)')}</span>` : ''}`, `<button class="link" data-ldl="${i}">${T('+ Kalender')}</button>`]));
+    return `<div class="letter rise">
+      <div class="lh"><b>${T(L.label)}</b><span>${T('Was muss ich tun?')}</span></div>
+      ${todo.length || actions.length ? `<ul class="todo">${todo.map((t) => `<li>${esc(t)}</li>`).join('')}${actions.map((t) => `<li data-noi18n>${emphChecked(t)}</li>`).join('')}</ul>` : ''}
+      ${kv.length ? `<div class="kv">${kv.map(([k, v, x]) => `<span>${k}</span><span>${v}</span><span>${x}</span>`).join('')}</div>` : ''}
+      <div class="row"><button class="link" id="lReply">${T('Antwort schreiben')}</button>${L.canObject ? `<button class="link" id="lObject">${T('Widerspruch schreiben')}</button>` : ''}</div>
+    </div>`;
+  }
+  // Antwort/Widerspruch zum Brief schreiben – „Zurück“ führt wieder zum Ergebnis
+  function replyToLetter(extra) {
+    const saved = { P, result };
+    setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); });
+    P = { kind: 'transform', mode: 'reply', text: saved.P.doc.pages.join('\n\n'), extra };
+    $('title').textContent = T('Antwort-Entwurf');
+    transform();
+  }
 
   function showResult() {
     state = 'done';
     const r = result;
+    const text = P.doc.pages.join('\n');
+    srcNums = SilkFacts.numbersIn(text);
     $('title').textContent = r.title || P.doc.title;
-    const deadlines = findDeadlines(P.doc.pages.join('\n'));
+    const L = r.letter || null;
+    const deadlines = L ? [] : findDeadlines(text); // Briefe zeigen ihre Fristen in der Karte
     const figs = r.figures.slice(0, 8);
     $('main').innerHTML = `
-      <ul class="lead" data-noi18n>${bullets(r.summary).map((b, i) => `<li class="rise" style="animation-delay:${i * 70}ms">${emph(b)}</li>`).join('')}</ul>
+      <ul class="lead" data-noi18n>${bullets(r.summary).map((b, i) => (P.quickShown ? `<li>${emphChecked(b)}</li>` : `<li class="rise" style="animation-delay:${i * 70}ms">${emphChecked(b)}</li>`)).join('')}</ul>
+      ${L ? letterCard(L, r) : ''}
       ${deadlines.map((d, i) => `<div class="dl"><span class="when">📅 ${d.date.toLocaleDateString(I18N.locale)}</span><span class="what" data-noi18n title="${esc(d.sentence)}">${esc(d.sentence)}</span><button class="link" data-dl="${i}">+ Kalender</button></div>`).join('')}
       <button class="more" id="moreBtn">Mehr ▾</button>
       <div id="details">
-        ${r.key_points.length ? `<div class="sec"><div class="h">Kernaussagen</div><ul data-noi18n>${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}">${emph(p)}</li>`).join('')}</ul></div>` : ''}
+        ${r.key_points.length ? `<div class="sec"><div class="h">Kernaussagen</div><ul data-noi18n>${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}">${emphChecked(p)}</li>`).join('')}</ul></div>` : ''}
         ${r.findings.length ? `<div class="sec"><div class="h">Erkenntnisse</div>${r.findings.map((f, i) => `<div class="find jump" data-type="finding" data-index="${i}"><span class="k">${esc(f.kind)}</span> <span data-noi18n>${emph(f.title)}</span>${f.detail ? `<div class="d" data-noi18n>${emph(f.detail)}</div>` : ''}</div>`).join('')}</div>` : ''}
-        ${figs.length ? `<div class="sec"><div class="h">Angaben</div><div class="figs" data-noi18n>${figs.map((f, i) => `<span class="jump" data-type="figure" data-index="${i}">${esc(f.label)}</span><span><b>${esc(f.value)}</b></span>`).join('')}</div></div>` : ''}
+        ${figs.length ? `<div class="sec"><div class="h">Angaben</div><div class="figs" data-noi18n>${figs.map((f, i) => `<span class="jump" data-type="figure" data-index="${i}">${esc(f.label)}</span><span><b>${esc(f.value)}</b>${ck(f)}</span>`).join('')}</div></div>` : ''}
         ${r.note ? `<div class="sec muted" data-noi18n>${esc(r.note)}</div>` : ''}
       </div>
       <div id="answers"></div>
-      <div class="aiNote">KI-Ergebnis · wichtige Angaben bitte im Original prüfen</div>`;
+      <div class="aiNote">${r.checks?.unsure?.length ? `<span>${T('Gestrichelte Zahlen stehen so nicht im Text – bitte prüfen.')}</span> ` : ''}<span>KI-Ergebnis · wichtige Angaben bitte im Original prüfen</span></div>`;
     $('moreBtn').addEventListener('click', () => {
       const open = $('details').classList.toggle('open');
       $('moreBtn').textContent = open ? 'Weniger ▴' : 'Mehr ▾';
     });
     $('main').querySelectorAll('.jump').forEach((row) => row.addEventListener('click', () =>
       toggleLupe(row, { type: row.dataset.type, index: Number(row.dataset.index) })));
-    $('main').querySelectorAll('[data-dl]').forEach((btn) => btn.addEventListener('click', async () => {
-      const d = deadlines[Number(btn.dataset.dl)];
-      const ok = await window.spider.addCalendar({ title: `Frist: ${r.title || P.doc.title}`, date: d.iso, note: d.sentence });
-      btn.textContent = ok ? '✓ geöffnet' : 'nicht möglich';
+    const addCal = async (btn, d) => {
+      const ok = await window.spider.addCalendar({ title: `${T('Frist')}: ${r.title || P.doc.title}`, date: d.iso, note: d.sentence });
+      btn.textContent = ok ? T('✓ geöffnet') : T('nicht möglich');
+    };
+    $('main').querySelectorAll('[data-dl]').forEach((btn) => btn.addEventListener('click', () => addCal(btn, deadlines[Number(btn.dataset.dl)])));
+    $('main').querySelectorAll('[data-ldl]').forEach((btn) => btn.addEventListener('click', () => addCal(btn, L.deadlines[Number(btn.dataset.ldl)])));
+    $('main').querySelectorAll('[data-copy]').forEach((btn) => btn.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(btn.dataset.copy); btn.textContent = T('✓ Kopiert');
     }));
+    $('lReply')?.addEventListener('click', () => replyToLetter(''));
+    $('lObject')?.addEventListener('click', () => replyToLetter('Schreibe einen sachlichen, höflichen Widerspruch (Einspruch) gegen dieses Schreiben. Nenne Datum, Aktenzeichen und bitte um Bestätigung des Eingangs. Lass Platzhalter in [eckigen Klammern] für Gründe und persönliche Angaben.'));
     $('main').scrollTop = 0;
     footer({ ask: true, actions: [['Kopieren', copyResult], ['Vorlesen', () => speak(bullets(r.summary).join('. '))], ['Festhalten', keepResult], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)]] });
+    maybeAskReview();
+  }
+
+  // ---------- Bewertung: nach ein paar erfolgreichen Nutzungen einmal fragen ----------
+  async function maybeAskReview() {
+    const at = run;
+    if (!(await window.spider.reviewState()) || state !== 'done' || at !== run || document.querySelector('.review')) return;
+    const box = document.createElement('div');
+    box.className = 'review rise';
+    box.innerHTML = `<div>${T('Hilft dir die Spinne? Eine kurze Bewertung im Store hilft ihr sehr.')}</div>
+      <div class="row"><button class="link" data-r="yes">${T('Ja, bewerten')}</button><button class="link dim" data-r="meh">${T('Geht so')}</button><button class="link dim" data-r="later">${T('Später')}</button></div>`;
+    $('main').appendChild(box);
+    box.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-r]')?.dataset.r; if (!a) return;
+      window.spider.reviewAnswer(a);
+      if (a === 'yes') box.innerHTML = T('Danke! 🕷');
+      else if (a === 'meh') { box.innerHTML = `${T('Schade – was können wir besser machen?')} <button class="link" id="revRep">${T('Problem melden')}</button>`; $('revRep').addEventListener('click', () => { setBack(null); report(); }); }
+      else box.remove();
+    });
   }
 
   // ---------- Vorlesen (Windows-Stimmen, offline) – die Spinne bewegt dabei den Mund ----------
@@ -295,6 +381,7 @@
       ['Kürzer', again('Fasse dich deutlich kürzer.')],
       ...(P.mode === 'reply' ? [['Förmlicher', again('Schreibe förmlicher (Sie-Form).')], ['Lockerer', again('Schreibe lockerer und persönlicher.')]] : []),
     ] });
+    maybeAskReview();
   }
   window.spider.onTransformProgress((text) => { if (state === 'running' && $('out')) { $('weave')?.remove(); $('out').innerHTML = `${esc(text)}<span class="cur">▍</span>`; } });
 

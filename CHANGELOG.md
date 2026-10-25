@@ -2,6 +2,15 @@
 
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
+
+## 1.19.0
+- **Letter help:** invoices, payment reminders, official notices and contracts are recognized. The spider shows “What do I need to do?”, amount, recipient, IBAN and payment reference to copy, and the deadline with a calendar button. “Write a reply” and “Write an objection” draft the matching letter.
+- **Number check:** every number in the result is compared with the original text (fixed rules, no AI). Figures get ✓ (in the text), ≈ (calculated) or ? (not found); uncertain numbers in the bullets are underlined.
+- **Faster:** for short texts the built-in model writes the short summary first and then the details in the same pass – the document is only read once. Long documents show what was found while reading.
+- **Deadlines:** also relative ones (“within 4 weeks”, counted from the letter date) and dates without a year (“by 15.11.”).
+- **Store version:** asks once, after a few successful uses, for a review (“So-so” leads to “Report a problem”).
+- Silkreader Pro is prepared but switched off – everything stays free.
+
 ## 1.18.0
 - Hides automatically during fullscreen apps, presentations and games; invisible in screen shares and screenshots; “Do not disturb” for 1 h / 3 h / until tomorrow.
 - Reads scanned PDFs and photos of documents (Windows text recognition).
