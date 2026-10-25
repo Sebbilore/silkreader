@@ -276,8 +276,10 @@
     const st = await window.spider.getSettings();
     const box = document.createElement('div');
     box.className = 'langpick rise';
-    box.innerHTML = `<div class="h">${T('Erklären auf …')}</div><div class="chips" data-noi18n>${Object.entries(st.explainLangs).map(([k, n]) => `<button class="chip${k === st.explainLang ? ' on' : ''}" data-x="${k}" lang="${k}">${esc(n)}</button>`).join('')}</div>`;
+    const weak = st.provider === 'builtin' && st.qualityPossible && !st.qualityReady;
+    box.innerHTML = `<div class="h">${T('Erklären auf …')}</div>${weak ? `<div class="muted" style="margin:0 0 6px">${T('Tipp: Mit dem gründlichen KI-Modell werden andere Sprachen deutlich besser.')} <button class="link" id="qualityLink2">${T('Einstellungen')}</button></div>` : ''}<div class="chips" data-noi18n>${Object.entries(st.explainLangs).map(([k, n]) => `<button class="chip${k === st.explainLang ? ' on' : ''}" data-x="${k}" lang="${k}">${esc(n)}</button>`).join('')}</div>`;
     $('main').appendChild(box);
+    $('qualityLink2')?.addEventListener('click', () => window.spider.openSettings());
     box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     box.addEventListener('click', (e) => {
       const code = e.target.closest('[data-x]')?.dataset.x; if (!code) return;

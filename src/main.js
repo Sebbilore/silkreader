@@ -2238,6 +2238,7 @@ ipcMain.handle('get-settings', () => {
     hideInShare: s.hideInShare !== false,
     clickMode: clickMode(),
     explainLang: s.explainLang || null,
+    qualityReady: modelReady('quality'), qualityPossible: ramGB() >= BUILTIN_MODELS.quality.minRamGB,
     explainLangs: Object.fromEntries(Object.entries(EXPLAIN_LANGS).map(([k, v]) => [k, v[0]])),
     hasKey: !!getApiKey(), models: MODELS, hotkey: SHORTCUTS[0].label,
   };

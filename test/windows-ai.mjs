@@ -117,5 +117,8 @@ const failed = results.filter((r) => !r.ok && r.critical);
 const warned = results.filter((r) => !r.ok && !r.critical);
 fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify(results, null, 2));
 console.log(`::notice title=KI auf Windows (${results.length - failed.length - warned.length}/${results.length})::${enc(results.map((r) => `${r.ok ? 'OK ' : r.critical ? 'FEHLER ' : 'WARNUNG '} ${r.name}${r.detail ? ` – ${r.detail}` : ''}`).join('\n'))}`);
+// Eigener Bericht für die Erklärungen in anderen Sprachen (der Gesamtbericht wird bei GitHub gekürzt)
+const ex = results.filter((r) => /erklären|Gründliches/.test(r.name));
+if (ex.length) console.log(`::notice title=Erklären in anderen Sprachen::${enc(ex.map((r) => `${r.ok ? 'OK ' : 'WARNUNG '} ${r.name} – ${String(r.detail).slice(0, 300)}`).join('\n'))}`);
 for (const r of failed.slice(0, 9)) console.log(`::error title=${enc(r.name)}::${enc(r.detail || 'fehlgeschlagen')}`);
 process.exit(failed.length ? 1 : 0);
