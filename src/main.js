@@ -1381,13 +1381,12 @@ const FINAL_SCHEMA = {
 // und enthält der Text Zahlen, auch Angaben (es lässt sie sonst gern weg)
 const BULLETS = { type: 'array', items: str(140), minItems: 3, maxItems: 5 };
 const BUILTIN_FINAL_SCHEMA = { ...FINAL_SCHEMA, properties: { ...FINAL_SCHEMA.properties, summary: BULLETS } };
-// Zweistufig (kurze Texte): erst Titel + Stichpunkte, dann die Details im selben Gespräch
-const BUILTIN_QUICK_SCHEMA = { type: 'object', additionalProperties: false, required: ['title', 'doc_type', 'summary'], properties: { title: str(80), doc_type: str(40), summary: BULLETS } };
-const DETAIL_SCHEMA = {
-  type: 'object', additionalProperties: false, required: ['key_points', 'figures', 'findings'],
-  properties: { key_points: FINAL_SCHEMA.properties.key_points, figures: { type: 'array', items: FIGURE_SCHEMA, maxItems: 8 }, findings: FINAL_SCHEMA.properties.findings },
+const SHORT_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['title', 'doc_type', 'summary', 'key_points', 'figures', 'findings'],
+  properties: { ...FINAL_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, maxItems: 8 } },
 };
-const DETAIL_SCHEMA_NUMBERS = { ...DETAIL_SCHEMA, properties: { ...DETAIL_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, minItems: 2, maxItems: 8 } } };
+const BUILTIN_SHORT_SCHEMA = { ...SHORT_SCHEMA, properties: { ...SHORT_SCHEMA.properties, summary: BULLETS } };
+const SHORT_SCHEMA_NUMBERS = { ...BUILTIN_SHORT_SCHEMA, properties: { ...BUILTIN_SHORT_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, minItems: 2, maxItems: 8 } } };
 
 // Ereignis-Sätze (Rücktritt, Kündigung, Frist, Ablauf … mit Datum oder Jahr) aus dem Originaltext, die im Ergebnis
 // fehlen, als Kernaussage ergänzen – kleine Modelle überlesen solche Einzelsätze gern, sie sind aber oft das Wichtigste.
@@ -1413,7 +1412,8 @@ function addEventSentences(result, text) {
     if (w.size && known / w.size < 0.5 && !hits.some((h) => h === sent)) hits.push(sent);
   }
   if (!hits.length) return result;
-  return { ...result, key_points: [...(result.key_points || []), ...hits.slice(-2)].slice(0, 9) };
+  const extra = hits.slice(-2);
+  return { ...result, key_points: [...(result.key_points || []).slice(0, 9 - extra.length), ...extra] };
 }
 
 // Aussagen, die nur in EINEM Abschnitt stehen (z. B. ein Rücktritt am Ende), gehen in der Gesamtzusammenfassung
@@ -1480,51 +1480,48 @@ async function analyzeBuiltin(doc, s, onProgress) {
 
   const chunks = splitIntoChunks(model, doc, info.chunkTokens);
   const systemPrompt = `Du bist ein sorgfältiger Analyst. Antworte auf ${s.language} in einfacher, verständlicher Sprache, kurz und präzise, ausschließlich mit JSON nach dem Schema.`;
-  let context = await model.createContext({ contextSize: info.chunkTokens + 3000, flashAttention: 'auto' });
+  let context = await model.createContext({ contextSize: info.chunkTokens + 2600, flashAttention: 'auto' });
   let session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt });
   try {
-    const ask = async (prompt, schema, maxTokens, stream, { keep = false } = {}) => {
-      if (keep) {
-        // Nachfrage im selben Gespräch: Das Dokument ist schon gelesen (spart die ganze Lesezeit) –
-        // die Antwort muss nur in den restlichen Platz passen
-        const free = context.contextSize - session.sequence.nextTokenIndex - model.tokenize(prompt).length - 200;
-        maxTokens = Math.max(300, Math.min(maxTokens, free));
-      } else {
-        // Reicht der Platz nicht (z. B. viele Notizen am Schluss), größeren Kontext anlegen
-        const need = model.tokenize(prompt).length + maxTokens + 400;
-        if (need > context.contextSize) {
-          await context.dispose();
-          context = await model.createContext({ contextSize: Math.min(need, model.trainContextSize || need), flashAttention: 'auto' });
-          session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt });
-        }
-        session.resetChatHistory();
+    const ask = async (prompt, schema, maxTokens, stream) => {
+      // Reicht der Platz nicht (z. B. viele Notizen am Schluss), größeren Kontext anlegen
+      const need = model.tokenize(prompt).length + maxTokens + 400;
+      if (need > context.contextSize) {
+        await context.dispose();
+        context = await model.createContext({ contextSize: Math.min(need, model.trainContextSize || need), flashAttention: 'auto' });
+        session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt });
       }
+      session.resetChatHistory();
       const grammar = await llama.createGrammarForJsonSchema(schema);
       const text = await session.prompt(prompt, {
         grammar, maxTokens, temperature: 0.2,
-        onTextChunk: stream ? (c) => onProgress(c) : undefined,
+        onTextChunk: typeof stream === 'function' ? stream : stream ? (c) => onProgress(c) : undefined,
       });
       return grammar.parse(text);
     };
 
-    // Kurzes Dokument: erst schnell das Wichtigste (steht nach wenigen Sekunden da),
-    // dann im selben Gespräch die Details – das Dokument muss dafür nicht noch einmal gelesen werden
+    // Kurzes Dokument: ein Durchgang. Die Stichpunkte stehen im JSON vorn – sobald sie fertig sind,
+    // erscheinen sie als Kurzfassung, während die KI die Details weiterschreibt.
     if (chunks.length <= 1) {
       const docText = chunks[0]?.text || '';
-      onProgress({ stage: 'Analysiere …', step: 1, steps: 2 });
-      const quick = await ask([
-        `Lies das folgende Dokument („${doc.title}“).`,
-        'Liefere Titel, Art und als "summary" das Wichtigste in 3 bis 5 kurzen Stichpunkten (mit den wichtigsten Zahlen, Beträgen und Fristen).',
+      onProgress({ stage: 'Analysiere …', step: 1, steps: 1 });
+      let streamed = '', quickSent = false;
+      const r = await ask([
+        `Analysiere das folgende Dokument („${doc.title}“).`,
+        'Liefere Titel, Art, als "summary" das Wichtigste in 3 bis 5 kurzen Stichpunkten, bis zu 6 weitere Kernaussagen, bis zu 8 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "value" genau so wie im Text, z. B. „412 Millionen Euro“; "quote" = wörtliche Stelle aus dem Text) und bis zu 5 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
+        'Ist es ein Brief, eine Rechnung oder ein Bescheid: Was muss der Empfänger tun? Das gehört als Erkenntnis der Art „Handlung“ dazu (als konkreter Satz).',
         '', '<document>', docText, '</document>',
-      ].join('\n'), BUILTIN_QUICK_SCHEMA, 450, true);
-      onProgress({ quick: normalizeResult(quick) });
-      onProgress({ stage: 'Sucht Zahlen, Fristen und Details …', step: 2, steps: 2 });
-      const details = await ask([
-        'Jetzt die Details zu genau diesem Dokument:',
-        'bis zu 6 Kernaussagen, die nicht schon in den Stichpunkten stehen, bis zu 8 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "quote" = wörtliche Stelle aus dem Text) und bis zu 5 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
-        'Ist es ein Brief, eine Rechnung oder ein Bescheid: Was muss der Empfänger tun? Das gehört als Erkenntnis der Art „Handlung“ dazu.',
-      ].join('\n'), /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(docText) ? DETAIL_SCHEMA_NUMBERS : DETAIL_SCHEMA, 1700, false, { keep: true });
-      return addEventSentences(normalizeResult({ ...quick, ...details }), doc.pages.join('\n'));
+      ].join('\n'), /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(docText) ? SHORT_SCHEMA_NUMBERS : BUILTIN_SHORT_SCHEMA, 2200, (c) => {
+        onProgress(c);
+        if (quickSent) return;
+        streamed += c;
+        const m = streamed.match(/"summary"\s*:\s*(\[(?:[^\]"]|"(?:[^"\\]|\\.)*")*\])/);
+        if (!m) return;
+        quickSent = true;
+        try { onProgress({ quick: normalizeResult({ title: partialField(streamed, 'title'), summary: JSON.parse(m[1]) }) }); } catch {}
+        onProgress({ stage: 'Sucht Zahlen, Fristen und Details …', step: 1, steps: 1 });
+      });
+      return addEventSentences(normalizeResult(r), doc.pages.join('\n'));
     }
 
     // Langes Dokument: jeden Abschnitt lesen und Notizen machen …
@@ -1687,18 +1684,28 @@ async function analyzeOllama(doc, s, onProgress) {
 }
 
 // Kleinere lokale Modelle lassen manchmal Felder weg – fehlende Teile auffüllen.
+// Kernaussagen ohne Wiederholungen und ohne Platzhalter wie „quote“
+function uniqueTexts(list) {
+  const seen = new Set();
+  return list.map((t) => String(t || '').trim()).filter((t) => {
+    const k = t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    if (k.length < 12 || /^(quote|label|value|text)$/.test(k) || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
 function normalizeResult(r) {
   return {
     title: r.title || 'Analyse',
     doc_type: r.doc_type || 'Text',
     summary: Array.isArray(r.summary) ? r.summary.map((x) => `• ${x}`).join('\n') : r.summary || '',
-    key_points: Array.isArray(r.key_points) ? r.key_points : [],
+    key_points: uniqueTexts(Array.isArray(r.key_points) ? r.key_points : []),
     figures: (Array.isArray(r.figures) ? r.figures : []).map((f) => ({
       label: String(f.label ?? ''), value: String(f.value ?? ''), quote: String(f.quote ?? ''), page: Number(f.page) || 1,
     })),
     findings: (Array.isArray(r.findings) ? r.findings : []).map((f) => ({
       kind: f.kind || 'Beobachtung', title: f.title || '', detail: f.detail || '', pages: Array.isArray(f.pages) ? f.pages : [],
-    })),
+    })).filter((f) => f.title.trim().length > 12 && f.title.trim() !== f.kind), // kleine Modelle schreiben manchmal nur „Handlung“
   };
 }
 

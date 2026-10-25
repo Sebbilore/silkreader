@@ -14,6 +14,10 @@ ok('Stichpunkte ohne unsichere Zahlen', v.checks.unsure.length === 0, JSON.strin
 const fake = F.verifyResult({ summary: '• Umsatz 512 Mio. €\n• 18 % Wachstum', key_points: [], findings: [], figures: [{ label: 'Umsatz', value: '512 Mio. €', quote: 'erfunden', page: 1 }] }, sample);
 ok('Erfundene Zahl erkannt', fake.checks.unsure.includes('512 Mio.') && fake.figures[0].check === 'missing', JSON.stringify(fake.checks));
 
+const dollar = F.verifyResult({ summary: '', key_points: [], findings: [], figures: [{ label: 'Umsatz', value: '$412,000,000,000', quote: 'auf 412 Millionen Euro', page: 1 }, { label: 'EBIT', value: '$61,8M', quote: 'gibt es nicht', page: 1 }] }, sample);
+ok('Umgeschriebener Wert aus der Fundstelle repariert', dollar.figures[0].value === '412 Millionen Euro' && dollar.figures[0].check === 'ok', JSON.stringify(dollar.figures[0]));
+ok('Dollar ohne Fundstelle als unsicher', dollar.figures[1].check === 'missing', JSON.stringify(dollar.figures[1]));
+
 const brief = `Stadtwerke Musterstadt GmbH
 Musterstadt, 20. Oktober 2026
 

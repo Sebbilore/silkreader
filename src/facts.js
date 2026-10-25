@@ -11,10 +11,10 @@
   function numbersIn(text) {
     const out = new Set();
     const s = String(text || '');
-    const re = /(\d{1,3}(?:[.\s ]\d{3})+|\d+)(?:[,.](\d+))?(?:\s*(tsd|tausend|mio|millionen|million|mrd|milliarden|milliarde|bn|billion)\b\.?)?/gi;
+    const re = /(\d{1,3}(?:,\d{3}){2,}|\d{1,3}(?:[.\s ]\d{3})+|\d+)(?:[,.](\d+))?(?:\s*(tsd|tausend|mio|millionen|million|mrd|milliarden|milliarde|bn|billion)\b\.?)?/gi;
     let m;
     while ((m = re.exec(s))) {
-      const int = m[1].replace(/[.\s ]/g, '');
+      const int = m[1].replace(/[.,\s ]/g, '');
       const val = Number(`${int}${m[2] ? `.${m[2]}` : ''}`);
       if (!isFinite(val)) continue;
       out.add(String(val));
@@ -30,10 +30,10 @@
   function unknownNumbers(claim, sourceNums) {
     const bad = [];
     const s = String(claim || '');
-    const re = /(\d{1,3}(?:[.\s ]\d{3})+|\d+)(?:[,.](\d+))?(?:\s*(tsd|tausend|mio|millionen|million|mrd|milliarden|milliarde|bn|billion)\b\.?)?/gi;
+    const re = /(\d{1,3}(?:,\d{3}){2,}|\d{1,3}(?:[.\s ]\d{3})+|\d+)(?:[,.](\d+))?(?:\s*(tsd|tausend|mio|millionen|million|mrd|milliarden|milliarde|bn|billion)\b\.?)?/gi;
     let m;
     while ((m = re.exec(s))) {
-      const int = m[1].replace(/[.\s ]/g, '');
+      const int = m[1].replace(/[.,\s ]/g, '');
       const val = Number(`${int}${m[2] ? `.${m[2]}` : ''}`);
       if (!isFinite(val) || val <= 10) continue;
       const scale = m[3] ? SCALE[m[3].toLowerCase()] : 0;
@@ -51,12 +51,19 @@
   function verifyResult(result, text) {
     const src = numbersIn(text);
     const flat = String(text || '').replace(/\s+/g, ' ').toLowerCase();
+    const dollars = /\$|usd|dollar/i.test(text);
     const figures = (result.figures || []).map((f) => {
       const nums = unknownNumbers(f.value, src);
       const quoteOk = f.quote && flat.includes(String(f.quote).replace(/\s+/g, ' ').toLowerCase().trim());
       const hasNum = /\d{2,}/.test(f.value);
       let check = 'ok';
-      if (hasNum && nums.length) check = quoteOk ? 'calc' : 'missing';
+      if ((hasNum && nums.length) || (/\$/.test(f.value) && !dollars)) check = quoteOk ? 'calc' : 'missing';
+      // Kleine Modelle schreiben Werte gern um („$412,000,000,000“) – steht die Fundstelle wörtlich im Text,
+      // wird der Wert von dort übernommen
+      if (check !== 'ok' && quoteOk) {
+        const fromQuote = String(f.quote).match(/[-–+]?\d[\d.,]*(?:\s?(?:Mio\.?|Mrd\.?|Millionen|Milliarden|Tsd\.?))?(?:\s?(?:€|Euro|EUR|%|Prozent|\$|Dollar))?/);
+        if (fromQuote) return { ...f, value: fromQuote[0].trim(), check: 'ok' };
+      }
       return { ...f, check };
     });
     const claims = [result.summary, ...(result.key_points || []), ...(result.findings || []).map((x) => `${x.title} ${x.detail}`)];
