@@ -3,6 +3,10 @@
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
 
+## 1.20.0
+- **In your language:** explain a letter in Turkish, Arabic, Ukrainian, Russian, Polish, Romanian or English (“Language” below a result or “Explain in my language” in the letter card). Checks that the answer is really in that language and retries once; uses the thorough model when it is downloaded.
+- **Deadline web:** all deadlines from the notebook in one list (ring, tray, start bubble) – tick off, add to calendar, open the letter. Windows notification 3 days before and the day before.
+
 ## 1.19.0
 - **Letter help:** invoices, payment reminders, official notices and contracts are recognized. The spider shows “What do I need to do?”, amount, recipient, IBAN and payment reference to copy, and the deadline with a calendar button. “Write a reply” and “Write an objection” draft the matching letter.
 - **Number check:** every number in the result is compared with the original text (fixed rules, no AI). Figures get ✓ (in the text), ≈ (calculated) or ? (not found); uncertain numbers in the bullets are underlined.

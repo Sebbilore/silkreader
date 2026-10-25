@@ -1,5 +1,15 @@
 // „Was ist neu?“ – erscheint nach einem Update einmal als Sprechblase an der Spinne.
 module.exports = {
+  '1.20.0': {
+    de: [
+      'In deiner Sprache: Unter einem Ergebnis auf „Sprache“ tippen – die Spinne erklärt den Brief auf Türkisch, Arabisch, Ukrainisch, Russisch, Polnisch, Rumänisch oder Englisch. Am besten klappt das mit dem gründlichen KI-Modell.',
+      'Fristen-Netz: Alle Fristen aus deinen Briefen an einem Ort (Ring → Mehr → Fristen). Abhaken, in den Kalender legen – und Windows erinnert dich 3 Tage vorher und am Tag davor.',
+    ],
+    en: [
+      'In your language: tap “Language” below a result – the spider explains the letter in Turkish, Arabic, Ukrainian, Russian, Polish, Romanian or English. Works best with the thorough AI model.',
+      'Deadline web: all deadlines from your letters in one place (ring → More → Deadlines). Tick them off, add them to your calendar – and Windows reminds you 3 days before and the day before.',
+    ],
+  },
   '1.19.0': {
     de: [
       'Briefe, Rechnungen und Bescheide: Die Spinne zeigt „Was muss ich tun?“, den Betrag, die IBAN zum Kopieren und die Frist mit Kalender-Knopf – und schreibt auf Wunsch die Antwort oder einen Widerspruch.',
