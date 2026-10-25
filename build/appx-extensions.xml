@@ -1,0 +1,19 @@
+        <!-- „Öffnen mit → Silkreader“ für Dokumente und Bilder -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="silkreader.docs">
+            <uap:DisplayName>Silkreader</uap:DisplayName>
+            <uap:SupportedFileTypes>
+              <uap:FileType>.pdf</uap:FileType>
+              <uap:FileType>.docx</uap:FileType>
+              <uap:FileType>.txt</uap:FileType>
+              <uap:FileType>.md</uap:FileType>
+              <uap:FileType>.png</uap:FileType>
+              <uap:FileType>.jpg</uap:FileType>
+              <uap:FileType>.jpeg</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+        <!-- Mit Windows starten (abschaltbar im Task-Manager unter „Autostart“) -->
+        <desktop:Extension Category="windows.startupTask" Executable="app\Silkreader.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="SilkreaderStartup" Enabled="true" DisplayName="Silkreader" />
+        </desktop:Extension>

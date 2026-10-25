@@ -15,6 +15,8 @@ module.exports = {
     applicationId: 'Silkreader',
     backgroundColor: '#0c0c11',
     languages: ['de-DE', 'en-US'],
+    // „Öffnen mit“ und Autostart (Registry-Einträge und setLoginItemSettings wirken in Store-Apps nicht)
+    customExtensionsPath: 'build/appx-extensions.xml',
   },
   publish: null,
 };

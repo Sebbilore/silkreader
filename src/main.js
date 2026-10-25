@@ -16,6 +16,8 @@ const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoU
 
 // Automatische Tests: SPIDER_MOCK = Test-Antworten statt KI, SILK_TEST = echte KI, aber Test-Schnittstelle an
 const TESTING = !!(process.env.SPIDER_MOCK || process.env.SILK_TEST);
+// Aus dem Microsoft Store installiert: Updates, Autostart und „Öffnen mit“ regelt dann Windows selbst
+const STORE = !!process.windowsStore;
 const winkeys = require('./winkeys');
 const I18N = require('./i18n');
 const T = I18N.T;
@@ -540,13 +542,13 @@ function buildTrayMenu() {
     { type: 'separator' },
     { label: T('Über Silkreader'), click: () => showPopupPayload({ kind: 'about' }) },
     { label: T('Problem melden'), click: () => showPopupPayload({ kind: 'report' }) },
-    { label: T(`Nach Updates suchen (v${app.getVersion()})`), click: checkUpdatesNow },
+    ...(STORE ? [] : [{ label: T(`Nach Updates suchen (v${app.getVersion()})`), click: checkUpdatesNow }]),
     { label: T('Protokoll öffnen (für Fehlersuche)'), click: openLog },
-    {
+    ...(STORE ? [] : [{
       label: T('Mit Windows starten'), type: 'checkbox',
       checked: app.getLoginItemSettings().openAtLogin,
       click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }),
-    },
+    }]),
     { type: 'separator' },
     { label: T('Beenden'), click: () => app.quit() },
   ]));
@@ -643,7 +645,7 @@ ipcMain.handle('report-problem', (_e, { text, withLog }) => {
 const fileFromArgs = (argv) => {
   const eq = argv.find((a) => a.startsWith('--read='));
   if (eq) return eq.slice(7).replace(/^"|"$/g, '');
-  if (!argv.includes('--read')) return null;
+  if (!argv.includes('--read') && !STORE) return null; // Store-App: Windows übergibt bei „Öffnen mit“ nur den Pfad
   return argv.find((a) => !a.startsWith('-') && /\.[a-z0-9]{2,5}$/i.test(a) && fs.existsSync(a) && fs.statSync(a).isFile()) || null;
 };
 async function readFileToBubble(file) {
@@ -655,7 +657,7 @@ async function readFileToBubble(file) {
 const MENU_EXT = ['.pdf', '.docx', '.txt', '.md', '.png', '.jpg', '.jpeg'];
 // Eintrag im Explorer-Kontextmenü anlegen (nur installierte App, nur für den eigenen Benutzer)
 function registerExplorerMenu() {
-  if (process.platform !== 'win32' || !app.isPackaged) return;
+  if (process.platform !== 'win32' || !app.isPackaged || STORE) return; // Store-App: Registry ist dort abgeschottet
   const label = T('Mit Silkreader lesen');
   const stamp = `v2|${process.execPath}|${label}`;
   const st = loadSettings();
@@ -2213,7 +2215,7 @@ function verifyUpdateSignature(publisherNames, file) {
 }
 
 function setupUpdates() {
-  if (!app.isPackaged) return; // nur in der installierten App
+  if (!app.isPackaged || STORE) return; // nur in der installierten App; Store-Versionen aktualisiert der Store
   if (process.platform === 'win32') {
     defaultVerify = updater().verifyUpdateCodeSignature;
     updater().verifyUpdateCodeSignature = verifyUpdateSignature;

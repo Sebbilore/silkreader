@@ -1,0 +1,66 @@
+# Baut das Paket für den Microsoft Store (MSIX/AppX). Signiert wird es vom Store selbst.
+# Start von Hand: Actions → Store-Paket → Run workflow. Die drei Werte stehen im Partner Center
+# unter „Produktidentität“. Das fertige Paket hängt danach an einem Entwurfs-Release „store-v<Version>“.
+name: Store-Paket
+
+on:
+  workflow_dispatch:
+    inputs:
+      identity_name:
+        description: Package/Identity/Name
+        required: true
+      publisher:
+        description: Package/Identity/Publisher (CN=…)
+        required: true
+      publisher_name:
+        description: Package/Properties/PublisherDisplayName
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  appx:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Paket bauen
+        shell: pwsh
+        env:
+          STORE_IDENTITY_NAME: ${{ inputs.identity_name }}
+          STORE_PUBLISHER: ${{ inputs.publisher }}
+          STORE_PUBLISHER_NAME: ${{ inputs.publisher_name }}
+        run: |
+          npm run dist:store 2>&1 | Tee-Object -FilePath build.log
+          if ($LASTEXITCODE -ne 0) {
+            $tail = (Get-Content build.log -Tail 60) -join '%0A'
+            Write-Output "::error title=Store-Build fehlgeschlagen::$tail"
+            exit 1
+          }
+
+      - name: Paket prüfen und ablegen
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $pkg = Get-ChildItem dist -Filter *.appx | Select-Object -First 1
+          if (-not $pkg) { throw "Kein .appx in dist gefunden" }
+          $name = "Silkreader-Store-$version.msix"
+          Copy-Item $pkg.FullName $name
+          # Manifest zur Kontrolle als Annotation ausgeben
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::OpenRead((Resolve-Path $name))
+          $reader = New-Object IO.StreamReader(($zip.Entries | Where-Object FullName -eq 'AppxManifest.xml').Open())
+          $manifest = $reader.ReadToEnd(); $reader.Close(); $zip.Dispose()
+          $id = ([xml]$manifest).Package.Identity
+          Write-Output "::notice title=Store-Paket::$name ($([math]::Round($pkg.Length/1MB)) MB) Name=$($id.Name) Version=$($id.Version) Publisher=$($id.Publisher)"
+          $tag = "store-v$version"
+          gh release delete $tag --yes --cleanup-tag 2>$null
+          gh release create $tag $name --draft --title "Store-Paket $version" --notes "Zum Hochladen im Partner Center (Pakete). Nicht direkt installierbar – das signiert erst der Store."
