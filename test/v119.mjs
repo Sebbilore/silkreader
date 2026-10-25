@@ -53,7 +53,7 @@ ok('Antwort-Knopf', L.reply);
 // Test-Antworten passen nicht zum Brief → die Zahlen müssen als unsicher markiert sein
 ok('Fremde Zahlen markiert', L.unsure > 0 && L.ck.includes('?'), `unsicher ${L.unsure}, Marken ${L.ck}`);
 execSync(`import -window root ${out}/v119-brief.png`);
-await pop.click('[data-copy]');
+await pop.click('[data-copy]'); await sleep(400);
 ok('IBAN kopiert', (await app.evaluate(({ clipboard }) => clipboard.readText())) === 'DE89370400440532013000');
 
 // 2) Passender Text: keine unsicheren Zahlen, Angaben mit ✓
