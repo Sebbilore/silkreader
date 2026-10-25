@@ -16,6 +16,9 @@ module.exports = {
     backgroundColor: '#0c0c11',
     languages: ['de-DE', 'en-US'],
     // „Öffnen mit“ und Autostart (Registry-Einträge und setLoginItemSettings wirken in Store-Apps nicht)
+    // Electron und die eingebaute KI brauchen mindestens Windows 10 1809
+    minVersion: '10.0.17763.0',
+    maxVersionTested: '10.0.26100.0',
     customExtensionsPath: 'build/appx-extensions.xml',
   },
   publish: null,

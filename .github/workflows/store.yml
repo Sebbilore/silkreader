@@ -61,6 +61,34 @@ jobs:
           $manifest = $reader.ReadToEnd(); $reader.Close(); $zip.Dispose()
           $id = ([xml]$manifest).Package.Identity
           Write-Output "::notice title=Store-Paket::$name ($([math]::Round($pkg.Length/1MB)) MB) Name=$($id.Name) Version=$($id.Version) Publisher=$($id.Publisher)"
+          "pkg=$name" >> $env:GITHUB_ENV
           $tag = "store-v$version"
           gh release delete $tag --yes --cleanup-tag 2>$null
           gh release create $tag $name --draft --title "Store-Paket $version" --notes "Zum Hochladen im Partner Center (Pakete). Nicht direkt installierbar – das signiert erst der Store."
+
+      # Probeinstallation: mit einem Wegwerf-Zertifikat (gleicher Herausgeber) signieren, installieren, starten
+      - name: Installieren und starten (Probe)
+        shell: pwsh
+        env:
+          PUBLISHER: ${{ inputs.publisher }}
+        run: |
+          $cert = New-SelfSignedCertificate -Type Custom -Subject $env:PUBLISHER -KeyUsage DigitalSignature -FriendlyName "Silkreader Probe" -CertStoreLocation Cert:\CurrentUser\My -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+          Export-Certificate -Cert $cert -FilePath probe.cer | Out-Null
+          Import-Certificate -FilePath probe.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          Copy-Item $env:pkg probe.msix
+          & $signtool.FullName sign /fd SHA256 /sha1 $cert.Thumbprint /s My probe.msix
+          if ($LASTEXITCODE -ne 0) { throw "Signieren fehlgeschlagen" }
+          Add-AppxPackage -Path probe.msix
+          $p = Get-AppxPackage -Name SebbiLore.Silkreader
+          Write-Output "::notice title=Installiert::$($p.PackageFullName)"
+          Start-Process "shell:AppsFolder\$($p.PackageFamilyName)!Silkreader"
+          Start-Sleep 25
+          $proc = Get-Process Silkreader -ErrorAction SilentlyContinue
+          $log = Get-ChildItem "$env:LOCALAPPDATA\Packages\$($p.PackageFamilyName)" -Recurse -Filter silkreader-errors.log -ErrorAction SilentlyContinue | Select-Object -First 1
+          $text = if ($log) { (Get-Content $log.FullName -Tail 30) -join '%0A' } else { 'kein Protokoll gefunden' }
+          if ($proc) { Write-Output "::notice title=Store-App läuft (Prozesse: $($proc.Count))::$text" }
+          else { Write-Output "::error title=Store-App läuft nicht::$text"; exit 1 }
+          # Updater muss in der Store-Version aus sein
+          if ($text -match 'Update') { Write-Output "::warning title=Updater-Spuren im Protokoll::$text" }
+          Get-Process Silkreader -ErrorAction SilentlyContinue | Stop-Process -Force

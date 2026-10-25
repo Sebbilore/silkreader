@@ -2308,7 +2308,7 @@ if (!app.requestSingleInstanceLock()) {
     tray.on('click', () => bubbleWin.show());
 
     setLogger(logLine);
-    logLine(`Start Silkreader ${app.getVersion()} (${process.platform} ${require('os').release()})`);
+    logLine(`Start Silkreader ${app.getVersion()} (${process.platform} ${require('os').release()})${STORE ? ' – Microsoft-Store-Version' : ''}`);
     registerShortcuts(true);
     // Analysefenster unsichtbar vorbereiten, damit es später sofort da ist
     // (Fenster werden erst bei Bedarf erzeugt und nach einer Weile im Hintergrund wieder freigegeben – spart RAM)
