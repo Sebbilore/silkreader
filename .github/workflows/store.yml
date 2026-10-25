@@ -89,6 +89,7 @@ jobs:
           $text = if ($log) { (Get-Content $log.FullName -Tail 30) -join '%0A' } else { 'kein Protokoll gefunden' }
           if ($proc) { Write-Output "::notice title=Store-App läuft (Prozesse: $($proc.Count))::$text" }
           else { Write-Output "::error title=Store-App läuft nicht::$text"; exit 1 }
+          if ($text -match 'Datei aus dem Explorer') { Write-Output "::error title=Startet ohne Datei trotzdem mit Datei::$text"; exit 1 }
           # Updater muss in der Store-Version aus sein
           if ($text -match 'Update') { Write-Output "::warning title=Updater-Spuren im Protokoll::$text" }
           Get-Process Silkreader -ErrorAction SilentlyContinue | Stop-Process -Force

@@ -646,7 +646,8 @@ const fileFromArgs = (argv) => {
   const eq = argv.find((a) => a.startsWith('--read='));
   if (eq) return eq.slice(7).replace(/^"|"$/g, '');
   if (!argv.includes('--read') && !STORE) return null; // Store-App: Windows übergibt bei „Öffnen mit“ nur den Pfad
-  return argv.find((a) => !a.startsWith('-') && /\.[a-z0-9]{2,5}$/i.test(a) && fs.existsSync(a) && fs.statSync(a).isFile()) || null;
+  // argv[0] ist die App selbst; nur Dateitypen annehmen, die Silkreader lesen kann
+  return argv.slice(1).find((a) => !a.startsWith('-') && MENU_EXT.includes(path.extname(a).toLowerCase()) && fs.existsSync(a) && fs.statSync(a).isFile()) || null;
 };
 async function readFileToBubble(file) {
   logLine('Datei aus dem Explorer');
