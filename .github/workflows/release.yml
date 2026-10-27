@@ -88,3 +88,28 @@ jobs:
           }
           $files = @("dist\latest.yml") + (Get-ChildItem dist\*.exe, dist\*.blockmap | ForEach-Object { $_.FullName })
           gh release create "v$version" @files --repo "${{ github.repository }}" --title "$version" --notes "Silkreader $version" --target "${{ github.sha }}" --latest
+
+      # Öffentliches Download-Repo (ohne Code): README, Datenschutz und Änderungen aktualisieren, dann das Release anlegen.
+      # Von dort holen sich installierte Versionen ab 1.21 ihre Updates. Braucht das Secret RELEASES_TOKEN
+      # (Fine-grained Token mit „Contents: Read and write“ nur für Sebbilore/silkreader-download).
+      - name: Im Download-Repo veröffentlichen
+        if: steps.check.outputs.skip == 'false'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          if (-not $env:GH_TOKEN) { Write-Output "::error title=RELEASES_TOKEN fehlt::Ohne dieses Secret bekommen neue Versionen keine Updates."; exit 1 }
+          $repo = "Sebbilore/silkreader-download"
+          $version = "${{ steps.check.outputs.version }}"
+          git clone "https://x-access-token:$($env:GH_TOKEN)@github.com/$repo.git" dl 2>&1 | Out-Null
+          Copy-Item download-repo\* dl\ -Force
+          Copy-Item CHANGELOG.md dl\ -Force
+          git -C dl config user.name "Silkreader"
+          git -C dl config user.email "noreply@anthropic.com"
+          git -C dl add -A
+          git -C dl diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) { git -C dl commit -m "Silkreader $version" | Out-Null; git -C dl push origin HEAD:main 2>&1 | Out-Null }
+          $releases = gh api "repos/$repo/releases?per_page=100" | ConvertFrom-Json
+          foreach ($r in $releases | Where-Object { $_.tag_name -eq "v$version" }) { gh api -X DELETE "repos/$repo/releases/$($r.id)" | Out-Null }
+          $files = @("dist\latest.yml") + (Get-ChildItem dist\*.exe, dist\*.blockmap | ForEach-Object { $_.FullName })
+          gh release create "v$version" @files --repo $repo --title "$version" --notes "Silkreader $version – alle Änderungen: https://github.com/$repo/blob/main/CHANGELOG.md" --latest

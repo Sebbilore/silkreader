@@ -18,6 +18,8 @@ const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoU
 const TESTING = !!(process.env.SPIDER_MOCK || process.env.SILK_TEST);
 // Aus dem Microsoft Store installiert: Updates, Autostart und „Öffnen mit“ regelt dann Windows selbst
 const STORE = !!process.windowsStore;
+// Öffentlich (ohne Code): Installer, Updates, Datenschutz, Fehlermeldungen. Der Code selbst liegt privat.
+const DOWNLOAD_REPO = 'https://github.com/Sebbilore/silkreader-download';
 // In Tests ist Pro freigeschaltet – außer der Test prüft gerade die Sperre (SILK_PRO_OFF)
 if (TESTING && !process.env.SILK_PRO_OFF) process.env.SILK_PRO = '1';
 const winkeys = require('./winkeys');
@@ -631,7 +633,7 @@ function openDoc(file, title, size = { width: 680, height: 720 }) {
 ipcMain.handle('open-privacy', () => { openDoc('privacy.html', T('Datenschutz')); });
 ipcMain.handle('open-licenses', () => { openDoc('legal/THIRD_PARTY_NOTICES.txt', T('Lizenzen'), { width: 760, height: 760 }); });
 ipcMain.handle('open-log', () => openLog());
-ipcMain.handle('app-info', () => ({ version: app.getVersion(), platform: `${process.platform} ${require('os').release()}` }));
+ipcMain.handle('app-info', () => ({ version: app.getVersion(), platform: `${process.platform} ${require('os').release()}`, downloadRepo: DOWNLOAD_REPO }));
 
 // Problem melden: GitHub öffnet sich im Browser – nichts wird automatisch verschickt
 ipcMain.handle('report-problem', (_e, { text, withLog }) => {
@@ -642,7 +644,7 @@ ipcMain.handle('report-problem', (_e, { text, withLog }) => {
   }
   const head = `**Was ist passiert? / What happened?**\n${String(text || '').slice(0, 2000)}\n\n**System**\nSilkreader ${app.getVersion()} · ${process.platform} ${require('os').release()} · ${process.arch} · KI: ${st.provider} · ${uiLang()}`;
   let body = head + (log ? `\n\n**Protokoll / Log**\n\`\`\`\n${log}\n\`\`\`` : '');
-  const url = (b) => `https://github.com/Sebbilore/silkreader/issues/new?title=${encodeURIComponent(`Problem: ${String(text || '').split('\n')[0].slice(0, 60)}`)}&body=${encodeURIComponent(b)}`;
+  const url = (b) => `${DOWNLOAD_REPO}/issues/new?title=${encodeURIComponent(`Problem: ${String(text || '').split('\n')[0].slice(0, 60)}`)}&body=${encodeURIComponent(b)}`;
   while (url(body).length > 7500 && log) { log = log.split('\n').slice(5).join('\n'); body = head + `\n\n**Protokoll / Log**\n\`\`\`\n${log}\n\`\`\``; }
   shell.openExternal(url(body));
   return true;

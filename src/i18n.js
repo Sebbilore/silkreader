@@ -65,6 +65,7 @@
     'Brief fotografieren': 'Photograph a letter', 'Brief fotografieren …': 'Photograph a letter …', 'Foto aufnehmen': 'Take photo', 'Nochmal': 'Retake', 'Lese …': 'Reading …',
     'Brief gerade in den Rahmen halten · Leertaste = Foto': 'Hold the letter straight inside the frame · Space = photo', 'Ist der Text gut lesbar?': 'Is the text easy to read?',
     'Keine Kamera gefunden oder der Zugriff ist gesperrt (Windows-Einstellungen → Datenschutz → Kamera).': 'No camera found or access is blocked (Windows Settings → Privacy → Camera).',
+    'Alle Rechte vorbehalten': 'All rights reserved',
     'Sprache': 'Language', 'In meiner Sprache erklären': 'Explain in my language', 'Erklären auf …': 'Explain in …',
     'Fristen': 'Deadlines', 'Fristen ({n} bald)': 'Deadlines ({n} soon)', 'heute': 'today', 'morgen': 'tomorrow', 'in {n} Tagen': 'in {n} days',
     'Frist {w}: {t}': 'Deadline {w}: {t}', 'Wieder offen': 'Mark as open', 'Erledigt': 'Done', 'Brief öffnen': 'Open letter', 'Erledigt ({n})': 'Done ({n})',

@@ -64,4 +64,4 @@ Notebook entries can be deleted one by one. Uninstalling keeps your data in `%AP
 
 Summaries, translations and answers are written by an AI. It can be wrong or leave things out. Always check important details – especially contracts, deadlines and figures – in the original.
 
-Kontakt / Contact: https://github.com/Sebbilore/silkreader/issues
+Kontakt / Contact: https://github.com/Sebbilore/silkreader-download/issues
