@@ -2105,17 +2105,80 @@ function watchDeadlines() {
 // ---------- Notizbuch: die letzten 20 Analysen ----------
 const historyFile = () => path.join(app.getPath('userData'), 'history.json');
 function loadHistory() { try { return JSON.parse(fs.readFileSync(historyFile(), 'utf8')); } catch { return []; } }
+// Mappen (Pro): Briefe nach Thema. Was in einer Mappe liegt, bleibt (bis 200), sonst nur die letzten 20.
+const FOLDERS = ['Steuer', 'Wohnung', 'Verträge', 'Versicherung', 'Gesundheit', 'Arbeit', 'Bank', 'Sonstiges'];
+function guessFolder(text, result) {
+  const t = `${result?.doc_type || ''} ${result?.title || ''} ${String(text).slice(0, 4000)}`.toLowerCase();
+  if (/finanzamt|steuerbescheid|einkommensteuer|steuernummer|lohnsteuer/.test(t)) return 'Steuer';
+  if (/vermieter|mietvertrag|nebenkosten|betriebskosten|wohnung|miete\b/.test(t)) return 'Wohnung';
+  if (/krankenkasse|arzt|praxis|befund|klinik|rezept|therapie/.test(t)) return 'Gesundheit';
+  if (/versicherung|police|versicherungsschein|schadensfall/.test(t)) return 'Versicherung';
+  if (/arbeitgeber|arbeitsvertrag|gehalt|lohnabrechnung|kündigung des arbeits/.test(t)) return 'Arbeit';
+  if (/kontoauszug|kredit|darlehen|girokonto|sparkasse|bank\b/.test(t)) return 'Bank';
+  if (/vertrag|tarif|laufzeit|mobilfunk|strom|gas\b|internet|abonnement|mitgliedschaft/.test(t)) return 'Verträge';
+  return null;
+}
+function trimHistory(list) {
+  const filed = list.filter((h) => h.folder).slice(0, 200), loose = list.filter((h) => !h.folder).slice(0, 20);
+  const keep = new Set([...filed, ...loose].map((h) => h.id));
+  return list.filter((h) => keep.has(h.id));
+}
 function addHistory(doc, result) {
   if (loadSettings().privateMode) return; // Privatmodus: nichts merken
-  const list = loadHistory().filter((h) => h.text !== doc.pages.join('\n\n').slice(0, 200000));
-  list.unshift({ id: `${Date.now()}`, date: Date.now(), title: result.title || doc.title, docTitle: doc.title, path: doc.path, mtime: doc.mtime, pages: doc.pages.map((p) => p.slice(0, 100000)), text: doc.pages.join('\n\n').slice(0, 200000), result });
-  fs.writeFileSync(historyFile(), JSON.stringify(list.slice(0, 20)));
+  const text = doc.pages.join('\n\n').slice(0, 200000);
+  const old = loadHistory();
+  const before = old.find((h) => h.text === text);
+  const list = old.filter((h) => h.text !== text);
+  const folder = before?.folder || (pro.allowed('folders') ? guessFolder(text, result) : null);
+  list.unshift({ id: `${Date.now()}`, date: Date.now(), title: result.title || doc.title, docTitle: doc.title, path: doc.path, mtime: doc.mtime, pages: doc.pages.map((p) => p.slice(0, 100000)), text, result, folder });
+  fs.writeFileSync(historyFile(), JSON.stringify(trimHistory(list)));
 }
-ipcMain.handle('history-list', (_e, q = '') => {
+ipcMain.handle('history-folder', (_e, id, folder) => {
+  if (!pro.allowed('folders')) return { ok: false, pro: 'folders' };
+  const list = loadHistory();
+  const h = list.find((x) => x.id === id);
+  if (h) { h.folder = FOLDERS.includes(folder) ? folder : null; fs.writeFileSync(historyFile(), JSON.stringify(trimHistory(list))); }
+  return { ok: true };
+});
+ipcMain.handle('folders', () => ({ all: FOLDERS, used: [...new Set(loadHistory().map((h) => h.folder).filter(Boolean))], allowed: pro.allowed('folders') }));
+
+// Frag dein Notizbuch (Pro): die passendsten gespeicherten Texte heraussuchen und daraus antworten
+const NOTEBOOK_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['answer', 'source'],
+  properties: { answer: { type: 'string', maxLength: 600 }, source: { type: 'string', maxLength: 120, description: 'Titel des Dokuments, aus dem die Antwort stammt (oder leer)' } },
+};
+ipcMain.handle('notebook-ask', async (_e, question) => {
+  if (!pro.allowed('askNotebook')) return { ok: false, pro: 'askNotebook' };
+  const list = loadHistory();
+  if (!list.length) return { ok: true, answer: T('Im Notizbuch ist noch nichts gespeichert.'), sources: [] };
+  const words = [...new Set(String(question).toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 3))];
+  const scored = list.map((h) => {
+    const hay = `${h.title} ${h.docTitle} ${h.folder || ''} ${h.result?.summary || ''} ${(h.result?.key_points || []).join(' ')} ${h.text.slice(0, 30000)}`.toLowerCase();
+    return { h, score: words.reduce((n, w) => n + (hay.includes(w) ? (String(h.title).toLowerCase().includes(w) ? 3 : 1) : 0), 0) };
+  }).sort((a, b) => b.score - a.score || b.h.date - a.h.date).slice(0, 3);
+  const material = scored.map(({ h }) => {
+    const r = h.result || {};
+    const c = r.contract ? `\nVertrag: Ende ${r.contract.end || '?'}, kündigen bis ${r.contract.cancelBy || '?'}, Kosten ${r.contract.monthly || '?'}` : '';
+    const doc = { pages: [h.text] };
+    return `### ${h.title} (gelesen am ${new Date(h.date).toLocaleDateString('de-DE')})\n${r.summary || ''}${c}\n${(r.figures || []).map((f) => `${f.label}: ${f.value}`).join('; ')}\nAuszug:\n${relevantMaterial(doc, question, 1800)}`;
+  }).join('\n\n');
+  try {
+    setBusy(true);
+    const { value } = await llmGenerate({
+      instruction: `Hier sind Auszüge aus gespeicherten Briefen und Dokumenten. Beantworte kurz und genau: „${question}“\nWenn die Auszüge keine Antwort enthalten, sag das ehrlich. Gib in "source" den Titel des Dokuments an, aus dem die Antwort stammt.`,
+      material, schema: NOTEBOOK_SCHEMA, maxTokens: 400,
+    });
+    countSuccess();
+    const src = scored.find(({ h }) => value.source && (h.title.includes(value.source) || value.source.includes(h.title)))?.h || scored[0]?.h;
+    return { ok: true, answer: value.answer, sources: src ? [{ id: src.id, title: src.title }] : [] };
+  } catch (e) { return friendlyErr(e); } finally { setBusy(false); }
+});
+ipcMain.handle('history-list', (_e, q = '', folder = null) => {
   const needle = q.trim().toLowerCase();
   return loadHistory()
+    .filter((h) => !folder || h.folder === folder)
     .filter((h) => !needle || `${h.title} ${h.docTitle} ${h.result.summary} ${h.text.slice(0, 20000)}`.toLowerCase().includes(needle))
-    .map((h) => ({ id: h.id, date: h.date, title: h.title, docTitle: h.docTitle, summary: h.result.summary }));
+    .map((h) => ({ id: h.id, date: h.date, title: h.title, docTitle: h.docTitle, summary: h.result.summary, folder: h.folder || null }));
 });
 ipcMain.handle('history-get', (_e, id) => {
   const h = loadHistory().find((x) => x.id === id);

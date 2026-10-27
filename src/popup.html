@@ -102,6 +102,8 @@
   .letter.locked .lh { margin-bottom: 4px; }
   .letter .note { font-size: 12px; color: var(--muted); margin-top: 8px; } .letter .note.warn, .letter .warn { color: #ffb84d; }
   .tpl { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 12px; align-items: baseline; }
+  .entry .fold { flex: none; background: none; border: 1px dashed var(--line-2); border-radius: var(--r-pill); color: var(--muted); font: inherit; font-size: 10.5px; padding: 0 7px; cursor: pointer; }
+  .entry .fold.on { border-style: solid; border-color: rgba(255,45,138,.45); color: var(--pink-2); } .fpick { margin: 4px 0 8px; } .fpick .chip { font-size: 11px; }
   .langpick { margin: 12px 0 2px; } .langpick .h { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
   .aiNote { font-size: 10.5px; color: var(--faint); margin: 10px 0 2px; }
   .where { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--faint); white-space: nowrap; }
@@ -611,6 +613,7 @@
 
   // ---------- Notizbuch ----------
   const entryHtml = (h) => `<div class="entry" data-id="${esc(h.id)}"><div class="t"><b>${esc(h.title || h.docTitle)}</b><span>${esc(bullets(h.summary)[0] || '')}</span></div>
+    ${h.folder !== undefined ? `<button class="fold${h.folder ? ' on' : ''}" title="${T('Mappe')}">${h.folder ? esc(T(h.folder)) : '+'}</button>` : ''}
     <small>${new Date(h.date).toLocaleDateString(I18N.locale, { day: '2-digit', month: '2-digit' })}</small><button class="del" title="Löschen">✕</button></div>`;
   function bindEntries(box, backTo) {
     box.querySelectorAll('.entry').forEach((el) => el.addEventListener('click', async (e) => {
@@ -656,17 +659,55 @@
     $('foot').classList.add('hidden');
   }
 
-  async function notebook() {
+  async function notebook(folder = null) {
     state = 'done';
     $('title').textContent = 'Notizbuch';
-    $('main').innerHTML = `<input class="ask" id="nbQ" placeholder="Suchen …" style="margin-bottom:8px"><div id="nbList"></div>`;
+    const F = await window.spider.folders();
+    $('main').innerHTML = `<input class="ask" id="nbQ" placeholder="${T('Suchen – oder fragen und Enter drücken …')}" style="margin-bottom:8px">
+      <div id="nbAnswer"></div>
+      ${F.used.length ? `<div class="chips" id="nbFolders"><button class="chip${!folder ? ' on' : ''}" data-f="">${T('Alle')}</button>${F.used.map((f) => `<button class="chip${f === folder ? ' on' : ''}" data-f="${esc(f)}">${T(f)}</button>`).join('')}</div>` : ''}
+      <div id="nbList"></div>`;
     const load = async () => {
-      const list = await window.spider.historyList($('nbQ')?.value || '');
+      const list = await window.spider.historyList($('nbQ')?.value || '', folder);
       if (!$('nbList')) return;
       $('nbList').innerHTML = list.length ? list.map(entryHtml).join('') : `<div class="muted">${$('nbQ').value ? 'Nichts gefunden.' : 'Noch nichts gelesen – die Spinne merkt sich hier die letzten 20 Texte.'}</div>`;
-      bindEntries($('nbList'), notebook);
+      bindEntries($('nbList'), () => notebook(folder));
+      // Mappe wählen (Pro)
+      $('nbList').querySelectorAll('.fold').forEach((b) => b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!F.allowed) { setBack(() => notebook(folder)); proView('folders'); return; }
+        const row = b.closest('.entry');
+        row.querySelector('.fpick')?.remove();
+        const pick = document.createElement('div');
+        pick.className = 'chips fpick';
+        pick.innerHTML = [...F.all, ''].map((f) => `<button class="chip" data-set="${esc(f)}">${f ? T(f) : T('Keine Mappe')}</button>`).join('');
+        row.after(pick);
+        pick.addEventListener('click', async (ev) => {
+          const c = ev.target.closest('[data-set]'); if (!c) return;
+          ev.stopPropagation();
+          await window.spider.historyFolder(row.dataset.id, c.dataset.set || null);
+          notebook(folder);
+        });
+      }));
     };
     $('nbQ').addEventListener('input', load);
+    // Enter: das Notizbuch fragen (Pro)
+    $('nbQ').addEventListener('keydown', async (e) => {
+      if (e.key !== 'Enter' || !e.target.value.trim()) return;
+      const q = e.target.value.trim();
+      $('nbAnswer').innerHTML = `<div class="answer"><div class="q">${esc(q)}</div><div class="a muted">${T('Die Spinne blättert im Notizbuch …')}</div></div>`;
+      const r = await window.spider.notebookAsk(q);
+      if (!r.ok && r.pro) { setBack(() => notebook(folder)); proView(r.pro); return; }
+      const a = $('nbAnswer').querySelector('.a');
+      if (!r.ok) { a.className = 'a error'; a.textContent = r.error; return; }
+      a.className = 'a';
+      a.innerHTML = `<span data-noi18n>${emph(r.answer)}</span>${r.sources.map((x) => ` <button class="link" data-open="${esc(x.id)}">→ ${esc(x.title)}</button>`).join('')}`;
+      a.querySelectorAll('[data-open]').forEach((btn) => btn.addEventListener('click', async () => {
+        const h = await window.spider.historyGet(btn.dataset.open); if (!h) return;
+        setBack(() => notebook(folder)); P = { kind: 'analyze', doc: h.doc, result: h.result }; result = h.result; showResult();
+      }));
+    });
+    $('nbFolders')?.addEventListener('click', (e) => { const c = e.target.closest('[data-f]'); if (c) notebook(c.dataset.f || null); });
     if ((await window.spider.getSettings()).privateMode) $('nbList').insertAdjacentHTML('beforebegin', `<div class="muted" style="margin-bottom:6px">${silkIcon('lock')} ${T('Privatmodus: Neue Texte werden nicht gespeichert.')}</div>`);
     $('foot').classList.add('hidden');
     await load();
