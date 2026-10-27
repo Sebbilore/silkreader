@@ -138,8 +138,9 @@
       const d = document.createElement('div');
       d.className = 'opt' + (key === builtinModel ? ' on' : '');
       d.innerHTML = `<b>${info.name.split(' (')[0]}</b><span>${info.name.split(' (')[1]?.replace(')', '') || ''} · ${info.size}${info.ready ? ' · ✓ geladen' : ''}</span>`
+        + (info.locked ? `<span class="bad">${T('Gehört zu Silkreader Pro')} – <a href="#" data-pro>${T('mehr')}</a></span>` : '')
         + (info.tooBig ? `<span class="bad">${T('Für diesen PC zu groß ({ram} GB Arbeitsspeicher, empfohlen ab {min} GB)', { ram: m.ramGB, min: info.minRamGB })}</span>` : '');
-      d.addEventListener('click', () => { builtinModel = key; renderModels(); });
+      d.addEventListener('click', (e) => { if (e.target.closest('[data-pro]')) { e.preventDefault(); window.spider.showPro('quality'); return; } builtinModel = key; renderModels(); });
       $('modelChoice').appendChild(d);
     }
     const sel = m.models[builtinModel];

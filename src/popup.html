@@ -94,6 +94,12 @@
   .fchk { flex: none; width: 18px; height: 18px; margin-top: 1px; border: 1.5px solid var(--pink); border-radius: 5px; background: none; cursor: pointer; padding: 0; }
   .fr.done .fchk { background: var(--pink); } .fr.done .ft { opacity: .55; } .fr.done .fn { text-decoration: line-through; }
   details.sec summary { cursor: pointer; }
+  .pro-on { color: #6fd39a; font-weight: 600; margin: 4px 0 8px; } .pro-why { margin: 2px 0 8px; font-size: 13.5px; }
+  .pro-list { list-style: none; padding: 0; margin: 0 0 6px; font-size: 12.5px; } .pro-list li { margin: 3px 0; display: flex; gap: 8px; }
+  .pro-list li::before { content: "✓"; color: var(--pink); font-weight: 700; } .pro-list li.hit span { color: #fff; font-weight: 650; }
+  .go { background: var(--pink); color: #fff; border: none; border-radius: var(--r-pill); padding: 8px 16px; font: inherit; font-weight: 650; cursor: pointer; }
+  .go.small { padding: 6px 12px; font-size: 12px; } .coderow { display: flex; gap: 8px; } .coderow input { flex: 1; min-width: 0; margin: 0; }
+  .letter.locked .lh { margin-bottom: 4px; }
   .langpick { margin: 12px 0 2px; } .langpick .h { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
   .aiNote { font-size: 10.5px; color: var(--faint); margin: 10px 0 2px; }
   .where { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--faint); white-space: nowrap; }
@@ -304,7 +310,7 @@
     const figs = r.figures.slice(0, 8);
     $('main').innerHTML = `
       <ul class="lead" data-noi18n>${bullets(r.summary).map((b, i) => (P.quickShown ? `<li>${emphChecked(b)}</li>` : `<li class="rise" style="animation-delay:${i * 70}ms">${emphChecked(b)}</li>`)).join('')}</ul>
-      ${L ? letterCard(L, r) : ''}
+      ${L ? letterCard(L, r) : r.letterLocked ? `<div class="letter locked"><div class="lh"><b>${T(r.letterLocked)}</b><span>${T('Was muss ich tun? Betrag, Frist, IBAN zum Kopieren')}</span></div><button class="link" id="lPro">${T('Mit Silkreader Pro anzeigen')}</button></div>` : ''}
       ${deadlines.map((d, i) => `<div class="dl"><span class="when">📅 ${d.date.toLocaleDateString(I18N.locale)}</span><span class="what" data-noi18n title="${esc(d.sentence)}">${esc(d.sentence)}</span><button class="link" data-dl="${i}">+ Kalender</button></div>`).join('')}
       <button class="more" id="moreBtn">Mehr ▾</button>
       <div id="details">
@@ -336,6 +342,7 @@
     $('main').scrollTop = 0;
     footer({ ask: true, actions: [['Kopieren', copyResult], ['Vorlesen', () => speak(bullets(r.summary).join('. '))], ['Sprache', explainPicker], ['Festhalten', keepResult], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)]] });
     $('lExplain')?.addEventListener('click', explainPicker);
+    $('lPro')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); proView('letter'); });
     maybeAskReview();
   }
 
@@ -405,6 +412,7 @@
     $('main').innerHTML = `${weave('Die Spinne schreibt …')}<div class="out" id="out" data-noi18n dir="auto"></div>`;
     const res = await window.spider.transform(P.mode, P.text, P.extra || '');
     if (myRun !== run) return;
+    if (!res.ok && res.pro) return proView(res.pro);
     if (!res.ok) return showError(res, transform);
     state = 'done';
     $('main').innerHTML = `<div class="out rise" data-noi18n dir="auto">${esc(res.text)}</div>${res.truncated ? '<div class="muted" style="margin-top:8px">Nur der Anfang wurde bearbeitet (eingebautes Modell).</div>' : ''}${res.fastModel && P.mode?.startsWith('explain:') ? `<div class="muted" style="margin-top:10px">${T('Tipp: Mit dem gründlichen KI-Modell werden andere Sprachen deutlich besser.')} <button class="link" id="qualityLink">${T('Einstellungen')}</button></div>` : ''}`;
@@ -537,6 +545,7 @@
       const r = await window.spider.pickFileBubble();
       busyDialog = false;
       if (r.ok) { setBack(home); P = { kind: 'analyze', doc: r.doc }; $('title').textContent = r.doc.title; analyze(); }
+      else if (r.pro) { setBack(home); proView(r.pro); }
       else if (r.error) $('main').insertAdjacentHTML('afterbegin', `<p class="error">${esc(r.error)}</p>`);
     });
     $('qRegion').addEventListener('click', () => window.spider.regionCapture());
@@ -669,6 +678,39 @@
   }
 
   // ---------- Über Silkreader ----------
+  // ---------- Silkreader Pro ----------
+  async function proView(feature = null) {
+    state = 'done';
+    $('title').textContent = 'Silkreader Pro';
+    const st = await window.spider.proState();
+    const until = st.until ? new Date(st.until).toLocaleDateString(I18N.locale) : null;
+    const list = Object.entries(st.features).map(([k, n]) => `<li class="${k === feature ? 'hit' : ''}"><span>${T(n)}</span></li>`).join('');
+    $('main').innerHTML = `
+      ${st.active
+        ? `<div class="pro-on">✓ ${T('Pro ist aktiv')}${st.source === 'code' ? ` <span class="muted">· ${until ? T('per Code, gültig bis {d}', { d: until }) : T('per Code, unbegrenzt')}</span>` : st.source === 'store' ? ` <span class="muted">· ${T('über den Microsoft Store')}</span>` : ''}</div>`
+        : feature ? `<p class="pro-why">${T('{f} gibt es mit Silkreader Pro.', { f: T(st.features[feature] || feature) })}</p>` : `<p class="pro-why">${T('Mehr aus deinen Briefen holen – einmal kaufen, kein Abo.')}</p>`}
+      <ul class="pro-list">${list}</ul>
+      <p class="muted" style="margin:4px 0 10px">${T('Immer frei: Zusammenfassen, Fragen an den Text, Fristen, Notizbuch, In deiner Sprache.')}</p>
+      ${st.active ? '' : `${st.canBuy ? `<button class="go" id="proBuy">${T('Pro im Microsoft Store holen')}</button>` : ''}
+      <div class="set" style="margin-top:12px"><div class="h">${T('Du hast einen Code?')}</div>
+        <div class="coderow"><input class="ask" id="proCode" placeholder="SILK-…" spellcheck="false" data-noi18n><button class="go small" id="proRedeem">${T('Einlösen')}</button></div>
+        <div class="muted" id="proMsg"></div></div>`}`;
+    $('proBuy')?.addEventListener('click', async () => {
+      await window.spider.proBuy();
+      // Nach dem Kauf im Store: beim Zurückkommen Lizenz neu prüfen
+      window.addEventListener('focus', async function again() { window.removeEventListener('focus', again); const s2 = await window.spider.proRefresh(); if (s2.active) proView(); }, { once: true });
+    });
+    const redeem = async () => {
+      const code = $('proCode').value.trim(); if (!code) return;
+      const r = await window.spider.proRedeem(code);
+      if (r.ok) { proView(); flashTitle(T('Pro ist aktiv ✓')); } else { $('proMsg').textContent = r.error; $('proMsg').className = 'error'; }
+    };
+    $('proRedeem')?.addEventListener('click', redeem);
+    $('proCode')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') redeem(); });
+    $('foot').classList.add('hidden');
+  }
+  const flashTitle = (t) => { const el = $('title'); const old = el.textContent; el.textContent = t; setTimeout(() => { if (el.textContent === t) el.textContent = old; }, 2200); };
+
   async function about() {
     state = 'done';
     $('title').textContent = 'Über Silkreader';
@@ -686,12 +728,14 @@
         <button class="link" id="aLic">${silkIcon('file')}<span>Lizenzen</span></button>
         <button class="link" id="aNew">${silkIcon('notebook')}<span>Was ist neu?</span></button>
         <button class="link" id="aRep">${silkIcon('bug')}<span>Problem melden</span></button>
+        <button class="link" id="aPro">${silkIcon('keep')}<span>Silkreader Pro</span></button>
       </div>
       <div class="v" style="margin-top:12px">${T('Kostenlos · MIT-Lizenz')} · © 2026 Sebbilore</div></div>`;
     $('aPriv').addEventListener('click', () => window.spider.openPrivacy());
     $('aLic').addEventListener('click', () => window.spider.openLicenses());
     $('aNew').addEventListener('click', () => window.spider.openExternal('https://github.com/Sebbilore/silkreader/releases'));
     $('aRep').addEventListener('click', () => { setBack(about); report(); });
+    $('aPro').addEventListener('click', () => { setBack(about); proView(); });
     $('foot').classList.add('hidden');
   }
 
@@ -805,6 +849,7 @@
     else if (P.kind === 'home') home();
     else if (P.kind === 'notebook') notebook();
     else if (P.kind === 'deadlines') deadlines();
+    else if (P.kind === 'pro') proView(P.feature || null);
     else if (P.kind === 'settings') settings();
     else if (P.kind === 'about') about();
     else if (P.kind === 'whatsnew') whatsNew();

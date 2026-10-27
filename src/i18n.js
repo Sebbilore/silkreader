@@ -36,6 +36,16 @@
 
     'Tipp: Mit dem gründlichen KI-Modell werden andere Sprachen deutlich besser.': 'Tip: other languages work much better with the thorough AI model.',
     'Mit Windows starten …': 'Start with Windows …',
+    'Silkreader Pro': 'Silkreader Pro', 'Silkreader Pro ✓': 'Silkreader Pro ✓', 'Silkreader Pro …': 'Silkreader Pro …', 'Pro ist aktiv': 'Pro is active', 'Pro ist aktiv ✓': 'Pro is active ✓',
+    'per Code, gültig bis {d}': 'via code, valid until {d}', 'per Code, unbegrenzt': 'via code, unlimited', 'über den Microsoft Store': 'via the Microsoft Store',
+    'Mehr aus deinen Briefen holen – einmal kaufen, kein Abo.': 'Get more out of your letters – buy once, no subscription.',
+    'Immer frei: Zusammenfassen, Fragen an den Text, Fristen, Notizbuch, In deiner Sprache.': 'Always free: summaries, questions about the text, deadlines, notebook, in your language.',
+    'Pro im Microsoft Store holen': 'Get Pro in the Microsoft Store', 'Du hast einen Code?': 'Have a code?', 'Einlösen': 'Redeem',
+    'Dieser Code ist unvollständig. Bitte genau so einfügen, wie du ihn bekommen hast.': 'This code is incomplete. Please paste it exactly as you received it.',
+    'Dieser Code ist nicht gültig.': 'This code is not valid.',
+    'Was muss ich tun? Betrag, Frist, IBAN zum Kopieren': 'What do I need to do? Amount, deadline, IBAN to copy', 'Mit Silkreader Pro anzeigen': 'Show with Silkreader Pro',
+    'Vertrags-Check mit Kündigungs-Erinnerung': 'Contract check with cancellation reminder', 'Antwort-Vorlagen': 'Reply templates', 'Frag dein Notizbuch': 'Ask your notebook', 'Mappen': 'Folders',
+    'Gehört zu Silkreader Pro': 'Part of Silkreader Pro', 'mehr': 'more',
     'Sprache': 'Language', 'In meiner Sprache erklären': 'Explain in my language', 'Erklären auf …': 'Explain in …',
     'Fristen': 'Deadlines', 'Fristen ({n} bald)': 'Deadlines ({n} soon)', 'heute': 'today', 'morgen': 'tomorrow', 'in {n} Tagen': 'in {n} days',
     'Frist {w}: {t}': 'Deadline {w}: {t}', 'Wieder offen': 'Mark as open', 'Erledigt': 'Done', 'Brief öffnen': 'Open letter', 'Erledigt ({n})': 'Done ({n})',
@@ -248,6 +258,8 @@
     [/^([\s\S]*?)( \(Datei fehlt\))?\nKlick: lesen · Ziehen: ablegen · Rechtsklick: kopieren und mehr$/,
       (m) => `${m[1]}${m[2] ? ' (file missing)' : ''}\nClick: read · Drag: drop · Right-click: copy and more`],
     [/^Version (\S+)$/, (m) => `Version ${m[1]}`],
+    [/^Dieser Code ist am (.+) abgelaufen\.$/, (m) => `This code expired on ${m[1]}.`],
+    [/^(.+) gibt es mit Silkreader Pro\.$/, (m) => `${tr(m[1])} is available with Silkreader Pro.`],
   ];
 
   let lang = 'de';

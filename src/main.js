@@ -18,6 +18,8 @@ const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoU
 const TESTING = !!(process.env.SPIDER_MOCK || process.env.SILK_TEST);
 // Aus dem Microsoft Store installiert: Updates, Autostart und „Öffnen mit“ regelt dann Windows selbst
 const STORE = !!process.windowsStore;
+// In Tests ist Pro freigeschaltet – außer der Test prüft gerade die Sperre (SILK_PRO_OFF)
+if (TESTING && !process.env.SILK_PRO_OFF) process.env.SILK_PRO = '1';
 const winkeys = require('./winkeys');
 const I18N = require('./i18n');
 const T = I18N.T;
@@ -544,6 +546,7 @@ function buildTrayMenu() {
     { label: T('Privatmodus (nichts im Notizbuch speichern)'), type: 'checkbox', checked: !!loadSettings().privateMode,
       click: (item) => { const st = loadSettings(); st.privateMode = item.checked; saveSettings(st); } },
     { type: 'separator' },
+    { label: pro.active() ? T('Silkreader Pro ✓') : T('Silkreader Pro …'), click: () => showPopupPayload({ kind: 'pro' }) },
     { label: T('Über Silkreader'), click: () => showPopupPayload({ kind: 'about' }) },
     { label: T('Problem melden'), click: () => showPopupPayload({ kind: 'report' }) },
     ...(STORE ? [] : [{ label: T(`Nach Updates suchen (v${app.getVersion()})`), click: checkUpdatesNow }]),
@@ -657,7 +660,7 @@ async function readFileToBubble(file) {
   logLine('Datei aus dem Explorer');
   bubbleWin?.showInactive();
   try { showPopup(await readFileDoc(file), { autoStart: true }); }
-  catch (e) { showPopupPayload({ kind: 'message', title: 'Datei konnte nicht gelesen werden', text: String(e.message || e) }); }
+  catch (e) { showPopupPayload(e.code === 'PRO' ? { kind: 'pro', feature: e.feature } : { kind: 'message', title: 'Datei konnte nicht gelesen werden', text: String(e.message || e) }); }
 }
 const MENU_EXT = ['.pdf', '.docx', '.txt', '.md', '.png', '.jpg', '.jpeg'];
 // Eintrag im Explorer-Kontextmenü anlegen (nur installierte App, nur für den eigenen Benutzer)
@@ -763,6 +766,7 @@ async function readFileDoc(filePath) {
 
 // ---------- Bildschirmbereich lesen (Texterkennung) ----------
 async function regionCapture() {
+  if (!pro.allowed('ocr')) return showPopupPayload({ kind: 'pro', feature: 'ocr' });
   const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
   const sf = display.scaleFactor || 1;
   // Erst das Bildschirmfoto (noch ohne Abdunklung), dann den Bereich wählen lassen
@@ -1154,7 +1158,7 @@ async function readDocument(filePath) {
     const pages = text.map((t) => t.trim());
     if (!pages.some(Boolean)) {
       // Gescannte PDF (nur Bilder): mit der Windows-Texterkennung lesen
-      if (!pro.allowed('ocr')) throw new Error(T('{f} gibt es mit Silkreader Pro.', { f: T(pro.FEATURES.ocr) }));
+      if (!pro.allowed('ocr')) throw Object.assign(new Error(T('{f} gibt es mit Silkreader Pro.', { f: T(pro.FEATURES.ocr) })), { code: 'PRO', feature: 'ocr' });
       const scanned = await recognizePdf(filePath);
       if (scanned.some(Boolean)) return { title, source: 'pdf', pages: scanned, ocr: true };
       throw new Error('Diese PDF enthält keinen auslesbaren Text (evtl. ein Scan).');
@@ -1163,7 +1167,7 @@ async function readDocument(filePath) {
   }
   if (IMAGE_EXT.includes(ext)) {
     // Foto oder Bildschirmfoto eines Dokuments
-    if (!pro.allowed('ocr')) throw new Error(T('{f} gibt es mit Silkreader Pro.', { f: T(pro.FEATURES.ocr) }));
+    if (!pro.allowed('ocr')) throw Object.assign(new Error(T('{f} gibt es mit Silkreader Pro.', { f: T(pro.FEATURES.ocr) })), { code: 'PRO', feature: 'ocr' });
     const text = await recognizeText(filePath);
     if (!text.trim()) throw new Error('Auf diesem Bild wurde kein Text erkannt.');
     return { title, source: 'image', pages: [text.trim()], ocr: true };
@@ -1299,7 +1303,10 @@ const modelDir = () => (TESTING && process.env.SILK_MODEL_DIR) || path.join(app.
 const modelPathFor = (key) => process.env.SILK_MODEL_PATH || path.join(modelDir(), BUILTIN_MODELS[key].file);
 const modelReady = (key) => fs.existsSync(modelPathFor(key));
 // Ohne Auswahl: das gründliche Modell, falls es schon da ist, sonst das schnelle.
-const builtinKey = (s = loadSettings()) => (BUILTIN_MODELS[s.builtinModel] ? s.builtinModel : modelReady('quality') ? 'quality' : 'fast');
+const builtinKey = (s = loadSettings()) => {
+  const want = BUILTIN_MODELS[s.builtinModel] ? s.builtinModel : modelReady('quality') ? 'quality' : 'fast';
+  return want === 'quality' && !pro.allowed('quality') && modelReady('fast') ? 'fast' : want; // gründliches Modell gehört zu Pro
+};
 const builtinModelReady = () => modelReady(builtinKey());
 
 let llamaRuntime = null; // { key, llama, model } – bleibt geladen, damit weitere Analysen sofort starten
@@ -1902,7 +1909,7 @@ const EXPLAIN_LANGS = {
   en: ['English', 'English', /\b(the|and|you|is|to)\b/i],
 };
 // Andere Sprachen kann das gründliche Modell deutlich besser – ist es geladen (und genug Arbeitsspeicher da), nimmt die Erklärung es
-const explainModel = () => (modelReady('quality') && ramGB() >= BUILTIN_MODELS.quality.minRamGB ? 'quality' : null);
+const explainModel = () => (modelReady('quality') && pro.allowed('quality') && ramGB() >= BUILTIN_MODELS.quality.minRamGB ? 'quality' : null);
 function runExplain(code, text, extra = '', onChunk = () => {}) {
   const [, lang, looksRight, looksWrong] = EXPLAIN_LANGS[code] || EXPLAIN_LANGS.en;
   const instr = `Explain the following text (for example a letter from an authority, a company or a doctor) to someone who barely understands German. Write ONLY in ${lang}, in short and simple sentences. Say what it is about, what the recipient has to do, by when, and how much it costs (if stated). Keep numbers, amounts, dates, names, reference numbers and IBAN exactly as in the text. Do not invent names, places or facts that are not in the text, and do not address the reader by name. Output only the explanation.`;
@@ -1986,6 +1993,25 @@ ipcMain.handle('add-calendar', async (_e, { title, date, note }) => {
   const err = await shell.openPath(file);
   return !err;
 });
+
+// ---------- Silkreader Pro: Status, Code einlösen, kaufen ----------
+const refreshPro = () => pro.refresh(loadSettings(), { psEnv: require('./psenv').psEnv, log: logLine }).then((st) => {
+  const s = loadSettings();
+  if (STORE && !!s.proStoreCache !== (st.source === 'store')) { s.proStoreCache = st.source === 'store'; saveSettings(s); } // falls Windows später mal nicht antwortet
+  buildTrayMenu();
+  return st;
+});
+ipcMain.handle('pro-state', () => pro.status());
+ipcMain.handle('pro-redeem', async (_e, code) => {
+  const c = pro.checkCode(code);
+  if (!c.ok) return { ok: false, error: T(c.error) };
+  const s = loadSettings(); s.proCode = String(code).trim(); saveSettings(s);
+  logLine(`Pro-Code eingelöst (Nr. ${c.id})`);
+  return { ok: true, status: await refreshPro() };
+});
+ipcMain.handle('pro-buy', () => { const link = pro.storeLink(); if (link) shell.openExternal(link); return !!link; });
+ipcMain.handle('pro-refresh', () => refreshPro());
+ipcMain.handle('pro-show', (_e, feature) => showPopupPayload({ kind: 'pro', feature: feature || null }));
 
 // ---------- Bewertung im Store: nach ein paar erfolgreichen Nutzungen einmal freundlich fragen ----------
 // Nur in der Store-Version (dort kann man bewerten). „Geht so“ führt zu „Problem melden“ statt in den Store.
@@ -2126,7 +2152,8 @@ ipcMain.handle('analyze', async (event, doc) => {
     // Feste Regeln obendrauf: Zahlen gegen den Originaltext prüfen, Briefe (Rechnung, Bescheid …) erkennen
     try {
       const text = doc.pages.join('\n');
-      result = { ...facts.verifyResult(result, text), letter: pro.allowed('letter') ? facts.letterFacts(text) : null };
+      const letter = facts.letterFacts(text);
+      result = { ...facts.verifyResult(result, text), letter: pro.allowed('letter') ? letter : null, letterLocked: !!letter && !pro.allowed('letter') ? letter.label : null };
     } catch (e) { logLine(`Prüfung fehlgeschlagen: ${e.message}`); }
     try { addHistory(doc, result); updateDeadlineBadge(); } catch (e) { console.error('Notizbuch:', e); }
     countSuccess();
@@ -2163,7 +2190,7 @@ ipcMain.handle('pick-file-bubble', async () => {
     filters: [{ name: T('Dokumente'), extensions: DOC_EXT }],
   });
   if (r.canceled || !r.filePaths[0]) return { ok: false };
-  try { return { ok: true, doc: await readFileDoc(r.filePaths[0]) }; } catch (e) { return { ok: false, error: String(e.message || e) }; }
+  try { return { ok: true, doc: await readFileDoc(r.filePaths[0]) }; } catch (e) { return { ok: false, error: String(e.message || e), pro: e.code === 'PRO' ? e.feature : null }; }
 });
 ipcMain.handle('region-capture', () => { popupWin?.hide(); return regionCapture(); });
 ipcMain.handle('open-reader', (_e, doc, result, focus) => {
@@ -2254,7 +2281,7 @@ ipcMain.handle('model-status', () => ({
   selected: builtinKey(),
   downloading: !!modelDownload,
   ramGB: ramGB(),
-  models: Object.fromEntries(Object.entries(BUILTIN_MODELS).map(([k, m]) => [k, { name: m.name, size: m.sizeLabel, ready: modelReady(k), tooBig: ramGB() < m.minRamGB, minRamGB: m.minRamGB }])),
+  models: Object.fromEntries(Object.entries(BUILTIN_MODELS).map(([k, m]) => [k, { name: m.name, size: m.sizeLabel, ready: modelReady(k), tooBig: ramGB() < m.minRamGB, minRamGB: m.minRamGB, locked: !pro.allowed(k) }])),
 }));
 ipcMain.handle('model-download', (event, key) => { startModelDownload(event.sender, key); });
 ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await modelDownload?.cancel(); });
@@ -2479,6 +2506,7 @@ if (!app.requestSingleInstanceLock()) {
     registerExplorerMenu();
     watchFullscreen();
     watchDeadlines();
+    refreshPro().catch((e) => logLine(`Pro: ${e.message}`));
     const startFile = fileFromArgs(process.argv);
     if (startFile) setTimeout(() => readFileToBubble(startFile), 1500);
     const s = loadSettings();
@@ -2533,6 +2561,8 @@ if (TESTING) global.__silk = { showPopupPayload, showNotebook, showHome, openRin
     return { ready: modelReady(k), error: global.__dlError || null, bytes: last };
   },
   remindDeadlines: () => remindDeadlines(),
+  proStatus: () => pro.status(),
+  refreshPro: () => refreshPro(),
   collectDeadlines: () => collectDeadlines({ withDone: true }),
   async analyzeTimed(doc) {
     const t0 = Date.now();
