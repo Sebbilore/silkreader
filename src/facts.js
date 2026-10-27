@@ -199,6 +199,8 @@
       amount: main ? { value: main.value, text: main.text, label: main.label } : null,
       iban: ibans[0] || '', recipient, refs: refs.slice(0, 3), deadlines,
       canObject: /\b(widerspruch|einspruch|rechtsbehelfsbelehrung)\b/i.test(text),
+      // Steuer- und Bußgeldsachen: „Einspruch“, sonst meist „Widerspruch“ – so wie es im Brief steht
+      objection: /\beinspruch/i.test(text) && !/\bwiderspruch/i.test(text) ? 'Einspruch' : 'Widerspruch',
     };
   }
 

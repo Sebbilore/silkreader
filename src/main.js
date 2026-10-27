@@ -548,7 +548,7 @@ function buildTrayMenu() {
     { label: T('Problem melden'), click: () => showPopupPayload({ kind: 'report' }) },
     ...(STORE ? [] : [{ label: T(`Nach Updates suchen (v${app.getVersion()})`), click: checkUpdatesNow }]),
     { label: T('Protokoll öffnen (für Fehlersuche)'), click: openLog },
-    ...(STORE ? [] : [{
+    ...(STORE ? [{ label: T('Mit Windows starten …'), click: () => shell.openExternal('ms-settings:startupapps') }] : [{
       label: T('Mit Windows starten'), type: 'checkbox',
       checked: app.getLoginItemSettings().openAtLogin,
       click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }),
@@ -1688,11 +1688,16 @@ async function analyzeOllama(doc, s, onProgress) {
 // Kleinere lokale Modelle lassen manchmal Felder weg – fehlende Teile auffüllen.
 // Kernaussagen ohne Wiederholungen und ohne Platzhalter wie „quote“
 function uniqueTexts(list) {
-  const seen = new Set();
+  const kept = [];
+  const words = (t) => new Set(t.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || []);
   return list.map((t) => String(t || '').trim()).filter((t) => {
     const k = t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-    if (k.length < 12 || /^(quote|label|value|text)$/.test(k) || seen.has(k)) return false;
-    seen.add(k);
+    if (k.length < 12 || /^(quote|label|value|text)$/.test(k)) return false;
+    // fast gleiche Aussagen (kleine Modelle wiederholen sich gern mit anderen Worten) nur einmal
+    const w = words(t);
+    const similar = kept.some((o) => { let n = 0; for (const x of w) if (o.has(x)) n++; return n / Math.max(1, Math.min(w.size, o.size)) > 0.75; });
+    if (similar) return false;
+    kept.push(w);
     return true;
   });
 }

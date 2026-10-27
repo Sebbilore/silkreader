@@ -235,6 +235,8 @@
   const CK = { ok: ['✓', 'Steht so im Text'], calc: ['≈', 'Aus dem Text berechnet'], missing: ['?', 'Nicht im Text gefunden – bitte prüfen'] };
   const ck = (f) => { const c = CK[f.check]; return c ? `<span class="ck ${f.check === 'missing' ? 'miss' : f.check === 'calc' ? 'calc' : ''}" title="${T(c[1])}">${c[0]}</span>` : ''; };
 
+  // „Einspruch“ (Steuer, Bußgeld) oder „Widerspruch“ – wie im Brief; auf Englisch immer „objection“
+  const objWord = (L, cap = false) => (I18N.lang === 'en' ? (cap ? 'Objection' : 'an objection') : (L.objection || 'Widerspruch'));
   // Brief-Karte: Was muss ich tun? Bis wann? Was kostet es? (feste Regeln + Handlungen der KI)
   function letterCard(L, r) {
     const day = (d) => new Date(`${d.iso}T00:00:00`).toLocaleDateString(I18N.locale); // aus dem Notizbuch kommt das Datum als Text
@@ -245,7 +247,7 @@
     const actions = (r.findings || []).filter((f) => f.kind === 'Handlung').slice(0, 3).map((f) => f.title);
     if (L.canObject) {
       const obj = L.deadlines.find((d) => /widerspruch|einspruch|rechtsbehelf/i.test(d.sentence));
-      todo.push(obj ? T('Bei Bedarf Widerspruch einlegen bis {d}', { d: day(obj) }) : T('Prüfen, ob du Widerspruch einlegen willst'));
+      todo.push(obj ? T('Bei Bedarf {w} einlegen bis {d}', { w: objWord(L), d: day(obj) }) : T('Prüfen, ob du {w} einlegen willst', { w: objWord(L) }));
     }
     if (!pay && due && !L.canObject) todo.push(T('Frist beachten: {d}', { d: day(due) }));
     const kv = [];
@@ -258,7 +260,7 @@
       <div class="lh"><b>${T(L.label)}</b><span>${T('Was muss ich tun?')}</span></div>
       ${todo.length || actions.length ? `<ul class="todo">${todo.map((t) => `<li><span>${esc(t)}</span></li>`).join('')}${actions.map((t) => `<li data-noi18n><span>${emphChecked(t)}</span></li>`).join('')}</ul>` : ''}
       ${kv.length ? `<div class="kv">${kv.map(([k, v, x]) => `<span>${k}</span><span>${v}</span><span>${x}</span>`).join('')}</div>` : ''}
-      <div class="row"><button class="link" id="lExplain">${T('In meiner Sprache erklären')}</button><button class="link" id="lReply">${T('Antwort schreiben')}</button>${L.canObject ? `<button class="link" id="lObject">${T('Widerspruch schreiben')}</button>` : ''}</div>
+      <div class="row"><button class="link" id="lExplain">${T('In meiner Sprache erklären')}</button><button class="link" id="lReply">${T('Antwort schreiben')}</button>${L.canObject ? `<button class="link" id="lObject">${T('{w} schreiben', { w: objWord(L, true) })}</button>` : ''}</div>
     </div>`;
   }
   // Antwort/Widerspruch zum Brief schreiben – „Zurück“ führt wieder zum Ergebnis
@@ -329,7 +331,8 @@
       await navigator.clipboard.writeText(btn.dataset.copy); btn.textContent = T('✓ Kopiert');
     }));
     $('lReply')?.addEventListener('click', () => replyToLetter(''));
-    $('lObject')?.addEventListener('click', () => replyToLetter('Schreibe einen sachlichen, höflichen Widerspruch (Einspruch) gegen dieses Schreiben. Nenne Datum, Aktenzeichen und bitte um Bestätigung des Eingangs. Lass Platzhalter in [eckigen Klammern] für Gründe und persönliche Angaben.'));
+    $('lObject')?.addEventListener('click', () => replyToLetter(`Schreibe einen sachlichen, höflichen ${L.objection || 'Widerspruch'} gegen dieses Schreiben (Überschrift: „${L.objection || 'Widerspruch'}“).`
+      + ' Nenne Datum, Aktenzeichen bzw. Steuernummer und bitte um Bestätigung des Eingangs. Lass Platzhalter in [eckigen Klammern] für Gründe und persönliche Angaben.'));
     $('main').scrollTop = 0;
     footer({ ask: true, actions: [['Kopieren', copyResult], ['Vorlesen', () => speak(bullets(r.summary).join('. '))], ['Sprache', explainPicker], ['Festhalten', keepResult], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)]] });
     $('lExplain')?.addEventListener('click', explainPicker);

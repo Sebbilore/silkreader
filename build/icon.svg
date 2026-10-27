@@ -15,32 +15,32 @@
 <circle cx="45.5" cy="15.5" r=".8" fill="#fff" opacity=".9"/><circle cx="19" cy="22" r=".6" fill="#fff" opacity=".7"/>
 </g>
 <rect x="2.5" y="2.5" width="59" height="59" rx="13.5" fill="none" stroke="rgba(255,255,255,.08)" stroke-width=".6"/>
-<line x1="40.00" y1="33.00" x2="50.00" y2="23.00" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/>
-<polyline points="50.00,23.00 54.08,28.88 56.00,34.00" fill="none" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="50.00" cy="23.00" r="1.20" fill="#c41c69" stroke="#ff8fc0" stroke-width="0.45"/>
-<line x1="42.00" y1="37.00" x2="53.00" y2="31.00" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/>
-<polyline points="53.00,31.00 57.76,36.88 60.00,42.00" fill="none" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="53.00" cy="31.00" r="1.20" fill="#c41c69" stroke="#ff8fc0" stroke-width="0.45"/>
-<line x1="42.00" y1="41.00" x2="52.00" y2="40.00" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/>
-<polyline points="52.00,40.00 56.08,45.88 58.00,51.00" fill="none" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="52.00" cy="40.00" r="1.20" fill="#c41c69" stroke="#ff8fc0" stroke-width="0.45"/>
-<line x1="40.00" y1="45.00" x2="48.00" y2="47.00" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/>
-<polyline points="48.00,47.00 50.72,52.88 52.00,58.00" fill="none" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="48.00" cy="47.00" r="1.20" fill="#c41c69" stroke="#ff8fc0" stroke-width="0.45"/>
-<line x1="24.00" y1="33.00" x2="14.00" y2="23.00" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/>
-<polyline points="14.00,23.00 9.92,28.88 8.00,34.00" fill="none" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="14.00" cy="23.00" r="1.20" fill="#c41c69" stroke="#ff8fc0" stroke-width="0.45"/>
-<line x1="22.00" y1="37.00" x2="11.00" y2="31.00" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/>
-<polyline points="11.00,31.00 6.24,36.88 4.00,42.00" fill="none" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="11.00" cy="31.00" r="1.20" fill="#c41c69" stroke="#ff8fc0" stroke-width="0.45"/>
-<line x1="22.00" y1="41.00" x2="12.00" y2="40.00" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/>
-<polyline points="12.00,40.00 7.92,45.88 6.00,51.00" fill="none" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="12.00" cy="40.00" r="1.20" fill="#c41c69" stroke="#ff8fc0" stroke-width="0.45"/>
-<line x1="24.00" y1="45.00" x2="16.00" y2="47.00" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/>
-<polyline points="16.00,47.00 13.28,52.88 12.00,58.00" fill="none" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="16.00" cy="47.00" r="1.20" fill="#c41c69" stroke="#ff8fc0" stroke-width="0.45"/>
 
-<circle cx="32" cy="38" r="11.00" fill="url(#body)" stroke="#ff2d8a" stroke-width="1.40"/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<line x1="40" y1="31" x2="50" y2="22" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/><line x1="50" y1="22" x2="57" y2="30" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round"/><circle cx="50" cy="22" r="1.2" fill="#c41c69" stroke="#ff8fc0" stroke-width=".45"/><line x1="42.5" y1="35" x2="53" y2="30" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/><line x1="53" y1="30" x2="60" y2="39" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round"/><circle cx="53" cy="30" r="1.2" fill="#c41c69" stroke="#ff8fc0" stroke-width=".45"/><line x1="42.5" y1="41" x2="52" y2="40" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/><line x1="52" y1="40" x2="58" y2="50" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round"/><circle cx="52" cy="40" r="1.2" fill="#c41c69" stroke="#ff8fc0" stroke-width=".45"/><line x1="40" y1="46" x2="47" y2="49" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/><line x1="47" y1="49" x2="51" y2="58" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round"/><circle cx="47" cy="49" r="1.2" fill="#c41c69" stroke="#ff8fc0" stroke-width=".45"/><line x1="24" y1="31" x2="14" y2="22" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/><line x1="14" y1="22" x2="7" y2="30" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round"/><circle cx="14" cy="22" r="1.2" fill="#c41c69" stroke="#ff8fc0" stroke-width=".45"/><line x1="21.5" y1="35" x2="11" y2="30" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/><line x1="11" y1="30" x2="4" y2="39" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round"/><circle cx="11" cy="30" r="1.2" fill="#c41c69" stroke="#ff8fc0" stroke-width=".45"/><line x1="21.5" y1="41" x2="12" y2="40" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/><line x1="12" y1="40" x2="6" y2="50" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="40" r="1.2" fill="#c41c69" stroke="#ff8fc0" stroke-width=".45"/><line x1="24" y1="46" x2="17" y2="49" stroke="url(#leg)" stroke-width="2.2" stroke-linecap="round"/><line x1="17" y1="49" x2="13" y2="58" stroke="#ff6aa9" stroke-width="1.5" stroke-linecap="round"/><circle cx="17" cy="49" r="1.2" fill="#c41c69" stroke="#ff8fc0" stroke-width=".45"/><circle cx="32" cy="38" r="11.00" fill="url(#body)" stroke="#ff2d8a" stroke-width="1.40"/>
 <ellipse cx="27.40" cy="31.40" rx="3.60" ry="1.90" fill="rgba(255,255,255,.42)" transform="rotate(-28 27.40 31.40)"/>
 <circle cx="24.80" cy="42.20" r="1.80" fill="rgba(255,45,138,.55)"/><circle cx="39.20" cy="42.20" r="1.80" fill="rgba(255,45,138,.55)"/>
 <ellipse cx="27.60" cy="36.40" rx="3.90" ry="4.40" fill="url(#eye)" stroke="#0c0c11" stroke-width="0.50"/>
