@@ -9,7 +9,8 @@ const crypto = require('crypto');
 const ENABLED = true;
 // Im Partner Center unter Add-ons: Produkt-ID (selbst gewählt) und Store-ID (9…, nach dem Anlegen sichtbar)
 const ADDON_ID = 'silkreader.pro';
-const ADDON_STORE_ID = ''; // ← nach dem Anlegen des Add-ons eintragen, sonst ist der Kaufen-Knopf aus
+const ADDON_STORE_ID = '9NBHSZQJ7CJP';
+const APP_STORE_ID = '9PHKJW54RGDS'; // Silkreader selbst – kaufen geht nur in der Store-Version
 const PUBLIC_KEY = 'MCowBQYDK2VwAyEA6ZTFtnubZpFBiwrO2JRO5i0yZKh7xYDq0fKTdukrd4s=';
 
 // Was Pro freischaltet
@@ -119,9 +120,11 @@ function status() {
     source: state.store ? 'store' : state.code ? 'code' : null,
     until: state.code?.until ? state.code.until.toISOString() : null,
     canBuy: !!(process.windowsStore && ADDON_STORE_ID),
+    // Installer-Version: kein Kauf möglich, aber Hinweis auf die Store-Version
+    viaStoreApp: !process.windowsStore,
     features: FEATURES,
   };
 }
-const storeLink = () => (ADDON_STORE_ID ? `ms-windows-store://pdp/?ProductId=${ADDON_STORE_ID}` : null);
+const storeLink = () => `ms-windows-store://pdp/?ProductId=${process.windowsStore ? ADDON_STORE_ID : APP_STORE_ID}`;
 
 module.exports = { ENABLED, ADDON_ID, FEATURES, allowed, active, status, refresh, checkCode, makeCode, storeLink, _state: state };

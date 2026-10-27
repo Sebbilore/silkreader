@@ -40,7 +40,7 @@
     'per Code, gültig bis {d}': 'via code, valid until {d}', 'per Code, unbegrenzt': 'via code, unlimited', 'über den Microsoft Store': 'via the Microsoft Store',
     'Mehr aus deinen Briefen holen – einmal kaufen, kein Abo.': 'Get more out of your letters – buy once, no subscription.',
     'Immer frei: Zusammenfassen, Fragen an den Text, Fristen, Notizbuch, In deiner Sprache.': 'Always free: summaries, questions about the text, deadlines, notebook, in your language.',
-    'Pro im Microsoft Store holen': 'Get Pro in the Microsoft Store', 'Du hast einen Code?': 'Have a code?', 'Einlösen': 'Redeem',
+    'Pro im Microsoft Store holen': 'Get Pro in the Microsoft Store', 'Pro kaufen geht in der Silkreader-Version aus dem Microsoft Store.': 'Pro can be bought in the Microsoft Store version of Silkreader.', 'Silkreader im Microsoft Store öffnen': 'Open Silkreader in the Microsoft Store', 'Du hast einen Code?': 'Have a code?', 'Einlösen': 'Redeem',
     'Dieser Code ist unvollständig. Bitte genau so einfügen, wie du ihn bekommen hast.': 'This code is incomplete. Please paste it exactly as you received it.',
     'Dieser Code ist nicht gültig.': 'This code is not valid.',
     'Was muss ich tun? Betrag, Frist, IBAN zum Kopieren': 'What do I need to do? Amount, deadline, IBAN to copy', 'Mit Silkreader Pro anzeigen': 'Show with Silkreader Pro',
