@@ -100,6 +100,8 @@
   .go { background: var(--pink); color: #fff; border: none; border-radius: var(--r-pill); padding: 8px 16px; font: inherit; font-weight: 650; cursor: pointer; }
   .go.small { padding: 6px 12px; font-size: 12px; } .coderow { display: flex; gap: 8px; } .coderow input { flex: 1; min-width: 0; margin: 0; }
   .letter.locked .lh { margin-bottom: 4px; }
+  .letter .note { font-size: 12px; color: var(--muted); margin-top: 8px; } .letter .note.warn, .letter .warn { color: #ffb84d; }
+  .tpl { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 12px; align-items: baseline; }
   .langpick { margin: 12px 0 2px; } .langpick .h { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
   .aiNote { font-size: 10.5px; color: var(--faint); margin: 10px 0 2px; }
   .where { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--faint); white-space: nowrap; }
@@ -266,9 +268,43 @@
       <div class="lh"><b>${T(L.label)}</b><span>${T('Was muss ich tun?')}</span></div>
       ${todo.length || actions.length ? `<ul class="todo">${todo.map((t) => `<li><span>${esc(t)}</span></li>`).join('')}${actions.map((t) => `<li data-noi18n><span>${emphChecked(t)}</span></li>`).join('')}</ul>` : ''}
       ${kv.length ? `<div class="kv">${kv.map(([k, v, x]) => `<span>${k}</span><span>${v}</span><span>${x}</span>`).join('')}</div>` : ''}
-      <div class="row"><button class="link" id="lExplain">${T('In meiner Sprache erklären')}</button><button class="link" id="lReply">${T('Antwort schreiben')}</button>${L.canObject ? `<button class="link" id="lObject">${T('{w} schreiben', { w: objWord(L, true) })}</button>` : ''}</div>
+      <div class="row"><button class="link" id="lExplain">${T('In meiner Sprache erklären')}</button><button class="link" id="lReply">${T('Antwort schreiben')}</button></div>
+      ${tplRow([...(L.canObject ? ['objection'] : []), ...(L.amount ? ['installments'] : []), 'extension', 'question'], L)}
     </div>`;
   }
+  // ---------- Antwort-Vorlagen (Pro) ----------
+  const PH = ' Lass fehlende Angaben als Platzhalter in [eckigen Klammern]. Nenne Datum des Schreibens und Aktenzeichen, Kunden-, Vertrags- oder Rechnungsnummer.';
+  const TEMPLATES = {
+    objection: (L) => [T('{w} schreiben', { w: objWord(L, true) }), `Schreibe einen sachlichen, höflichen ${L.objection || 'Widerspruch'} gegen dieses Schreiben (Überschrift: „${L.objection || 'Widerspruch'}“) und bitte um Bestätigung des Eingangs.${PH}`],
+    installments: () => [T('Ratenzahlung'), `Schreibe eine höfliche Bitte um Ratenzahlung für den offenen Betrag. Schlage eine monatliche Rate von [Betrag] € ab [Datum] vor und bitte um schriftliche Bestätigung.${PH}`],
+    extension: () => [T('Fristverlängerung'), `Schreibe eine höfliche Bitte um Verlängerung der Frist um [Anzahl] Wochen mit kurzer Begründung [Grund].${PH}`],
+    question: () => [T('Rückfrage'), `Schreibe eine höfliche Rückfrage zu diesem Schreiben: Bitte um Erklärung von [Punkt] bzw. um Zusendung von [Unterlagen].${PH}`],
+    cancel: () => [T('Kündigung'), `Schreibe eine Kündigung dieses Vertrags zum nächstmöglichen Termin. Bitte um schriftliche Bestätigung der Kündigung mit Datum des Vertragsendes.${PH}`],
+  };
+  const tplRow = (keys, L = {}) => `<div class="tpl"><span class="muted">${T('Vorlage:')}</span>${keys.map((k) => `<button class="link" data-tpl="${k}">${esc(TEMPLATES[k](L)[0])}</button>`).join('')}</div>`;
+
+  // ---------- Vertrags-Check (Pro) ----------
+  function contractCard(C) {
+    const day = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString(I18N.locale);
+    const mon = (n) => (n >= 12 && n % 12 === 0 ? T(n === 12 ? '{n} Jahr' : '{n} Jahre', { n: n / 12 }) : T(n === 1 ? '{n} Monat' : '{n} Monate', { n: Math.round(n * 10) / 10 }));
+    const kv = [];
+    if (C.term) kv.push([T('Laufzeit'), mon(C.term), '']);
+    if (C.start) kv.push([T('Beginn'), day(C.start), '']);
+    if (C.end) kv.push([T('Ende'), `<b>${day(C.end)}</b>`, '']);
+    if (C.notice != null) kv.push([T('Kündigungsfrist'), mon(C.notice), '']);
+    if (C.cancelBy) kv.push([T('Kündigen bis'), C.cancelPassed ? `<span class="warn">${day(C.cancelBy)} – ${T('verpasst')}</span>` : `<b>${day(C.cancelBy)}</b>`, C.cancelPassed ? '' : `<button class="link" data-cal="${C.cancelBy}">${T('+ Kalender')}</button>`]);
+    if (C.renew) kv.push([T('Danach'), C.renew.months ? T('verlängert sich um {m}', { m: mon(C.renew.months) }) : C.renew.indefinite ? T('läuft unbefristet weiter') : T('verlängert sich automatisch'), '']);
+    if (C.monthly) kv.push([T('Kosten'), T('{p} pro Monat', { p: C.monthly }), '']);
+    return `<div class="letter contract rise">
+      <div class="lh"><b>${T('Vertrag')}</b><span>${T('Laufzeit und Kündigung')}</span></div>
+      ${kv.length ? `<div class="kv">${kv.map(([k, v, x]) => `<span>${k}</span><span>${v}</span><span>${x}</span>`).join('')}</div>` : ''}
+      ${C.priceChange ? `<div class="note warn">${T('Preiserhöhungen sind möglich – bei einer Erhöhung hast du oft ein Sonderkündigungsrecht.')}</div>` : ''}
+      ${C.monthlyAfter ? `<div class="note">${T('Gut zu wissen: Bei Verträgen ab März 2022 kannst du nach der Mindestlaufzeit meist monatlich kündigen.')}</div>` : ''}
+      ${C.cancelBy && !C.cancelPassed ? `<div class="note">${T('Die Kündigungsfrist steht im Fristen-Netz – Silkreader erinnert dich rechtzeitig.')}</div>` : ''}
+      <div class="row"><button class="link" data-tpl="cancel">${T('Kündigung schreiben')}</button><button class="link" id="lExplain">${T('In meiner Sprache erklären')}</button></div>
+    </div>`;
+  }
+
   // Antwort/Widerspruch zum Brief schreiben – „Zurück“ führt wieder zum Ergebnis
   function replyToLetter(extra) {
     const saved = { P, result };
@@ -311,6 +347,7 @@
     $('main').innerHTML = `
       <ul class="lead" data-noi18n>${bullets(r.summary).map((b, i) => (P.quickShown ? `<li>${emphChecked(b)}</li>` : `<li class="rise" style="animation-delay:${i * 70}ms">${emphChecked(b)}</li>`)).join('')}</ul>
       ${L ? letterCard(L, r) : r.letterLocked ? `<div class="letter locked"><div class="lh"><b>${T(r.letterLocked)}</b><span>${T('Was muss ich tun? Betrag, Frist, IBAN zum Kopieren')}</span></div><button class="link" id="lPro">${T('Mit Silkreader Pro anzeigen')}</button></div>` : ''}
+      ${r.contract ? contractCard(r.contract) : r.contractLocked ? `<div class="letter locked"><div class="lh"><b>${T('Vertrag')}</b><span>${T('Laufzeit, Kündigen bis, Verlängerung')}</span></div><button class="link" id="cPro">${T('Mit Silkreader Pro anzeigen')}</button></div>` : ''}
       ${deadlines.map((d, i) => `<div class="dl"><span class="when">📅 ${d.date.toLocaleDateString(I18N.locale)}</span><span class="what" data-noi18n title="${esc(d.sentence)}">${esc(d.sentence)}</span><button class="link" data-dl="${i}">+ Kalender</button></div>`).join('')}
       <button class="more" id="moreBtn">Mehr ▾</button>
       <div id="details">
@@ -337,8 +374,9 @@
       await navigator.clipboard.writeText(btn.dataset.copy); btn.textContent = T('✓ Kopiert');
     }));
     $('lReply')?.addEventListener('click', () => replyToLetter(''));
-    $('lObject')?.addEventListener('click', () => replyToLetter(`Schreibe einen sachlichen, höflichen ${L.objection || 'Widerspruch'} gegen dieses Schreiben (Überschrift: „${L.objection || 'Widerspruch'}“).`
-      + ' Nenne Datum, Aktenzeichen bzw. Steuernummer und bitte um Bestätigung des Eingangs. Lass Platzhalter in [eckigen Klammern] für Gründe und persönliche Angaben.'));
+    $('main').querySelectorAll('[data-tpl]').forEach((b) => b.addEventListener('click', () => replyToLetter(TEMPLATES[b.dataset.tpl](L || {})[1])));
+    $('main').querySelectorAll('[data-cal]').forEach((b) => b.addEventListener('click', () => addCal(b, { iso: b.dataset.cal, sentence: T('Spätestens kündigen, sonst verlängert sich der Vertrag.') })));
+    $('cPro')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); proView('contract'); });
     $('main').scrollTop = 0;
     footer({ ask: true, actions: [['Kopieren', copyResult], ['Vorlesen', () => speak(bullets(r.summary).join('. '))], ['Sprache', explainPicker], ['Festhalten', keepResult], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)]] });
     $('lExplain')?.addEventListener('click', explainPicker);

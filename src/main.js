@@ -2052,6 +2052,9 @@ function collectDeadlines({ withDone = false } = {}) {
   const out = [];
   for (const h of loadHistory()) {
     const found = facts.findDeadlines(h.text || '', { max: 6, now: new Date(h.date || Date.now()) }).filter((d) => d.deadline);
+    // Vertrag: „kündigen spätestens am“ als eigene Frist
+    const c = h.result?.contract;
+    if (c?.cancelBy && !c.cancelPassed) found.push({ iso: c.cancelBy, sentence: T('Spätestens kündigen, sonst verlängert sich der Vertrag.'), deadline: true, contract: true });
     for (const d of found) {
       const key = `${h.id}|${d.iso}`;
       const date = dayStart(`${d.iso}T00:00:00`);
@@ -2152,8 +2155,14 @@ ipcMain.handle('analyze', async (event, doc) => {
     // Feste Regeln obendrauf: Zahlen gegen den Originaltext prüfen, Briefe (Rechnung, Bescheid …) erkennen
     try {
       const text = doc.pages.join('\n');
-      const letter = facts.letterFacts(text);
-      result = { ...facts.verifyResult(result, text), letter: pro.allowed('letter') ? letter : null, letterLocked: !!letter && !pro.allowed('letter') ? letter.label : null };
+      const contract = facts.contractFacts(text);
+      let letter = facts.letterFacts(text);
+      if (contract && letter && ['vertrag', 'kuendigung'].includes(letter.kind)) letter = null; // Verträge bekommen die Vertragskarte
+      result = {
+        ...facts.verifyResult(result, text),
+        letter: pro.allowed('letter') ? letter : null, letterLocked: !!letter && !pro.allowed('letter') ? letter.label : null,
+        contract: pro.allowed('contract') ? contract : null, contractLocked: !!contract && !pro.allowed('contract'),
+      };
     } catch (e) { logLine(`Prüfung fehlgeschlagen: ${e.message}`); }
     try { addHistory(doc, result); updateDeadlineBadge(); } catch (e) { console.error('Notizbuch:', e); }
     countSuccess();

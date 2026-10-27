@@ -70,5 +70,18 @@ const dl = F.findDeadlines('Die Unterlagen sind bis zum 3.12. vorzulegen. Versio
 ok('Frist ohne Jahr', dl.length === 1 && dl[0].iso === '2026-12-03', JSON.stringify(dl.map((d) => d.iso)));
 ok('Versionsnummer keine Frist', F.findDeadlines('Siehe Kapitel 4.2. und Abschnitt 3.1.', { now }).length === 0);
 
+const vertrag = `Mobilfunkvertrag – Vertragsbestätigung
+Vertragsbeginn: 01.03.2025
+Die Mindestlaufzeit beträgt 24 Monate. Die Kündigungsfrist beträgt 1 Monat zum Ende der Mindestlaufzeit.
+Wird nicht gekündigt, verlängert sich der Vertrag auf unbestimmte Zeit.
+Die monatliche Grundgebühr beträgt 29,99 €. Wir behalten uns eine Preisanpassung vor.`;
+const V = F.contractFacts(vertrag, { now });
+ok('Vertrag: Laufzeit 24, Frist 1 Monat', V?.term === 24 && V?.notice === 1, JSON.stringify(V));
+ok('Vertrag: Ende 01.03.2027, kündigen bis 01.02.2027', V?.end === '2027-03-01' && V?.cancelBy === '2027-02-01');
+ok('Vertrag: Kosten, Preisanpassung, danach monatlich', V?.monthly === '29,99 €' && V?.priceChange && V?.monthlyAfter);
+const fit = F.contractFacts('Mitgliedschaft im Fitnessstudio. Laufzeit 12 Monate ab dem 15. Januar 2026. Kündigungsfrist: drei Monate vor Ablauf. Der Vertrag verlängert sich jeweils um 12 Monate. Monatsbeitrag 39,90 €.', { now });
+ok('Fitness: Ende 15.01.2027, kündigen bis 15.10.2026 (vorbei)', fit?.end === '2027-01-15' && fit?.cancelBy === '2026-10-15' && fit?.cancelPassed && fit?.renew?.months === 12, JSON.stringify(fit));
+ok('Kein Vertrag bei Rechnung', F.contractFacts(brief, { now }) === null);
+
 console.log(fails ? `${fails} Fehler` : 'alles gut');
 process.exit(fails ? 1 : 0);

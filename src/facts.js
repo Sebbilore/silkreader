@@ -204,7 +204,59 @@
     };
   }
 
-  const api = { numbersIn, unknownNumbers, verifyResult, findDeadlines, letterDate, letterFacts, ibanValid };
+  // ---------- Verträge ----------
+  const NUMW = { ein: 1, eine: 1, einen: 1, einem: 1, einer: 1, zwei: 2, drei: 3, vier: 4, sechs: 6, zwölf: 12, zwoelf: 12, vierundzwanzig: 24 };
+  const num = (x) => NUMW[String(x).toLowerCase()] || Number(x);
+  const months = (n, unit) => (/^jahr/i.test(unit) ? n * 12 : /^woche/i.test(unit) ? n / 4.345 : n);
+  function parseDate(str) {
+    const m = String(str).match(new RegExp(`(\\d{1,2})\\.\\s?(?:(\\d{1,2})\\.\\s?|\\s*(${MONTH_RE})\\s+)(\\d{4})`, 'i'));
+    if (!m) return null;
+    const d = new Date(+m[4], (m[2] ? +m[2] : MONTHS[m[3].toLowerCase()]) - 1, +m[1]);
+    return isNaN(d) ? null : d;
+  }
+  const addMonths = (d, n) => { const x = new Date(d); const day = x.getDate(); x.setMonth(x.getMonth() + Math.round(n)); if (x.getDate() < day) x.setDate(0); return x; };
+  /**
+   * Vertrag erkennen: Laufzeit, Beginn, Kündigungsfrist, automatische Verlängerung, Kosten, Preisänderungen.
+   * Daraus: Vertragsende und „kündigen spätestens am“. Gibt null zurück, wenn es kein Vertrag ist.
+   */
+  function contractFacts(text, { now = new Date() } = {}) {
+    text = String(text || '');
+    const flat = text.replace(/\s+/g, ' ');
+    if (!/\b(vertrag|laufzeit|kündigungsfrist|mindestlaufzeit|abonnement|abo\b|tarif|mitgliedschaft)/i.test(flat)) return null;
+    const N = '(\\d{1,3}|ein|eine|einen|einem|einer|zwei|drei|vier|sechs|zwölf|zwoelf|vierundzwanzig)';
+    const U = '(monat(?:e|en)?|jahr(?:e|en)?|woche(?:n)?)';
+    const find = (re) => flat.match(new RegExp(re, 'i'));
+    let term = null, notice = null, renew = null, start = null, end = null;
+    let m = find(`(?:mindest)?laufzeit[^.]{0,40}?${N}\\s*${U}`) || find(`${N}\\s*${U}\\s*(?:mindest)?laufzeit`) || find(`für (?:die dauer von )?${N}\\s*${U} abgeschlossen`);
+    if (m) term = months(num(m[1]), m[2]);
+    m = find(`kündigungsfrist[^.]{0,25}?${N}\\s*${U}`) || find(`(?:mit einer frist von|frist von)\\s*${N}\\s*${U}`) || find(`${N}\\s*${U} vor (?:ablauf|ende)`);
+    if (m) notice = months(num(m[1]), m[2]);
+    m = find(`verlängert sich[^.]{0,40}?(?:um|jeweils um)\\s*(?:weitere\\s*)?${N}\\s*${U}`);
+    if (m) renew = { months: months(num(m[1]), m[2]) };
+    else if (/verlängert sich[^.]{0,60}(?:auf )?unbestimmte zeit/i.test(flat)) renew = { indefinite: true };
+    else if (/verlängert sich (?:automatisch|stillschweigend)/i.test(flat)) renew = { unknown: true };
+    m = find('(?:vertragsbeginn|beginn(?: des vertrags)?|ab dem|gültig ab|startet am|beginnt am)\\s*:?\\s*(.{6,30})');
+    if (m) start = parseDate(m[1]);
+    m = find('(?:vertragsende|endet am|läuft bis|laufzeitende|bis zum)\\s*:?\\s*(.{6,30})');
+    if (m) end = parseDate(m[1]);
+    if (!end && start && term) end = addMonths(start, term);
+    // Kosten: „monatlich 39,99 €“, „39,99 € pro Monat“, „Grundgebühr 9,99 €“
+    m = find('(?:monatlich(?:e[rn]?)?\\s*(?:grundgebühr|beitrag|kosten|preis)?|grundgebühr|monatsbeitrag|beitrag)\\s*(?:beträgt|von|:)?\\s*(\\d{1,4}(?:,\\d{2})?)\\s*(?:€|eur|euro)') || find('(\\d{1,4}(?:,\\d{2})?)\\s*(?:€|eur|euro)\\s*(?:pro|im|je|/)\\s*monat');
+    const monthly = m ? `${m[1]} €` : '';
+    const priceChange = /(preisanpassung|preiserhöhung|preise? (?:anzupassen|zu erhöhen|ändern)|erhöht sich|neuer preis)/i.test(flat);
+    if (!term && !notice && !renew && !end) return null;
+    const cancelBy = end && notice != null ? addMonths(end, -notice) : null;
+    const today = new Date(now); today.setHours(0, 0, 0, 0);
+    // Seit 1.3.2022: Verbraucherverträge verlängern sich nach der Mindestlaufzeit nur noch auf unbestimmte Zeit (monatlich kündbar)
+    const monthlyAfter = !!(renew && !renew.months) || !!(start && start >= new Date(2022, 2, 1));
+    const iso = (d) => (d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : null);
+    return {
+      term, notice, renew, start: iso(start), end: iso(end), cancelBy: iso(cancelBy),
+      cancelPassed: !!(cancelBy && cancelBy < today), monthly, priceChange, monthlyAfter,
+    };
+  }
+
+  const api = { contractFacts, numbersIn, unknownNumbers, verifyResult, findDeadlines, letterDate, letterFacts, ibanValid };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SilkFacts = api;
 })(typeof window !== 'undefined' ? window : globalThis);
