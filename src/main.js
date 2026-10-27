@@ -531,6 +531,7 @@ function buildTrayMenu() {
     { label: T('Spinne anzeigen'), click: () => bubbleWin.show() },
     { label: T('Markierten Text lesen'), click: () => spiderTake({ mode: 'read' }) },
     { label: T('Datei lesen …'), click: pickFileToBubble },
+    { label: T('Brief fotografieren …'), click: () => openCamera() },
     { label: T('Lesemodus öffnen'), click: () => showMain() },
     { label: deadlinesSoon ? T('Fristen ({n} bald)', { n: deadlinesSoon }) : T('Fristen'), click: () => showPopupPayload({ kind: 'deadlines' }) },
     { label: T('Weitere Funktionen'), submenu: classicMenu() },
@@ -864,6 +865,13 @@ async function spiderTake({ autoStart = false, fromHotkey = false, mode = null }
       if (mode !== 'read') return transformSelection(mode, grabbed);
       return showPopup({ title: 'Kopierter Text', source: 'clipboard', pages: [grabbed.text] }, { autoStart: true });
     }
+    // Nichts markiert, aber gerade eine neue Datei heruntergeladen? Dann die lesen.
+    if (!grabbed.text && !grabbed.files.length && downloadOffer && Date.now() < downloadOffer.until) {
+      const file = downloadOffer.file;
+      downloadOffer = null;
+      bubbleWin?.webContents.send('rig-hint', null);
+      return readFileToBubble(file);
+    }
     // Analysiert wird nur markierter Text. Markierte Dateien werden festgehalten.
     if (!grabbed.text && grabbed.files.length) {
       grabbed.files.slice(0, 6).forEach((f) => cocoons.addFile(f));
@@ -1030,6 +1038,65 @@ function watchCopiedFiles() {
       lastSeq = seq;
     } finally { checking = false; }
   }, 900);
+}
+
+// ---------- Brief mit der Webcam fotografieren (Texterkennung = Pro) ----------
+let cameraWin = null;
+function openCamera() {
+  if (!pro.allowed('ocr')) return showPopupPayload({ kind: 'pro', feature: 'ocr' });
+  if (cameraWin && !cameraWin.isDestroyed()) { cameraWin.focus(); return; }
+  cameraWin = new BrowserWindow({
+    width: 900, height: 680, title: T('Brief fotografieren'), backgroundColor: '#0c0c11', autoHideMenuBar: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+  });
+  cameraWin.loadFile(path.join(__dirname, 'camera.html'));
+  cameraWin.on('closed', () => { cameraWin = null; });
+}
+ipcMain.on('camera-done', async (e, dataUrl) => {
+  if (!cameraWin || e.sender !== cameraWin.webContents) return;
+  cameraWin.close();
+  if (!dataUrl || !String(dataUrl).startsWith('data:image/png;base64,')) return;
+  const file = path.join(app.getPath('temp'), `silkreader-foto-${Date.now()}.png`);
+  fs.writeFileSync(file, Buffer.from(dataUrl.split(',')[1], 'base64'));
+  try { await readFileToBubble(file); } finally { setTimeout(() => fs.unlink(file, () => {}), 60000); }
+});
+ipcMain.handle('open-camera', () => openCamera());
+
+// ---------- Ordner-Wächter: neue Datei im Download-Ordner → „Klick zum Lesen“ ----------
+// Nur wenn eingeschaltet. Wartet, bis die Datei fertig geladen ist (Größe bleibt gleich), und ignoriert halbe Downloads.
+let downloadOffer = null;
+const WATCH_EXT = ['.pdf', '.docx', '.png', '.jpg', '.jpeg'];
+function watchDownloads() {
+  let watcher = null, dir = null;
+  const seen = new Map();
+  const offer = async (file) => {
+    try {
+      const a = fs.statSync(file); await new Promise((r) => setTimeout(r, 1500));
+      const b = fs.statSync(file);
+      if (!b.isFile() || a.size !== b.size || b.size < 200 || Date.now() - b.mtimeMs > 60000) return;
+      downloadOffer = { file, until: Date.now() + 15000 };
+      logLine('Neue Datei im Download-Ordner – angeboten');
+      if (bubbleWin?.isVisible()) bubbleWin.webContents.send('rig-hint', T('Neue Datei – Klick zum Lesen'));
+    } catch { /* schon wieder weg */ }
+  };
+  const start = () => {
+    const want = loadSettings().watchDownloads === true;
+    if (!want) { watcher?.close(); watcher = null; return; }
+    if (watcher) return;
+    try {
+      dir = app.getPath('downloads');
+      watcher = fs.watch(dir, (_ev, name) => {
+        if (!name || !WATCH_EXT.includes(path.extname(name).toLowerCase()) || /\.(crdownload|part|tmp)$/i.test(name)) return;
+        const file = path.join(dir, name);
+        if (Date.now() - (seen.get(file) || 0) < 10000) return;
+        seen.set(file, Date.now());
+        setTimeout(() => offer(file), 800);
+      });
+      watcher.on('error', () => { watcher = null; });
+    } catch (e) { logLine(`Download-Ordner nicht beobachtbar: ${e.message}`); }
+  };
+  start();
+  setInterval(start, 5000); // Einstellung an/aus ohne Neustart
 }
 
 // ---------- Kokon-Ablage ----------
@@ -2013,6 +2080,45 @@ ipcMain.handle('pro-buy', () => { const link = pro.storeLink(); if (link) shell.
 ipcMain.handle('pro-refresh', () => refreshPro());
 ipcMain.handle('pro-show', (_e, feature) => showPopupPayload({ kind: 'pro', feature: feature || null }));
 
+// ---------- Ergebnis als PDF speichern oder drucken (hell, gut lesbar, für Papier) ----------
+function resultHtml(doc, r) {
+  const e = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const bullets = String(r.summary || '').split(/\n+|\s*•\s*/).map((t) => t.trim()).filter(Boolean);
+  const day = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString(uiLang() === 'en' ? 'en-GB' : 'de-DE') : '');
+  const rows = (list) => `<table>${list.filter(([, v]) => v).map(([k, v]) => `<tr><th>${e(k)}</th><td>${e(v)}</td></tr>`).join('')}</table>`;
+  const L = r.letter, C = r.contract;
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+    body { font: 12.5pt/1.5 "Segoe UI", Arial, sans-serif; color: #1a1a1a; margin: 0; }
+    h1 { font-size: 19pt; margin: 0 0 2pt; } .sub { color: #666; font-size: 10pt; margin-bottom: 14pt; }
+    h2 { font-size: 12pt; margin: 16pt 0 6pt; color: #c2185b; text-transform: uppercase; letter-spacing: .5pt; }
+    ul { margin: 0; padding-left: 16pt; } li { margin: 3pt 0; } table { border-collapse: collapse; } th { text-align: left; color: #666; font-weight: 500; padding: 2pt 14pt 2pt 0; vertical-align: top; } td { padding: 2pt 0; font-weight: 600; }
+    .foot { margin-top: 22pt; padding-top: 8pt; border-top: 1px solid #ccc; color: #777; font-size: 9pt; }
+  </style></head><body>
+    <h1>${e(r.title || doc.title)}</h1><div class="sub">${e(doc.title)} · ${T('erklärt am {d}', { d: new Date().toLocaleDateString(uiLang() === 'en' ? 'en-GB' : 'de-DE') })}</div>
+    <h2>${T('Das Wichtigste')}</h2><ul>${bullets.map((b) => `<li>${e(b)}</li>`).join('')}</ul>
+    ${L ? `<h2>${T('Was muss ich tun?')}</h2>${rows([[T('Betrag'), L.amount?.text], [T('An'), L.recipient], ['IBAN', L.iban], ...L.refs.map((x) => [T(x.label), x.value]), [T('Frist'), day(L.deadlines[0]?.iso)]])}` : ''}
+    ${C ? `<h2>${T('Vertrag')}</h2>${rows([[T('Ende'), day(C.end)], [T('Kündigen bis'), day(C.cancelBy)], [T('Kosten'), C.monthly]])}` : ''}
+    ${(r.key_points || []).length ? `<h2>${T('Kernaussagen')}</h2><ul>${r.key_points.map((p) => `<li>${e(p)}</li>`).join('')}</ul>` : ''}
+    ${(r.findings || []).length ? `<h2>${T('Erkenntnisse')}</h2><ul>${r.findings.map((f) => `<li><b>${e(f.title)}</b>${f.detail ? ` – ${e(f.detail)}` : ''}</li>`).join('')}</ul>` : ''}
+    <div class="foot">${T('Erstellt mit Silkreader. KI-Ergebnis – wichtige Angaben bitte im Original prüfen.')}</div>
+  </body></html>`;
+}
+ipcMain.handle('export-result', async (_e, doc, r, how) => {
+  const win = new BrowserWindow({ show: false, webPreferences: { javascript: false } });
+  try {
+    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(resultHtml(doc, r))}`);
+    if (how === 'print') return await new Promise((res) => win.webContents.print({}, (ok) => res(ok)));
+    const pdf = await win.webContents.printToPDF({ pageSize: 'A4', margins: { top: 0.6, bottom: 0.6, left: 0.7, right: 0.7 } });
+    if (TESTING && process.env.SILK_EXPORT_TO) { fs.writeFileSync(process.env.SILK_EXPORT_TO, pdf); return true; }
+    const name = `${String(r.title || doc.title || 'Silkreader').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 60)} – erklärt.pdf`;
+    const { canceled, filePath } = await dialog.showSaveDialog(popupWin && !popupWin.isDestroyed() ? popupWin : undefined, { defaultPath: path.join(app.getPath('documents'), name), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+    if (canceled || !filePath) return false;
+    fs.writeFileSync(filePath, pdf);
+    shell.showItemInFolder(filePath);
+    return true;
+  } catch (e) { logLine(`Export: ${e.message}`); return false; } finally { win.destroy(); }
+});
+
 // ---------- Bewertung im Store: nach ein paar erfolgreichen Nutzungen einmal freundlich fragen ----------
 // Nur in der Store-Version (dort kann man bewerten). „Geht so“ führt zu „Problem melden“ statt in den Store.
 const STORE_PRODUCT_ID = '9PHKJW54RGDS';
@@ -2227,6 +2333,9 @@ ipcMain.handle('analyze', async (event, doc) => {
         contract: pro.allowed('contract') ? contract : null, contractLocked: !!contract && !pro.allowed('contract'),
       };
     } catch (e) { logLine(`Prüfung fehlgeschlagen: ${e.message}`); }
+    // Wie viel ging dabei ins Internet? Eingebautes Modell und Ollama (lokal): nichts. Claude: der Text selbst.
+    const prov = loadSettings().provider;
+    result.sentBytes = prov === 'claude' && !process.env.SPIDER_MOCK ? Buffer.byteLength(doc.pages.join('\n'), 'utf8') : 0;
     try { addHistory(doc, result); updateDeadlineBadge(); } catch (e) { console.error('Notizbuch:', e); }
     countSuccess();
     return { ok: true, result };
@@ -2340,6 +2449,7 @@ ipcMain.handle('get-settings', () => {
     privateMode: !!s.privateMode,
     hideFullscreen: s.hideFullscreen !== false,
     hideInShare: s.hideInShare !== false,
+    watchDownloads: s.watchDownloads === true,
     clickMode: clickMode(),
     explainLang: s.explainLang || null,
     qualityReady: modelReady('quality'), qualityPossible: ramGB() >= BUILTIN_MODELS.quality.minRamGB,
@@ -2360,7 +2470,7 @@ ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await
 ipcMain.handle('ollama-models', async () => {
   try { return { ok: true, models: await ollamaModels() }; } catch { return { ok: false, models: [] }; }
 });
-ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied, copyHint, privateMode, hideFullscreen, hideInShare, clickMode: cm }) => {
+ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied, copyHint, privateMode, hideFullscreen, hideInShare, watchDownloads, clickMode: cm }) => {
   if (apiKey) setApiKey(apiKey.trim());
   const s = loadSettings();
   if (['builtin', 'claude', 'ollama'].includes(provider)) s.provider = provider;
@@ -2372,6 +2482,7 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   if (typeof copyHint === 'boolean') s.copyHint = copyHint;
   if (typeof privateMode === 'boolean') s.privateMode = privateMode;
   if (typeof hideFullscreen === 'boolean') s.hideFullscreen = hideFullscreen;
+  if (typeof watchDownloads === 'boolean') s.watchDownloads = watchDownloads;
   if (typeof hideInShare === 'boolean') { s.hideInShare = hideInShare; setImmediate(() => [bubbleWin, popupWin, ringWin].forEach(protectFromCapture)); }
   if (CLICK_MODES.includes(cm)) { s.clickMode = cm; bubbleWin?.webContents.send('click-mode', cm); }
   if (model && MODELS[model]) s.model = model;
@@ -2553,8 +2664,9 @@ if (!app.requestSingleInstanceLock()) {
     I18N.setLang(uiLang());
     // Webseiten-Berechtigungen: nur Schreiben in die Zwischenablage (Kopieren-Knöpfe), sonst nichts
     const { session: ses } = require('electron');
-    ses.defaultSession.setPermissionRequestHandler((_wc, perm, cb) => cb(['clipboard-sanitized-write'].includes(perm)));
-    ses.defaultSession.setPermissionCheckHandler((_wc, perm) => ['clipboard-sanitized-write'].includes(perm));
+    const camOk = (wc, perm) => perm === 'media' && !!cameraWin && !cameraWin.isDestroyed() && wc === cameraWin.webContents;
+    ses.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(['clipboard-sanitized-write'].includes(perm) || camOk(wc, perm)));
+    ses.defaultSession.setPermissionCheckHandler((wc, perm) => ['clipboard-sanitized-write'].includes(perm) || camOk(wc, perm));
     cocoons = new CocoonStore(path.join(app.getPath('userData'), 'cocoons.json'));
     setTimeout(warmUpGrab, 2000); // Tastatur-Helfer vorab starten, damit der erste Klick sofort klappt
     // Ohne Helfer (nicht Windows oder blockiert) gibt es keine Ablagezone → Spinne bekommt größere Fangfläche
@@ -2578,6 +2690,7 @@ if (!app.requestSingleInstanceLock()) {
     registerExplorerMenu();
     watchFullscreen();
     watchDeadlines();
+    watchDownloads();
     refreshPro().catch((e) => logLine(`Pro: ${e.message}`));
     const startFile = fileFromArgs(process.argv);
     if (startFile) setTimeout(() => readFileToBubble(startFile), 1500);
@@ -2598,7 +2711,8 @@ if (!app.requestSingleInstanceLock()) {
 // Nur für automatische Tests: ein paar Funktionen erreichbar machen
 if (TESTING) global.__silk = { showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
   get cocoons() { return cocoons; }, get lastScreenSel() { return lastScreenSel; }, set lastScreenSel(v) { lastScreenSel = v; },
-  set copiedOffer(v) { copiedOffer = v; }, spiderTake, runCrawlOverlay,
+  set copiedOffer(v) { copiedOffer = v; },
+  get downloadOffer() { return downloadOffer; }, spiderTake, runCrawlOverlay,
   // Für die Windows-Tests: Diagnose und direkte Aufrufe der Windows-Bausteine
   diag: () => ({ winkeys: !!winkeys.load(), winkeysError: winkeys.load.error?.message || null, helper: helperAvailable(),
     shortcuts: { ...shortcutStatus }, tray: !!tray && !tray.isDestroyed(), lang: uiLang(), userData: app.getPath('userData') }),
@@ -2633,6 +2747,7 @@ if (TESTING) global.__silk = { showPopupPayload, showNotebook, showHome, openRin
     return { ready: modelReady(k), error: global.__dlError || null, bytes: last };
   },
   remindDeadlines: () => remindDeadlines(),
+  openCamera: () => openCamera(),
   proStatus: () => pro.status(),
   refreshPro: () => refreshPro(),
   collectDeadlines: () => collectDeadlines({ withDone: true }),

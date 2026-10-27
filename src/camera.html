@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; media-src 'self' blob: mediastream:; img-src 'self' data: blob:">
+<link rel="stylesheet" href="theme.css">
+<script src="i18n.js"></script>
+<script src="icons.js"></script>
+<title>Brief fotografieren</title>
+<style>
+  html, body { margin: 0; height: 100%; background: var(--ink); color: var(--text); font: 13px var(--font); overflow: hidden; }
+  #wrap { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  #stage { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; background: #000; }
+  video, img { max-width: 100%; max-height: 100%; }
+  #frame { position: absolute; inset: 7% 16%; border: 2px dashed rgba(255,255,255,.55); border-radius: 10px; pointer-events: none; }
+  #bar { display: flex; gap: 12px; align-items: center; justify-content: center; padding: 14px; background: var(--glass); border-top: 1px solid var(--line); }
+  #hint { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(12,12,17,.85); border-radius: var(--r-pill); padding: 6px 14px; font-size: 12.5px; }
+  button { font: inherit; font-weight: 650; border-radius: var(--r-pill); padding: 9px 18px; border: 1px solid var(--line-2); background: rgba(255,255,255,.05); color: var(--text); cursor: pointer; }
+  button.go { background: var(--pink); border-color: var(--pink); color: #fff; }
+  .hidden { display: none !important; }
+  #err { padding: 30px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage"><video id="v" autoplay playsinline muted></video><img id="shot" class="hidden" alt=""><div id="frame"></div>
+    <div id="hint">Brief gerade in den Rahmen halten · Leertaste = Foto</div><div id="err" class="hidden"></div></div>
+  <div id="bar">
+    <button class="go" id="snap">Foto aufnehmen</button>
+    <button class="hidden" id="again">Nochmal</button>
+    <button class="go hidden" id="read">Lesen</button>
+    <button id="cancel">Abbrechen</button>
+  </div>
+</div>
+<script>
+  const $ = (id) => document.getElementById(id);
+  let stream = null, data = null;
+  async function start() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: 'environment' }, audio: false });
+      $('v').srcObject = stream;
+    } catch (e) {
+      $('err').textContent = T('Keine Kamera gefunden oder der Zugriff ist gesperrt (Windows-Einstellungen → Datenschutz → Kamera).');
+      $('err').classList.remove('hidden'); $('v').classList.add('hidden'); $('frame').classList.add('hidden'); $('snap').classList.add('hidden');
+    }
+  }
+  function snap() {
+    const v = $('v'); if (!v.videoWidth) return;
+    const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
+    const g = c.getContext('2d'); g.drawImage(v, 0, 0);
+    // etwas mehr Kontrast und Graustufen helfen der Texterkennung
+    const img = g.getImageData(0, 0, c.width, c.height), d = img.data;
+    for (let i = 0; i < d.length; i += 4) { const y = 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]; const v2 = Math.max(0, Math.min(255, (y - 128) * 1.35 + 128)); d[i] = d[i + 1] = d[i + 2] = v2; }
+    g.putImageData(img, 0, 0);
+    data = c.toDataURL('image/png');
+    $('shot').src = data; $('shot').classList.remove('hidden'); $('v').classList.add('hidden'); $('frame').classList.add('hidden');
+    $('snap').classList.add('hidden'); $('again').classList.remove('hidden'); $('read').classList.remove('hidden');
+    $('hint').textContent = T('Ist der Text gut lesbar?');
+  }
+  function again() {
+    data = null; $('shot').classList.add('hidden'); $('v').classList.remove('hidden'); $('frame').classList.remove('hidden');
+    $('snap').classList.remove('hidden'); $('again').classList.add('hidden'); $('read').classList.add('hidden');
+    $('hint').textContent = T('Brief gerade in den Rahmen halten · Leertaste = Foto');
+  }
+  const done = (png) => { stream?.getTracks().forEach((t) => t.stop()); window.spider.cameraDone(png); };
+  $('snap').addEventListener('click', snap);
+  $('again').addEventListener('click', again);
+  $('read').addEventListener('click', () => { $('read').textContent = T('Lese …'); $('read').disabled = true; done(data); });
+  $('cancel').addEventListener('click', () => done(null));
+  window.addEventListener('keydown', (e) => { if (e.key === ' ' && !data) { e.preventDefault(); snap(); } if (e.key === 'Escape') done(null); if (e.key === 'Enter' && data) done(data); });
+  start();
+</script>
+</body>
+</html>

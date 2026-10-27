@@ -104,6 +104,7 @@
   .tpl { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 12px; align-items: baseline; }
   .entry .fold { flex: none; background: none; border: 1px dashed var(--line-2); border-radius: var(--r-pill); color: var(--muted); font: inherit; font-size: 10.5px; padding: 0 7px; cursor: pointer; }
   .entry .fold.on { border-style: solid; border-color: rgba(255,45,138,.45); color: var(--pink-2); } .fpick { margin: 4px 0 8px; } .fpick .chip { font-size: 11px; }
+  .aiNote .sent { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; color: #6fd39a; } .aiNote .sent .icon { width: 11px; height: 11px; } .aiNote .sent.cloud { color: var(--muted); }
   .langpick { margin: 12px 0 2px; } .langpick .h { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
   .aiNote { font-size: 10.5px; color: var(--faint); margin: 10px 0 2px; }
   .where { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--faint); white-space: nowrap; }
@@ -357,9 +358,10 @@
         ${r.findings.length ? `<div class="sec"><div class="h">Erkenntnisse</div>${r.findings.map((f, i) => `<div class="find jump" data-type="finding" data-index="${i}"><span class="k">${esc(f.kind)}</span> <span data-noi18n>${emph(f.title)}</span>${f.detail ? `<div class="d" data-noi18n>${emph(f.detail)}</div>` : ''}</div>`).join('')}</div>` : ''}
         ${figs.length ? `<div class="sec"><div class="h">Angaben</div><div class="figs" data-noi18n>${figs.map((f, i) => `<span class="jump" data-type="figure" data-index="${i}">${esc(f.label)}</span><span><b>${esc(f.value)}</b>${ck(f)}</span>`).join('')}</div></div>` : ''}
         ${r.note ? `<div class="sec muted" data-noi18n>${esc(r.note)}</div>` : ''}
+        <div class="sec quick"><button class="link" id="exPdf">${silkIcon('file')}${T('Als PDF speichern')}</button><button class="link" id="exPrint">${silkIcon('copy')}${T('Drucken')}</button></div>
       </div>
       <div id="answers"></div>
-      <div class="aiNote">${r.checks?.unsure?.length ? `<span>${T('Gestrichelte Zahlen stehen so nicht im Text – bitte prüfen.')}</span> ` : ''}<span>KI-Ergebnis · wichtige Angaben bitte im Original prüfen</span></div>`;
+      <div class="aiNote">${r.checks?.unsure?.length ? `<span>${T('Gestrichelte Zahlen stehen so nicht im Text – bitte prüfen.')}</span> ` : ''}<span>KI-Ergebnis · wichtige Angaben bitte im Original prüfen</span>${r.sentBytes === 0 ? `<br><span class="sent">${silkIcon('lock')}<span>${T('0 Bytes ins Internet gesendet')}</span></span>` : r.sentBytes ? `<br><span class="sent cloud">${silkIcon('cloud')}<span>${T('{kb} KB an Claude gesendet', { kb: Math.max(1, Math.round(r.sentBytes / 1024)) })}</span></span>` : ''}</div>`;
     $('moreBtn').addEventListener('click', () => {
       const open = $('details').classList.toggle('open');
       $('moreBtn').textContent = open ? 'Weniger ▴' : 'Mehr ▾';
@@ -382,6 +384,8 @@
     $('main').scrollTop = 0;
     footer({ ask: true, actions: [['Kopieren', copyResult], ['Vorlesen', () => speak(bullets(r.summary).join('. '))], ['Sprache', explainPicker], ['Festhalten', keepResult], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)]] });
     $('lExplain')?.addEventListener('click', explainPicker);
+    $('exPdf')?.addEventListener('click', async (e) => { const ok = await window.spider.exportResult(P.doc, result, 'pdf'); if (ok) e.target.closest('button').lastChild.textContent = T('✓ gespeichert'); });
+    $('exPrint')?.addEventListener('click', () => window.spider.exportResult(P.doc, result, 'print'));
     $('lPro')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); proView('letter'); });
     maybeAskReview();
   }
@@ -570,6 +574,7 @@
       <div class="quick">
         <button class="link" id="qFile">${silkIcon('file')}Datei lesen …</button>
         <button class="link" id="qRegion">${silkIcon('region')}Bereich lesen</button>
+        <button class="link" id="qCam">${silkIcon('screen')}Brief fotografieren</button>
       </div>
       <div class="sec hidden" id="recentSec"><div class="h">Zuletzt</div><div id="recent"></div></div>`;
     $('modes').addEventListener('click', (e) => {
@@ -589,6 +594,7 @@
       else if (r.error) $('main').insertAdjacentHTML('afterbegin', `<p class="error">${esc(r.error)}</p>`);
     });
     $('qRegion').addEventListener('click', () => window.spider.regionCapture());
+    $('qCam').addEventListener('click', () => window.spider.openCamera());
     footer({ actions: [['Notizbuch', () => { setBack(home); notebook(); }], ['Fristen', () => { setBack(home); deadlines(); }], ['Einstellungen', () => { setBack(home); settings(); }], ['Lesemodus', () => window.spider.openReader(null)]] });
     setTimeout(() => $('homeIn')?.focus(), 60);
     // Zwischenablage als Vorschlag
@@ -731,6 +737,7 @@
       <label class="tog"><input type="checkbox" id="hatch"${s.hatchAnimation ? ' checked' : ''}> Große Spinne liest mit</label>
       <label class="tog"><input type="checkbox" id="pinCopied"${s.pinCopied ? ' checked' : ''}> Kopierte Dateien ins Netz</label>
       <label class="tog"><input type="checkbox" id="copyHint"${s.copyHint ? ' checked' : ''}> Bei kopiertem Text anbieten, ihn zu lesen</label>
+      <label class="tog"><input type="checkbox" id="watchDownloads"${s.watchDownloads ? ' checked' : ''}> Neue Downloads (PDF, Fotos) zum Lesen anbieten</label>
       <label class="tog"><input type="checkbox" id="privateMode"${s.privateMode ? ' checked' : ''}> Privatmodus: nichts im Notizbuch speichern</label>
       <label class="tog"><input type="checkbox" id="hideFullscreen"${s.hideFullscreen ? ' checked' : ''}> Bei Vollbild und Präsentationen ausblenden</label>
       <label class="tog"><input type="checkbox" id="hideInShare"${s.hideInShare ? ' checked' : ''}> In Bildschirmfreigaben unsichtbar</label>
@@ -750,7 +757,7 @@
       settings(); // Blase in der neuen Sprache neu aufbauen
     });
     $('lang').addEventListener('change', (e) => window.spider.saveSettings({ language: e.target.value }));
-    for (const id of ['hatch', 'pinCopied', 'copyHint', 'privateMode', 'hideFullscreen', 'hideInShare', 'lowPower']) {
+    for (const id of ['hatch', 'pinCopied', 'copyHint', 'watchDownloads', 'privateMode', 'hideFullscreen', 'hideInShare', 'lowPower']) {
       $(id).addEventListener('change', (e) => window.spider.saveSettings({ [id === 'hatch' ? 'hatchAnimation' : id]: e.target.checked }));
     }
     footer({ actions: [['Tastenkürzel & mehr …', () => window.spider.openSettings()], ['Über', () => { setBack(settings); about(); }]] });
