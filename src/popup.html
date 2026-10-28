@@ -777,7 +777,7 @@
         : feature ? `<p class="pro-why">${T('{f} gibt es mit Silkreader Pro.', { f: T(st.features[feature] || feature) })}</p>` : `<p class="pro-why">${T('Mehr aus deinen Briefen holen.')}</p>`}
       <ul class="pro-list">${list}</ul>
       <p class="muted" style="margin:4px 0 10px">${T('Immer frei: Zusammenfassen, Fragen an den Text, Fristen, Notizbuch, In deiner Sprache.')}</p>
-      ${st.active ? '' : `${st.comingSoon ? `<p class="pro-soon">${T('Silkreader Pro kommt bald. Bis dahin lassen sich die Pro-Funktionen nur mit einem persönlichen Code freischalten.')}</p>` : st.canBuy ? `<button class="go" id="proBuy">${T('Pro im Microsoft Store holen')}</button>` : st.viaStoreApp ? `<p class="muted" style="margin:0 0 8px">${T('Pro kaufen geht in der Silkreader-Version aus dem Microsoft Store.')}</p><button class="go" id="proBuy">${T('Silkreader im Microsoft Store öffnen')}</button>` : ''}
+      ${st.active ? '' : `${st.comingSoon ? `<p class="pro-soon">${T('Kommt bald')}</p>` : st.canBuy ? `<button class="go" id="proBuy">${T('Pro im Microsoft Store holen')}</button>` : st.viaStoreApp ? `<p class="muted" style="margin:0 0 8px">${T('Pro kaufen geht in der Silkreader-Version aus dem Microsoft Store.')}</p><button class="go" id="proBuy">${T('Silkreader im Microsoft Store öffnen')}</button>` : ''}
       <div class="set" style="margin-top:12px"><div class="h">${T('Du hast einen Code?')}</div>
         <div class="coderow"><input class="ask" id="proCode" placeholder="SILK-…" spellcheck="false" data-noi18n><button class="go small" id="proRedeem">${T('Einlösen')}</button></div>
         <div class="muted" id="proMsg"></div></div>`}`;
