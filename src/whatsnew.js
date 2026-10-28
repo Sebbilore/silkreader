@@ -1,5 +1,21 @@
 // „Was ist neu?“ – erscheint nach einem Update einmal als Sprechblase an der Spinne.
 module.exports = {
+  '1.21.0': {
+    de: [
+      'Neues Aussehen: ruhig wie Windows 11, hell oder dunkel ganz nach Windows (oder Einstellungen → Darstellung). Oben im Ergebnis steht jetzt groß, was du tun musst – mit Betrag, Frist und IBAN zum Kopieren.',
+      'Vertrags-Check: Laufzeit, Kündigen bis und Verlängerung auf einen Blick, mit Erinnerung im Fristen-Netz. Dazu Antwort-Vorlagen, Mappen im Notizbuch und „Frag dein Notizbuch“.',
+      'Brief mit der Webcam fotografieren, neue Downloads lesen lassen, Ergebnis als PDF speichern oder drucken – und du siehst, dass 0 Bytes ins Internet gesendet wurden.',
+      'Die Spinne hat ein ruhigeres Kleid und ein paar neue Bewegungen. Vielleicht entdeckst du noch mehr …',
+      'Silkreader Pro kommt bald: Übersetzen, Einfach erklären, Antworten, Brief-Hilfe, Vertrags-Check und das Lesen von Scans gehören künftig zu Pro.',
+    ],
+    en: [
+      'New look: calm like Windows 11, light or dark just like Windows (or Settings → Appearance). The top of a result now shows what you need to do – with amount, deadline and IBAN to copy.',
+      'Contract check: term, cancel-by date and renewal at a glance, with a reminder in the deadline web. Plus reply templates, folders in the notebook and “Ask your notebook”.',
+      'Photograph a letter with the webcam, let the spider read new downloads, save a result as PDF or print it – and see that 0 bytes were sent to the internet.',
+      'The spider has a calmer outfit and a few new moves. Maybe you will discover even more …',
+      'Silkreader Pro is coming soon: translating, explaining simply, replies, letter help, contract check and reading scans will be part of Pro.',
+    ],
+  },
   '1.20.0': {
     de: [
       'In deiner Sprache: Unter einem Ergebnis auf „Sprache“ tippen – die Spinne erklärt den Brief auf Türkisch, Arabisch, Ukrainisch, Russisch, Polnisch, Rumänisch oder Englisch. Am besten klappt das mit dem gründlichen KI-Modell.',

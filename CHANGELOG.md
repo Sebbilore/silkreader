@@ -3,6 +3,16 @@
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
 
+## 1.21.0
+- **New design:** calm, Windows 11 style; light and dark follow Windows or Settings → Appearance; pink only as a subtle brand colour. Results start with the task (“Pay 98.90 € by Sunday, 15 November”, days left, IBAN to copy, add to calendar). Footer with the main actions and a “…” menu; settings as Windows-style toggle rows; main window with sidebar, upcoming deadlines and recently read.
+- **Calmer spider** (flat, single-colour legs) in the app, the app icon and the tiles; new animations.
+- **Contract check:** term, start/end, notice period, cancel-by date, renewal, monthly cost and price changes – with a reminder in the deadline web. **Reply templates** (objection, instalments, extension, question, cancellation).
+- **Notebook:** folders (sorted automatically) and “Ask your notebook”.
+- **Downloads watcher**, **photograph a letter with the webcam**, **save as PDF / print**, “0 bytes sent to the internet”.
+- **Silkreader Pro is coming soon** – Pro features can be unlocked with a personal code for now.
+- Fixes: tax notices use “Einspruch” instead of “Widerspruch”; similar key points only once; customer and invoice numbers with spaces; autostart in the Store version via Windows settings.
+- Updates, problem reports and the privacy policy now live in the public repository Sebbilore/silkreader-download. From 1.21 on, Silkreader is proprietary (versions up to 1.20 remain MIT).
+
 ## 1.20.0
 - **In your language:** explain a letter in Turkish, Arabic, Ukrainian, Russian, Polish, Romanian or English (“Language” below a result or “Explain in my language” in the letter card). Checks that the answer is really in that language and retries once; uses the thorough model when it is downloaded.
 - **Deadline web:** all deadlines from the notebook in one list (ring, tray, start bubble) – tick off, add to calendar, open the letter. Windows notification 3 days before and the day before.
