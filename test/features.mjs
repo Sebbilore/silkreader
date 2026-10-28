@@ -20,7 +20,7 @@ await sleep(3500);
 await pop.screenshot({ path: `${out}/pop-analyze.png` });
 console.log('bold numbers:', await pop.evaluate(() => document.querySelectorAll('b, strong').length));
 console.log('deadline:', await pop.evaluate(() => document.body.innerText.match(/📅[^\n]*/)?.[0] || 'none'));
-const more = pop.getByText('Mehr ▾');
+const more = pop.locator('#moreBtn');
 console.log('mehr:', await more.count());
 if (await more.count()) { await more.first().click(); await sleep(400); await pop.screenshot({ path: `${out}/pop-more.png` }); }
 const input = pop.locator('input');

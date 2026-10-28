@@ -60,7 +60,7 @@ await pop.waitForSelector('#foot:not(.hidden)', { timeout: 30000 });
 if (process.env.TAKE_MODE) { console.log('Modus', process.env.TAKE_MODE, '→ Blase:', await pop.textContent('#title'), '|', (await pop.textContent('#main')).slice(0, 60)); await app.close(); process.exit(0); }
 console.log('result →', await pop.textContent('#title'), '| findings:', await pop.evaluate(() => document.querySelectorAll('.finding').length), '| chips:', await pop.evaluate(() => document.querySelectorAll('.chip').length), '| bullets:', await pop.evaluate(() => document.querySelectorAll('ul.sum li').length));
 execSync(`import -window root ${out}/popup.png`);
-await pop.getByText('Mehr ▾').click();
+await pop.locator('#moreBtn').click();
 await pop.click('.jump[data-index="1"]');
 await new Promise((r) => setTimeout(r, 300));
 console.log('Lupe in der Blase:', await pop.evaluate(() => document.querySelector('.lupe mark')?.textContent), '| „Auf dem Bildschirm zeigen“:', await pop.evaluate(() => !!document.querySelector('[data-l="screen"]')));

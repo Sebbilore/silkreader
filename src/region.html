@@ -8,13 +8,13 @@
 <title>Bereich wählen</title>
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; cursor: crosshair; background: rgba(10,10,16,.35); user-select: none; }
-  #box { position: absolute; border: 1.5px solid #ff2d8a; background: rgba(255,45,138,.06); box-shadow: 0 0 0 9999px rgba(10,10,16,.25); display: none; }
+  #box { position: absolute; border: 1.5px solid var(--pink); background: rgba(255,255,255,.04); box-shadow: 0 0 0 9999px rgba(10,10,16,.25); display: none; }
   #hint { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); font: 600 13px var(--font); color: #fff;
     background: var(--ink); border: 1px solid var(--pink); border-radius: var(--r-pill); padding: 6px 14px; box-shadow: 0 0 14px var(--pink-glow); }
 </style>
 </head>
 <body>
-<div id="hint">Bereich aufziehen, den die Spinne lesen soll · Esc = abbrechen</div>
+<div id="hint">Bereich aufziehen, den die Spinne lesen soll. Esc bricht ab.</div>
 <div id="box"></div>
 <script>
   const box = document.getElementById('box');

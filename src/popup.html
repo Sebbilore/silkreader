@@ -16,153 +16,163 @@
   #bubble { position: absolute; left: 10px; right: 10px; top: 16px; max-height: calc(100% - 26px); border-radius: var(--r-l);
     display: flex; flex-direction: column; transform-origin: var(--arrow, 50%) 0; animation: silk-pop var(--t-slow) var(--ease-spring); }
   #bubble.closing { animation: silk-out .18s ease-in forwards; }
-  #bubble::before { content: ''; position: absolute; left: 18%; right: 18%; top: -1px; height: 1px;
-    background: linear-gradient(90deg, transparent, var(--pink), transparent); opacity: .7; }
   #thread { position: absolute; top: 0; left: calc(var(--arrow, 50%) - 6px); width: 12px; height: 20px; overflow: visible; pointer-events: none; }
   #thread line { stroke: var(--silk); stroke-width: 1; }
   #thread circle { fill: var(--dew); filter: drop-shadow(0 0 2px rgba(255,255,255,.8)); }
-  header { display: flex; align-items: center; gap: 8px; padding: 14px 16px 4px 18px; -webkit-app-region: drag; }
-  header .t { font: 600 11.5px var(--font); letter-spacing: .2px; color: var(--muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .x { -webkit-app-region: no-drag; background: none; border: none; color: var(--faint); cursor: pointer; padding: 2px; line-height: 0; border-radius: 6px;
+  header { display: flex; align-items: flex-start; gap: 8px; padding: 12px 10px 6px 16px; -webkit-app-region: drag; }
+  header .t { font: 600 14px/1.35 var(--font); color: var(--text); flex: 1; padding-top: 5px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  header .mark { flex: none; width: 20px; height: 20px; margin-top: 5px; color: var(--pink); } .back:not(.hidden) + .mark { display: none; }
+  .x { -webkit-app-region: no-drag; background: none; border: none; color: var(--muted); cursor: pointer; width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex: none; border-radius: var(--r-s);
     transition: color var(--t-fast), background var(--t-fast); }
   .x:hover { color: var(--text); background: var(--line); }
   .x .icon { width: 14px; height: 14px; }
-  main { overflow: auto; padding: 4px 18px 6px; min-height: 40px; }
+  main { overflow: auto; padding: 4px 16px 6px; min-height: 40px; }
   main::-webkit-scrollbar { width: 6px; } main::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
-  b { color: #fff; font-weight: 650; }
+  b { color: var(--strong); font-weight: 600; }
   .rise { animation: silk-rise .42s var(--ease-out) both; }
-  ul { margin: 0; padding-left: 16px; } li { margin: 0 0 8px; } li::marker { color: var(--pink); }
-  .lead li { font-size: 14px; }
+  ul { margin: 0; padding-left: 16px; } li { margin: 0 0 8px; } li::marker { color: var(--faint); }
+  .lead li { font-size: 14px; line-height: 1.5; }
+  .h2 { font-size: 14px; font-weight: 600; margin: 14px 0 6px; }
   .muted { color: var(--muted); font-size: 12px; }
   .weave { display: flex; align-items: center; gap: 10px; padding: 6px 0 12px; }
   .weave svg { width: 26px; height: 26px; flex: none; overflow: visible; }
   .weave .sp { stroke: var(--silk); stroke-width: .7; opacity: .55; }
   .weave .spiral { fill: none; stroke: var(--pink); stroke-width: 1.1; stroke-linecap: round; filter: drop-shadow(0 0 2px var(--pink-glow));
-    stroke-dasharray: var(--len); stroke-dashoffset: var(--len); transition: stroke-dashoffset .5s var(--ease-out); }
+    stroke-dasharray: var(--len); stroke-dashoffset: var(--len); transition: stroke-dashoffset .5s var(--ease-out); filter: none; }
   .weave.indet svg { animation: silk-spin 6s linear infinite; }
   .weave.indet .spiral { animation: weaveLoop 1.8s var(--ease-out) infinite; }
   @keyframes weaveLoop { 0% { stroke-dashoffset: var(--len); opacity: 1; } 70% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
   .stage { color: var(--muted); font-size: 12.5px; }
   .cur { color: var(--pink); animation: blink 1s steps(2) infinite; } @keyframes blink { 50% { opacity: 0; } }
   /* "Mehr ▾": alles Weitere ausgeklappt */
-  .more { background: none; border: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; padding: 2px 0; transition: color var(--t-fast); }
-  .more:hover { color: var(--pink); }
+  .more { background: none; border: none; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; padding: 4px 0; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-2); transition: color var(--t-fast); }
+  .more:hover { color: var(--strong); }
   #details { display: none; padding-top: 6px; } #details.open { display: block; }
-  .sec { margin: 10px 0 0; } .sec > .h { font-size: 11px; color: var(--muted); letter-spacing: .3px; margin-bottom: 4px; }
-  .jump { cursor: pointer; border-radius: 6px; } .jump:hover { color: #fff; text-decoration: underline; text-decoration-color: var(--pink); text-underline-offset: 3px; }
-  .find { padding-left: 10px; border-left: 1.5px solid var(--pink); margin-bottom: 8px; }
-  .find .k { font-size: 10.5px; color: var(--pink); text-transform: uppercase; letter-spacing: .6px; }
+  .sec { margin: 10px 0 0; } .sec > .h { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; } .sec > .h.sub { font-size: 12px; font-weight: 400; color: var(--muted); }
+  .jump { cursor: pointer; border-radius: 6px; } .jump:hover { color: var(--strong); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+  .find { padding: 8px 10px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); margin-bottom: 6px; }
+  .find .k { font-size: 12px; font-weight: 600; color: var(--muted); }
   .find .d { color: var(--muted); font-size: 12px; }
   .figs { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; font-size: 12.5px; }
   .figs span:nth-child(odd) { color: var(--muted); } .figs span:nth-child(even) { text-align: right; }
-  .dl { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; margin: 6px 0; }
-  .dl .when { font-weight: 650; white-space: nowrap; } .dl .what { color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .link { background: none; border: none; color: var(--pink); font: inherit; font-size: 12px; cursor: pointer; padding: 0; white-space: nowrap; }
+  .dl { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 8px 0; } .dl .icon { width: 15px; height: 15px; color: var(--muted); }
+  .dl .when { font-weight: 600; white-space: nowrap; } .dl .what { color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .link { background: none; border: none; color: var(--pink-2); font: inherit; font-size: 12.5px; cursor: pointer; padding: 0; white-space: nowrap; }
   .link:hover { text-decoration: underline; }
-  .answer { margin: 10px 0 2px; padding: 10px 12px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: var(--r-m); animation: silk-rise .35s var(--ease-out); }
+  .answer { margin: 10px 0 2px; padding: 10px 12px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); animation: silk-rise .35s var(--ease-out); }
   .answer .q { color: var(--muted); font-size: 12px; margin-bottom: 2px; }
   .out { white-space: pre-wrap; }
-  .error { color: #ffc2d8; }
-  footer { padding: 8px 18px 14px; display: flex; flex-direction: column; gap: 10px; }
-  .ask { width: 100%; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: var(--r-pill); color: var(--text); font: inherit; font-size: 12.5px;
-    padding: 6px 14px; outline: none; transition: border-color var(--t-fast), box-shadow var(--t-fast); }
-  .ask:focus { border-color: var(--pink); box-shadow: 0 0 0 3px var(--pink-soft); } .ask::placeholder { color: var(--faint); }
-  .actions { display: flex; gap: 16px; flex-wrap: wrap; } .actions.many { gap: 6px; flex-wrap: nowrap; justify-content: space-between; } .actions.many .link { font-size: 11px; gap: 4px; }
-  .actions .link { color: var(--muted); display: inline-flex; align-items: center; gap: 5px; transition: color var(--t-fast); }
-  .actions .link .icon { width: 13px; height: 13px; }
-  .actions .link:hover { color: var(--pink); text-decoration: none; }
+  .error { color: var(--bad); }
+  footer { padding: 8px 10px 10px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .ask { width: calc(100% - 6px); height: 34px; background: var(--raised); border: 1px solid var(--control-line); border-bottom-color: var(--faint); border-radius: var(--r-s); color: var(--text); font: inherit; font-size: 13px;
+    padding: 0 12px; outline: none; transition: border-color var(--t-fast), box-shadow var(--t-fast); }
+  .ask:focus { border-bottom-color: var(--pink); box-shadow: inset 0 -1px 0 var(--pink); } .ask::placeholder { color: var(--faint); }
+  .actions { display: flex; gap: 2px; align-items: center; margin-left: -8px; position: relative; }
+  .actions .link { color: var(--text); display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px; border-radius: var(--r-s); font-size: 13px; transition: background var(--t-fast); }
+  .actions .link .icon { width: 15px; height: 15px; }
+  .actions .link:hover { background: var(--line); text-decoration: none; }
+  .actions .spacer { flex: 1; }
+  .actions .mbtn { width: 32px; justify-content: center; padding: 0; }
+  .menu { position: absolute; right: 0; bottom: 36px; min-width: 190px; padding: 4px; background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-l); box-shadow: var(--shadow); z-index: 5; animation: silk-rise var(--t-mid) var(--ease-out); }
+  .menu .link { display: flex; width: 100%; height: 32px; padding: 0 10px; } .menu .link:hover { background: var(--line); }
   .hidden { display: none !important; }
   /* Zahlen-Prüfung: ✓ steht im Text, ≈ gerechnet, ? nicht gefunden */
-  .ck { font-size: 10px; margin-left: 4px; color: #6fd39a; font-weight: 700; } .ck.calc { color: var(--muted); } .ck.miss { color: #ffb84d; }
-  .unsure { text-decoration: underline dotted #ffb84d; text-underline-offset: 3px; cursor: help; }
+  .ck { font-size: 11px; margin-left: 4px; color: var(--ok); font-weight: 700; } .ck.calc { color: var(--muted); } .ck.miss { color: var(--warn); }
+  .unsure { text-decoration: underline dotted var(--warn); text-underline-offset: 3px; cursor: help; }
   /* Brief-Karte: Was muss ich tun? */
-  .letter { margin: 10px 0 4px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: var(--r-m); background: rgba(255,255,255,.035); }
-  .letter .lh { display: flex; align-items: baseline; gap: 8px; font-size: 11px; color: var(--muted); letter-spacing: .3px; margin-bottom: 6px; }
-  .letter .lh b { color: var(--pink); font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; }
-  .todo { list-style: none; padding: 0; margin: 0 0 6px; } .todo li { display: flex; gap: 8px; align-items: baseline; font-size: 13px; margin: 3px 0; }
-  .todo li::before { content: ""; flex: none; width: 11px; height: 11px; border: 1.5px solid var(--pink); border-radius: 3px; transform: translateY(1px); }
-  .kv { display: grid; grid-template-columns: auto 1fr auto; gap: 3px 10px; font-size: 12.5px; align-items: baseline; }
+  .letter { margin: 4px 0 12px; padding: 12px 14px 14px; border: 1px solid var(--line); border-radius: var(--r-l); background: var(--card); }
+  .letter .lh { display: flex; align-items: baseline; gap: 6px; font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  .letter .lh b { color: var(--muted); font-size: 12px; font-weight: 400; }
+  .letter .lh b::after { content: ':'; }
+  .letter .big { font-size: 19px; font-weight: 600; line-height: 1.3; color: var(--strong); }
+  .letter .when2 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 3px 0 8px; font-size: 13.5px; }
+  .days { font-size: 12px; font-weight: 600; color: var(--warn); background: var(--warn-bg); border-radius: var(--r-s); padding: 0 6px; white-space: nowrap; } .days.calm { color: var(--muted); background: var(--line); }
+  .todo { list-style: none; padding: 0; margin: 0 0 8px; } .todo li { display: flex; gap: 8px; align-items: baseline; font-size: 13px; margin: 3px 0; }
+  .todo li::before { content: ""; flex: none; width: 10px; height: 10px; border: 1.5px solid var(--faint); border-radius: 3px; transform: translateY(1px); }
+  .kv { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr) auto; gap: 4px 12px; font-size: 13px; align-items: baseline; }
+  .btnrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .btn { height: 32px; padding: 0 14px; border: 1px solid var(--control-line); border-radius: var(--r-s); background: var(--raised); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: var(--faint); } .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 600; } .btn.primary:hover { filter: brightness(1.08); }
   .kv > span:nth-child(3n+1) { color: var(--muted); } .kv code { font: inherit; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-  .letter .row { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; }
-  .review { margin: 12px 0 2px; padding: 10px 12px; border-radius: var(--r-m); background: var(--pink-soft); border: 1px solid rgba(255,45,138,.35); font-size: 12.5px; }
+  .letter .row { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; }
+  .review { margin: 12px 0 2px; padding: 10px 12px; border-radius: var(--r-l); background: var(--card); border: 1px solid var(--line); font-size: 13px; }
   .review .row { display: flex; gap: 14px; margin-top: 6px; } .review .link.dim { color: var(--muted); }
   .fr { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); } .fr:first-child { border-top: none; }
-  .fr .ft { flex: 1; min-width: 0; font-size: 12.5px; } .fr .fw { color: var(--muted); } .fr.soon .fw { color: #ffb84d; font-weight: 600; }
+  .fr .ft { flex: 1; min-width: 0; font-size: 12.5px; } .fr .fw { color: var(--muted); } .fr.soon .fw { color: var(--warn); font-weight: 600; }
   .fr .fn { font-weight: 600; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fr .fs { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fr .fa { display: flex; gap: 14px; margin-top: 4px; }
-  .fchk { flex: none; width: 18px; height: 18px; margin-top: 1px; border: 1.5px solid var(--pink); border-radius: 5px; background: none; cursor: pointer; padding: 0; }
-  .fr.done .fchk { background: var(--pink); } .fr.done .ft { opacity: .55; } .fr.done .fn { text-decoration: line-through; }
+  .fchk { flex: none; width: 18px; height: 18px; margin-top: 1px; border: 1.5px solid var(--faint); border-radius: var(--r-s); background: none; cursor: pointer; padding: 0; }
+  .fr.done .fchk { background: var(--primary); border-color: var(--primary); } .fr.done .ft { opacity: .55; } .fr.done .fn { text-decoration: line-through; }
   details.sec summary { cursor: pointer; }
-  .pro-on { color: #6fd39a; font-weight: 600; margin: 4px 0 8px; } .pro-why { margin: 2px 0 8px; font-size: 13.5px; } .pro-soon { margin: 0 0 4px; color: var(--muted, #a9a9b6); font-size: 13px; line-height: 1.45; }
-  .pro-list { list-style: none; padding: 0; margin: 0 0 6px; font-size: 12.5px; } .pro-list li { margin: 3px 0; display: flex; gap: 8px; }
-  .pro-list li::before { content: "✓"; color: var(--pink); font-weight: 700; } .pro-list li.hit span { color: #fff; font-weight: 650; }
-  .go { background: var(--pink); color: #fff; border: none; border-radius: var(--r-pill); padding: 8px 16px; font: inherit; font-weight: 650; cursor: pointer; }
-  .go.small { padding: 6px 12px; font-size: 12px; } .coderow { display: flex; gap: 8px; } .coderow input { flex: 1; min-width: 0; margin: 0; }
+  .pro-on { color: var(--ok); font-weight: 600; margin: 4px 0 8px; } .pro-why { margin: 2px 0 8px; font-size: 13.5px; } .pro-soon { margin: 0 0 10px; color: var(--strong); font-size: 19px; font-weight: 600; }
+  .pro-list { list-style: none; padding: 0; margin: 0 0 8px; font-size: 13px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; } .pro-list li { margin: 0; }
+  .pro-list li.hit span { color: var(--strong); font-weight: 600; }
+  .go { background: var(--primary); color: var(--on-primary); border: none; border-radius: var(--r-s); height: 32px; padding: 0 16px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .go:hover { filter: brightness(1.08); } .go.small { padding: 0 14px; } .coderow { display: flex; gap: 8px; } .coderow input { flex: 1; min-width: 0; margin: 0; }
   .letter.locked .lh { margin-bottom: 4px; }
-  .letter .note { font-size: 12px; color: var(--muted); margin-top: 8px; } .letter .note.warn, .letter .warn { color: #ffb84d; }
+  .letter .note { font-size: 12.5px; color: var(--muted); margin-top: 8px; } .letter .note.warn, .letter .warn { color: var(--warn); }
   .tpl { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 12px; align-items: baseline; }
-  .entry .fold { flex: none; background: none; border: 1px dashed var(--line-2); border-radius: var(--r-pill); color: var(--muted); font: inherit; font-size: 10.5px; padding: 0 7px; cursor: pointer; }
-  .entry .fold.on { border-style: solid; border-color: rgba(255,45,138,.45); color: var(--pink-2); } .fpick { margin: 4px 0 8px; } .fpick .chip { font-size: 11px; }
-  .aiNote .sent { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; color: #6fd39a; } .aiNote .sent .icon { width: 11px; height: 11px; } .aiNote .sent.cloud { color: var(--muted); }
-  .langpick { margin: 12px 0 2px; } .langpick .h { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
-  .aiNote { font-size: 10.5px; color: var(--faint); margin: 10px 0 2px; }
-  .where { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--faint); white-space: nowrap; }
+  .entry .fold { flex: none; background: none; border: 1px solid var(--line-2); border-radius: var(--r-s); color: var(--muted); font: inherit; font-size: 11.5px; padding: 0 7px; cursor: pointer; }
+  .entry .fold.on { background: var(--line); border-color: transparent; color: var(--text); } .fpick { margin: 4px 0 8px; } .fpick .chip { font-size: 11px; }
+  .aiNote .sent { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; color: var(--ok); } .aiNote .sent .icon { width: 11px; height: 11px; } .aiNote .sent.cloud { color: var(--muted); }
+  .langpick { margin: 12px 0 2px; } .langpick .h { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .aiNote { font-size: 12px; color: var(--faint); margin: 12px 0 2px; }
+  .where { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; padding-top: 7px; }
   .where .icon { width: 13px; height: 13px; }
   .where.cloud { color: var(--pink-2); }
   .news li { margin-bottom: 9px; }
   .about { text-align: center; padding: 4px 0 6px; }
   .about svg.sp { width: 64px; height: 64px; }
-  .about h2 { font: 650 17px var(--font-display); margin: 6px 0 0; }
+  .about h2 { font: 600 18px var(--font-display); margin: 6px 0 0; }
   .about .v { color: var(--muted); font-size: 12px; }
-  .about p { color: var(--muted); font-size: 12.5px; margin: 10px 0; text-align: left; }
+  .about p { color: var(--muted); font-size: 13px; margin: 10px 0; text-align: left; }
   .linklist { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin: 8px 0 4px; text-align: left; }
-  .linklist .link { display: inline-flex; gap: 6px; align-items: center; color: var(--text); } .linklist .link:hover { color: var(--pink); }
+  .linklist .link { display: inline-flex; gap: 6px; align-items: center; color: var(--text); } .linklist .link:hover { color: var(--strong); text-decoration: underline; }
   .linklist .icon { width: 14px; height: 14px; color: var(--muted); }
   textarea.rep { height: 90px; }
   /* Zurück-Pfeil im Kopf */
-  .back:hover { color: var(--pink); }
+  .back:hover { color: var(--strong); }
   /* Lupe: Originalstelle direkt in der Blase */
-  .lupe { margin: 4px 0 10px; padding: 9px 12px; background: rgba(255,255,255,.035); border: 1px solid var(--line); border-left: 2px solid var(--pink);
-    border-radius: var(--r-s) var(--r-m) var(--r-m) var(--r-s); font-size: 12.5px; color: var(--muted); animation: silk-rise .3s var(--ease-out); }
-  .lupe mark { background: var(--pink-soft); color: var(--text); border-radius: 3px; padding: 0 2px; box-shadow: inset 0 -1.5px 0 var(--pink); }
+  .lupe { margin: 4px 0 10px; padding: 9px 12px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); font-size: 13px; color: var(--muted); animation: silk-rise .2s var(--ease-out); }
+  .lupe mark { background: var(--pink-soft); color: var(--text); border-radius: 3px; padding: 0 2px; }
   .lupe .row { display: flex; gap: 14px; margin-top: 6px; }
   .figs .lupe { grid-column: 1 / -1; }
   .lupe .none { font-style: italic; }
   /* Mini-Blase: einfügen, Zwischenablage, Datei */
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
-  .chip { background: rgba(255,255,255,.03); border: 1px solid var(--line); color: var(--muted); font: inherit; font-size: 11.5px; border-radius: var(--r-pill);
-    padding: 2px 11px; cursor: pointer; transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast); }
-  .chip:hover { color: var(--text); border-color: var(--line-2); } .chip.on { border-color: var(--pink); color: #fff; background: var(--pink-soft); }
-  textarea.in { width: 100%; resize: none; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: var(--r-m); color: var(--text);
-    font: inherit; font-size: 13px; padding: 9px 12px; outline: none; height: 64px; transition: border-color var(--t-fast), box-shadow var(--t-fast); }
-  textarea.in:focus { border-color: var(--pink); box-shadow: 0 0 0 3px var(--pink-soft); }
+  .chip { background: none; border: 1px solid transparent; color: var(--muted); font: inherit; font-size: 13px; border-radius: var(--r-s);
+    height: 30px; padding: 0 10px; cursor: pointer; transition: color var(--t-fast), background var(--t-fast); }
+  .chip:hover { color: var(--text); background: var(--line); } .chip.on { color: var(--strong); font-weight: 600; background: linear-gradient(var(--pink), var(--pink)) center bottom 2px / calc(100% - 20px) 3px no-repeat; }
+  textarea.in { width: 100%; resize: none; background: var(--raised); border: 1px solid var(--control-line); border-bottom-color: var(--faint); border-radius: var(--r-s); color: var(--text);
+    font: inherit; font-size: 13px; padding: 9px 12px; outline: none; height: 80px; transition: border-color var(--t-fast), box-shadow var(--t-fast); }
+  textarea.in:focus { border-bottom-color: var(--pink); box-shadow: inset 0 -1px 0 var(--pink); }
   textarea.in::placeholder { color: var(--faint); }
   .quick .link { display: inline-flex; align-items: center; gap: 6px; } .quick .link .icon { width: 14px; height: 14px; color: var(--muted); }
-  .quick { display: flex; flex-wrap: wrap; gap: 14px; margin: 8px 0 2px; }
-  .quick .link { color: var(--text); } .quick .link:hover { color: var(--pink); }
+  .quick { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+  .quick .link { color: var(--text); height: 32px; padding: 0 12px; border: 1px solid var(--control-line); border-radius: var(--r-s); background: var(--raised); font-size: 13px; } .quick .link:hover { border-color: var(--faint); text-decoration: none; }
   .clip { font-size: 12px; color: var(--muted); margin-top: 8px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .clip .icon { width: 13px; height: 13px; vertical-align: -2px; }
   .clip:hover { color: var(--text); }
-  .entry { padding: 6px 0; cursor: pointer; display: flex; gap: 10px; align-items: baseline; border-top: 1px solid var(--line); }
-  .entry:first-child { border-top: none; }
-  .entry .t { flex: 1; min-width: 0; } .entry b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry { padding: 7px 8px; margin: 0 -8px; cursor: pointer; display: flex; gap: 10px; align-items: baseline; border-radius: var(--r-s); }
+  .entry:hover { background: var(--line); }
+  .entry .t { flex: 1; min-width: 0; } .entry b { display: block; font-weight: 400; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .entry span { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .entry small { color: var(--muted); font-size: 11px; }
-  .entry:hover b { color: var(--pink); }
+
   .entry .del { background: none; border: none; color: var(--muted); cursor: pointer; visibility: hidden; padding: 0 2px; }
-  .entry:hover .del { visibility: visible; } .entry .del:hover { color: var(--pink); }
+  .entry:hover .del { visibility: visible; } .entry .del:hover { color: var(--bad); }
   /* Einstellungen in der Blase */
-  .set { margin: 0 0 12px; } .set > .h { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
-  .set select { background: rgba(255,255,255,.04); color: var(--text); border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; padding: 3px 6px; }
+  .set { margin: 0 0 12px; } .set > .h { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .set select { background: var(--raised); color: var(--text); border: 1px solid var(--control-line); border-radius: var(--r-s); font: inherit; font-size: 13px; height: 30px; padding: 0 8px; }
   .tog { display: flex; align-items: center; gap: 8px; font-size: 12.5px; margin: 6px 0; cursor: pointer; }
-  .tog input { accent-color: #ff2d8a; }
+  .tog input { accent-color: var(--primary); }
 </style>
 </head>
 <body>
 <svg id="thread" viewBox="0 0 12 20"><line x1="6" y1="0" x2="6" y2="16"/><circle cx="6" cy="16" r="1.6"/></svg>
 <div id="bubble" class="glass">
-  <header><button class="back x hidden" id="back" title="Zurück"></button><span class="t" id="title">Silkreader</span><span class="where hidden" id="where"></span><button class="x" id="close" title="Schließen (Esc)"></button></header>
+  <header><button class="back x hidden" id="back" title="Zurück"></button><svg class="mark" viewBox="-36 -30 72 60" aria-hidden="true"><g stroke="currentColor" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 -5L18 -15L24 -4M10 -1L21 -7L28 4M10 3L20 2L26 13M8 7L16 9L20 20M-8 -5L-18 -15L-24 -4M-10 -1L-21 -7L-28 4M-10 3L-20 2L-26 13M-8 7L-16 9L-20 20"/></g><circle r="11" fill="currentColor"/></svg><span class="t" id="title">Silkreader</span><span class="where hidden" id="where"></span><button class="x" id="close" title="Schließen (Esc)"></button></header>
   <main id="main"></main>
   <footer id="foot" class="hidden"></footer>
 </div>
@@ -249,29 +259,43 @@
   // „Einspruch“ (Steuer, Bußgeld) oder „Widerspruch“ – wie im Brief; auf Englisch immer „objection“
   const objWord = (L, cap = false) => (I18N.lang === 'en' ? (cap ? 'Objection' : 'an objection') : (L.objection || 'Widerspruch'));
   // Brief-Karte: Was muss ich tun? Bis wann? Was kostet es? (feste Regeln + Handlungen der KI)
+  // Langes Datum und „noch X Tage“ für die Aufgabe oben
+  const longDay = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString(I18N.locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  function daysChip(iso) {
+    const n = Math.round((new Date(`${iso}T00:00:00`) - new Date(new Date().toDateString())) / 864e5);
+    const t = n < 0 ? T('abgelaufen') : n === 0 ? T('heute') : n === 1 ? T('morgen') : T('noch {n} Tage', { n });
+    return `<span class="days${n > 14 ? ' calm' : ''}">${t}</span>`;
+  }
   function letterCard(L, r) {
     const day = (d) => new Date(`${d.iso}T00:00:00`).toLocaleDateString(I18N.locale); // aus dem Notizbuch kommt das Datum als Text
     const due = L.deadlines[0];
-    const todo = [];
     const pay = L.amount && (L.iban || /rechnung|mahnung/.test(L.kind) || /nachzahlung|zu zahlen|offen|forderung/.test(L.amount.label));
-    if (pay) todo.push(due ? T('{a} bezahlen bis {d}', { a: L.amount.text, d: day(due) }) : T('{a} bezahlen', { a: L.amount.text }));
-    const actions = (r.findings || []).filter((f) => f.kind === 'Handlung').slice(0, 3).map((f) => f.title);
+    const obj = L.canObject ? L.deadlines.find((d) => /widerspruch|einspruch|rechtsbehelf/i.test(d.sentence)) : null;
+    // Die eine Aufgabe groß, darunter das Datum; alles Weitere als Liste
+    let big = null, bigDate = null;
+    const todo = [];
+    if (pay) { big = T('{a} bezahlen', { a: L.amount.text }); bigDate = due; }
     if (L.canObject) {
-      const obj = L.deadlines.find((d) => /widerspruch|einspruch|rechtsbehelf/i.test(d.sentence));
-      todo.push(obj ? T('Bei Bedarf {w} einlegen bis {d}', { w: objWord(L), d: day(obj) }) : T('Prüfen, ob du {w} einlegen willst', { w: objWord(L) }));
+      const t = obj ? T('Bei Bedarf {w} einlegen', { w: objWord(L) }) : T('Prüfen, ob du {w} einlegen willst', { w: objWord(L) });
+      if (!big) { big = t; bigDate = obj; } else todo.push(obj ? `${t} ${T('bis {d}', { d: day(obj) })}` : t);
     }
-    if (!pay && due && !L.canObject) todo.push(T('Frist beachten: {d}', { d: day(due) }));
+    if (!big && due) { big = T('Frist beachten'); bigDate = due; }
+    const actions = (r.findings || []).filter((f) => f.kind === 'Handlung').slice(0, 3).map((f) => f.title);
     const kv = [];
-    if (L.amount) kv.push([T('Betrag'), `<b>${esc(L.amount.text)}</b>`, '']);
+    if (L.amount && !pay) kv.push([T('Betrag'), `<b>${esc(L.amount.text)}</b>`, '']);
     if (L.recipient) kv.push([T('An'), `<span data-noi18n>${esc(L.recipient)}</span>`, '']);
     if (L.iban) kv.push(['IBAN', `<code data-noi18n>${esc(L.iban)}</code>`, `<button class="link" data-copy="${esc(L.iban.replace(/\s+/g, ''))}">${T('Kopieren')}</button>`]);
     for (const ref of L.refs) kv.push([T(ref.label), `<code data-noi18n>${esc(ref.value)}</code>`, `<button class="link" data-copy="${esc(ref.value)}">${T('Kopieren')}</button>`]);
-    L.deadlines.slice(0, 2).forEach((d, i) => kv.push([T('Frist'), `<b>${day(d)}</b>${d.relative ? ` <span class="muted">${T(d.fromLetter ? '(ab Briefdatum)' : '(ca., ab heute)')}</span>` : ''}`, `<button class="link" data-ldl="${i}">${T('+ Kalender')}</button>`]));
+    L.deadlines.slice(0, 2).forEach((d, i) => { if (d !== bigDate) kv.push([T('Frist'), `<b>${day(d)}</b>${d.relative ? ` <span class="muted">${T(d.fromLetter ? '(ab Briefdatum)' : '(ca., ab heute)')}</span>` : ''}`, `<button class="link" data-ldl="${i}">${T('In den Kalender')}</button>`]); });
+    const bigIdx = bigDate ? L.deadlines.indexOf(bigDate) : -1;
     return `<div class="letter rise">
-      <div class="lh"><b>${T(L.label)}</b><span>${T('Was muss ich tun?')}</span></div>
+      <div class="lh"><b>${T(L.label)}</b><span>${T('Was du tun musst')}</span></div>
+      ${big ? `<div class="big">${esc(big)}</div>` : ''}
+      ${bigDate ? `<div class="when2"><span>${T('bis {d}', { d: longDay(bigDate.iso) })}${bigDate.relative ? ` <span class="muted">${T(bigDate.fromLetter ? '(ab Briefdatum)' : '(ca., ab heute)')}</span>` : ''}</span>${daysChip(bigDate.iso)}</div>` : ''}
       ${todo.length || actions.length ? `<ul class="todo">${todo.map((t) => `<li><span>${esc(t)}</span></li>`).join('')}${actions.map((t) => `<li data-noi18n><span>${emphChecked(t)}</span></li>`).join('')}</ul>` : ''}
       ${kv.length ? `<div class="kv">${kv.map(([k, v, x]) => `<span>${k}</span><span>${v}</span><span>${x}</span>`).join('')}</div>` : ''}
-      <div class="row"><button class="link" id="lExplain">${T('In meiner Sprache erklären')}</button><button class="link" id="lReply">${T('Antwort schreiben')}</button></div>
+      <div class="btnrow">${bigIdx >= 0 ? `<button class="btn primary" data-ldl="${bigIdx}">${T('In den Kalender')}</button>` : ''}<button class="btn" id="lReply">${T('Antwort schreiben')}</button></div>
+      <div class="row"><button class="link" id="lExplain">${T('In meiner Sprache erklären')}</button></div>
       ${tplRow([...(L.canObject ? ['objection'] : []), ...(L.amount ? ['installments'] : []), 'extension', 'question'], L)}
     </div>`;
   }
@@ -295,16 +319,17 @@
     if (C.start) kv.push([T('Beginn'), day(C.start), '']);
     if (C.end) kv.push([T('Ende'), `<b>${day(C.end)}</b>`, '']);
     if (C.notice != null) kv.push([T('Kündigungsfrist'), mon(C.notice), '']);
-    if (C.cancelBy) kv.push([T('Kündigen bis'), C.cancelPassed ? `<span class="warn">${day(C.cancelBy)} – ${T('verpasst')}</span>` : `<b>${day(C.cancelBy)}</b>`, C.cancelPassed ? '' : `<button class="link" data-cal="${C.cancelBy}">${T('+ Kalender')}</button>`]);
+    if (C.cancelBy) kv.push([T('Kündigen bis'), C.cancelPassed ? `<span class="warn">${day(C.cancelBy)} – ${T('verpasst')}</span>` : `<b>${day(C.cancelBy)}</b>`, C.cancelPassed ? '' : `<button class="link" data-cal="${C.cancelBy}">${T('In den Kalender')}</button>`]);
     if (C.renew) kv.push([T('Danach'), C.renew.months ? T('verlängert sich um {m}', { m: mon(C.renew.months) }) : C.renew.indefinite ? T('läuft unbefristet weiter') : T('verlängert sich automatisch'), '']);
     if (C.monthly) kv.push([T('Kosten'), T('{p} pro Monat', { p: C.monthly }), '']);
     return `<div class="letter contract rise">
       <div class="lh"><b>${T('Vertrag')}</b><span>${T('Laufzeit und Kündigung')}</span></div>
+      ${C.cancelBy && !C.cancelPassed ? `<div class="big">${T('Kündigen bis {d}', { d: day(C.cancelBy) })}</div><div class="when2">${daysChip(C.cancelBy)}<span class="muted">${T('sonst verlängert sich der Vertrag')}</span></div>` : ''}
       ${kv.length ? `<div class="kv">${kv.map(([k, v, x]) => `<span>${k}</span><span>${v}</span><span>${x}</span>`).join('')}</div>` : ''}
       ${C.priceChange ? `<div class="note warn">${T('Preiserhöhungen sind möglich – bei einer Erhöhung hast du oft ein Sonderkündigungsrecht.')}</div>` : ''}
       ${C.monthlyAfter ? `<div class="note">${T('Gut zu wissen: Bei Verträgen ab März 2022 kannst du nach der Mindestlaufzeit meist monatlich kündigen.')}</div>` : ''}
       ${C.cancelBy && !C.cancelPassed ? `<div class="note">${T('Die Kündigungsfrist steht im Fristen-Netz – Silkreader erinnert dich rechtzeitig.')}</div>` : ''}
-      <div class="row"><button class="link" data-tpl="cancel">${T('Kündigung schreiben')}</button><button class="link" id="lExplain">${T('In meiner Sprache erklären')}</button></div>
+      <div class="btnrow"><button class="btn primary" data-tpl="cancel">${T('Kündigung schreiben')}</button><button class="btn" id="lExplain">${T('In meiner Sprache erklären')}</button></div>
     </div>`;
   }
 
@@ -348,11 +373,12 @@
     const deadlines = L ? [] : findDeadlines(text); // Briefe zeigen ihre Fristen in der Karte
     const figs = r.figures.slice(0, 8);
     $('main').innerHTML = `
-      <ul class="lead" data-noi18n>${bullets(r.summary).map((b, i) => (P.quickShown ? `<li>${emphChecked(b)}</li>` : `<li class="rise" style="animation-delay:${i * 70}ms">${emphChecked(b)}</li>`)).join('')}</ul>
       ${L ? letterCard(L, r) : r.letterLocked ? `<div class="letter locked"><div class="lh"><b>${T(r.letterLocked)}</b><span>${T('Was muss ich tun? Betrag, Frist, IBAN zum Kopieren')}</span></div><button class="link" id="lPro">${T('Mit Silkreader Pro anzeigen')}</button></div>` : ''}
       ${r.contract ? contractCard(r.contract) : r.contractLocked ? `<div class="letter locked"><div class="lh"><b>${T('Vertrag')}</b><span>${T('Laufzeit, Kündigen bis, Verlängerung')}</span></div><button class="link" id="cPro">${T('Mit Silkreader Pro anzeigen')}</button></div>` : ''}
-      ${deadlines.map((d, i) => `<div class="dl"><span class="when">📅 ${d.date.toLocaleDateString(I18N.locale)}</span><span class="what" data-noi18n title="${esc(d.sentence)}">${esc(d.sentence)}</span><button class="link" data-dl="${i}">+ Kalender</button></div>`).join('')}
-      <button class="more" id="moreBtn">Mehr ▾</button>
+      ${L || r.contract ? `<div class="h2">${T('Worum es geht')}</div>` : ''}
+      <ul class="lead" data-noi18n>${bullets(r.summary).map((b) => `<li>${emphChecked(b)}</li>`).join('')}</ul>
+      ${deadlines.map((d, i) => `<div class="dl">${silkIcon('calendar')}<span class="when">${d.date.toLocaleDateString(I18N.locale)}</span><span class="what" data-noi18n title="${esc(d.sentence)}">${esc(d.sentence)}</span><button class="link" data-dl="${i}">${T('In den Kalender')}</button></div>`).join('')}
+      <button class="more" id="moreBtn">${T('Mehr aus dem Text')}</button>
       <div id="details">
         ${r.key_points.length ? `<div class="sec"><div class="h">Kernaussagen</div><ul data-noi18n>${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}">${emphChecked(p)}</li>`).join('')}</ul></div>` : ''}
         ${r.findings.length ? `<div class="sec"><div class="h">Erkenntnisse</div>${r.findings.map((f, i) => `<div class="find jump" data-type="finding" data-index="${i}"><span class="k">${esc(f.kind)}</span> <span data-noi18n>${emph(f.title)}</span>${f.detail ? `<div class="d" data-noi18n>${emph(f.detail)}</div>` : ''}</div>`).join('')}</div>` : ''}
@@ -361,30 +387,30 @@
         <div class="sec quick"><button class="link" id="exPdf">${silkIcon('file')}${T('Als PDF speichern')}</button><button class="link" id="exPrint">${silkIcon('copy')}${T('Drucken')}</button></div>
       </div>
       <div id="answers"></div>
-      <div class="aiNote">${r.checks?.unsure?.length ? `<span>${T('Gestrichelte Zahlen stehen so nicht im Text – bitte prüfen.')}</span> ` : ''}<span>KI-Ergebnis · wichtige Angaben bitte im Original prüfen</span>${r.sentBytes === 0 ? `<br><span class="sent">${silkIcon('lock')}<span>${T('0 Bytes ins Internet gesendet')}</span></span>` : r.sentBytes ? `<br><span class="sent cloud">${silkIcon('cloud')}<span>${T('{kb} KB an Claude gesendet', { kb: Math.max(1, Math.round(r.sentBytes / 1024)) })}</span></span>` : ''}</div>`;
+      <div class="aiNote">${r.checks?.unsure?.length ? `<span>${T('Gestrichelte Zahlen stehen so nicht im Text – bitte prüfen.')}</span> ` : ''}<span>${T('KI-Ergebnis. Beträge und Fristen bitte im Original prüfen.')}</span>${r.sentBytes === 0 ? `<br><span class="sent">${silkIcon('lock')}<span>${T('0 Bytes ins Internet gesendet')}</span></span>` : r.sentBytes ? `<br><span class="sent cloud">${silkIcon('cloud')}<span>${T('{kb} KB an Claude gesendet', { kb: Math.max(1, Math.round(r.sentBytes / 1024)) })}</span></span>` : ''}</div>`;
     $('moreBtn').addEventListener('click', () => {
       const open = $('details').classList.toggle('open');
-      $('moreBtn').textContent = open ? 'Weniger ▴' : 'Mehr ▾';
+      $('moreBtn').textContent = open ? T('Weniger anzeigen') : T('Mehr aus dem Text');
     });
     $('main').querySelectorAll('.jump').forEach((row) => row.addEventListener('click', () =>
       toggleLupe(row, { type: row.dataset.type, index: Number(row.dataset.index) })));
     const addCal = async (btn, d) => {
       const ok = await window.spider.addCalendar({ title: `${T('Frist')}: ${r.title || P.doc.title}`, date: d.iso, note: d.sentence });
-      btn.textContent = ok ? T('✓ geöffnet') : T('nicht möglich');
+      btn.textContent = ok ? T('Im Kalender geöffnet') : T('nicht möglich');
     };
     $('main').querySelectorAll('[data-dl]').forEach((btn) => btn.addEventListener('click', () => addCal(btn, deadlines[Number(btn.dataset.dl)])));
     $('main').querySelectorAll('[data-ldl]').forEach((btn) => btn.addEventListener('click', () => addCal(btn, L.deadlines[Number(btn.dataset.ldl)])));
     $('main').querySelectorAll('[data-copy]').forEach((btn) => btn.addEventListener('click', async () => {
-      await navigator.clipboard.writeText(btn.dataset.copy); btn.textContent = T('✓ Kopiert');
+      await navigator.clipboard.writeText(btn.dataset.copy); btn.textContent = T('Kopiert');
     }));
     $('lReply')?.addEventListener('click', () => replyToLetter(''));
     $('main').querySelectorAll('[data-tpl]').forEach((b) => b.addEventListener('click', () => replyToLetter(TEMPLATES[b.dataset.tpl](L || {})[1])));
     $('main').querySelectorAll('[data-cal]').forEach((b) => b.addEventListener('click', () => addCal(b, { iso: b.dataset.cal, sentence: T('Spätestens kündigen, sonst verlängert sich der Vertrag.') })));
     $('cPro')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); proView('contract'); });
     $('main').scrollTop = 0;
-    footer({ ask: true, actions: [['Kopieren', copyResult], ['Vorlesen', () => speak(bullets(r.summary).join('. '))], ['Sprache', explainPicker], ['Festhalten', keepResult], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)]] });
+    footer({ ask: true, actions: [['Kopieren', copyResult], ['Vorlesen', () => speak(bullets(r.summary).join('. '))], ['Sprache', explainPicker], ['Festhalten', keepResult], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)], ['Als PDF speichern', () => window.spider.exportResult(P.doc, result, 'pdf')], ['Drucken', () => window.spider.exportResult(P.doc, result, 'print')]] });
     $('lExplain')?.addEventListener('click', explainPicker);
-    $('exPdf')?.addEventListener('click', async (e) => { const ok = await window.spider.exportResult(P.doc, result, 'pdf'); if (ok) e.target.closest('button').lastChild.textContent = T('✓ gespeichert'); });
+    $('exPdf')?.addEventListener('click', async (e) => { const ok = await window.spider.exportResult(P.doc, result, 'pdf'); if (ok) e.target.closest('button').lastChild.textContent = T('Gespeichert'); });
     $('exPrint')?.addEventListener('click', () => window.spider.exportResult(P.doc, result, 'print'));
     $('lPro')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); proView('letter'); });
     maybeAskReview();
@@ -463,11 +489,12 @@
     $('qualityLink')?.addEventListener('click', () => window.spider.openSettings());
     // Nachschärfen mit einem Klick: kürzer, förmlicher, lockerer
     const again = (extra) => () => { P = { ...P, extra: `${P.extra || ''} ${extra}`.trim() }; transform(); };
-    footer({ actions: [
-      ['Kopieren', async () => { await navigator.clipboard.writeText(res.text); flash('Kopieren', '✓ Kopiert'); }],
-      ['Vorlesen', () => speak(res.text, 'Vorlesen', P.mode?.startsWith('explain:') ? P.mode.slice(8) : null)],
+    const readAloud = ['Vorlesen', () => speak(res.text, 'Vorlesen', P.mode?.startsWith('explain:') ? P.mode.slice(8) : null)];
+    footer({ visible: 4, actions: [
+      ['Kopieren', async () => { await navigator.clipboard.writeText(res.text); flash('Kopieren', 'Kopiert'); }],
+      ...(P.mode === 'reply' ? [] : [readAloud]),
       ['Kürzer', again('Fasse dich deutlich kürzer.')],
-      ...(P.mode === 'reply' ? [['Förmlicher', again('Schreibe förmlicher (Sie-Form).')], ['Lockerer', again('Schreibe lockerer und persönlicher.')]] : []),
+      ...(P.mode === 'reply' ? [['Förmlicher', again('Schreibe förmlicher (Sie-Form).')], ['Lockerer', again('Schreibe lockerer und persönlicher.')], readAloud] : []),
     ] });
     maybeAskReview();
   }
@@ -488,7 +515,7 @@
       ${r.diff.length ? `<div class="sec"><div class="h">Unterschiede</div><ul>${r.diff.map((x) => `<li>${emph(x)}</li>`).join('')}</ul></div>` : ''}
       ${r.same.length ? `<div class="sec"><div class="h">Gemeinsam</div><ul>${r.same.map((x) => `<li>${emph(x)}</li>`).join('')}</ul></div>` : ''}`;
     const text = [`# ${P.title}`, r.tip, '', 'Unterschiede:', ...r.diff.map((x) => `- ${x}`), '', 'Gemeinsam:', ...r.same.map((x) => `- ${x}`)].join('\n');
-    footer({ actions: [['Kopieren', async () => { await navigator.clipboard.writeText(text); flash('Kopieren', '✓ Kopiert'); }]] });
+    footer({ actions: [['Kopieren', async () => { await navigator.clipboard.writeText(text); flash('Kopieren', 'Kopiert'); }]] });
   }
 
   // ---------- Lupe: wo steht das im Text? ----------
@@ -572,11 +599,11 @@
       <textarea class="in" id="homeIn" placeholder="Text einfügen … (Enter)"></textarea>
       <div class="clip hidden" id="clip"></div>
       <div class="quick">
-        <button class="link" id="qFile">${silkIcon('file')}Datei lesen …</button>
-        <button class="link" id="qRegion">${silkIcon('region')}Bereich lesen</button>
-        <button class="link" id="qCam">${silkIcon('screen')}Brief fotografieren</button>
+        <button class="link" id="qFile">${silkIcon('file')}${T('Datei')}</button>
+        <button class="link" id="qRegion">${silkIcon('region')}${T('Bereich')}</button>
+        <button class="link" id="qCam">${silkIcon('camera')}${T('Brief fotografieren')}</button>
       </div>
-      <div class="sec hidden" id="recentSec"><div class="h">Zuletzt</div><div id="recent"></div></div>`;
+      <div class="sec hidden" id="recentSec"><div class="h sub">Zuletzt gelesen</div><div id="recent"></div></div>`;
     $('modes').addEventListener('click', (e) => {
       const b = e.target.closest('[data-m]'); if (!b) return;
       mode = b.dataset.m;
@@ -595,7 +622,7 @@
     });
     $('qRegion').addEventListener('click', () => window.spider.regionCapture());
     $('qCam').addEventListener('click', () => window.spider.openCamera());
-    footer({ actions: [['Notizbuch', () => { setBack(home); notebook(); }], ['Fristen', () => { setBack(home); deadlines(); }], ['Einstellungen', () => { setBack(home); settings(); }], ['Lesemodus', () => window.spider.openReader(null)]] });
+    footer({ visible: 2, actions: [['Notizbuch', () => { setBack(home); notebook(); }], ['Fristen', () => { setBack(home); deadlines(); }], ['Einstellungen', () => { setBack(home); settings(); }], ['Lesemodus', () => window.spider.openReader(null)]] });
     setTimeout(() => $('homeIn')?.focus(), 60);
     // Zwischenablage als Vorschlag
     const clip = (await window.spider.clipboardText()).trim();
@@ -846,17 +873,24 @@
   $('back').addEventListener('click', () => { const fn = backFn; setBack(null); run++; document.querySelectorAll('.lupe').forEach((l) => l.remove()); if (fn) { P = { kind: fn.name, mode: P.mode }; fn(); } });
 
   // ---------- Hilfen ----------
-  function footer({ ask: withAsk = false, actions = [] }) {
+  const toggleMenu = (open) => { const m = $('actMenu'); if (!m) return; m.classList.toggle('hidden', !open); $('moreActs').setAttribute('aria-expanded', String(open)); if (open) m.querySelector('.link')?.focus(); };
+  document.addEventListener('click', (e) => { if (!e.target.closest('#actMenu, #moreActs')) toggleMenu(false); });
+  // Fußleiste: die wichtigsten Aktionen sichtbar, der Rest im „…“-Menü
+  function footer({ ask: withAsk = false, actions = [], visible = null }) {
     const f = $('foot');
-    f.innerHTML = `${withAsk ? '<input class="ask" id="askIn" placeholder="Frag den Text … (Enter)">' : ''}<div class="actions${actions.length > 4 ? ' many' : ''}">${actions.map(([l]) => `<button class="link" data-a="${l}">${ACTION_ICONS[l] ? silkIcon(ACTION_ICONS[l]) : ''}<span>${l}</span></button>`).join('')}</div>`;
-    actions.forEach(([l, fn]) => f.querySelector(`[data-a="${l}"]`).addEventListener('click', fn));
+    const n = visible ?? (actions.length <= 4 ? actions.length : 3);
+    const btn = ([l]) => `<button class="link" data-a="${l}">${ACTION_ICONS[l] ? silkIcon(ACTION_ICONS[l]) : ''}<span>${T(l)}</span></button>`;
+    const rest = actions.slice(n);
+    f.innerHTML = `${withAsk ? `<input class="ask" id="askIn" placeholder="${T('Frage zum Text stellen')}" aria-label="${T('Frage zum Text stellen')}">` : ''}<div class="actions">${actions.slice(0, n).map(btn).join('')}${rest.length ? `<span class="spacer"></span><button class="link mbtn" id="moreActs" aria-label="${T('Weitere Aktionen')}" aria-haspopup="menu" aria-expanded="false">${silkIcon('more')}</button><div class="menu hidden" id="actMenu" role="menu">${rest.map(btn).join('')}</div>` : ''}</div>`;
+    actions.forEach(([l, fn]) => f.querySelector(`[data-a="${l}"]`).addEventListener('click', (e) => { if (e.currentTarget.closest('.menu')) toggleMenu(false); fn(); }));
+    $('moreActs')?.addEventListener('click', (e) => { e.stopPropagation(); toggleMenu($('actMenu').classList.contains('hidden')); });
     $('askIn')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && e.target.value.trim()) { ask(e.target.value.trim()); e.target.value = ''; }
     });
     f.classList.remove('hidden');
   }
-  const ACTION_ICONS = { 'Alle Änderungen': 'notebook', 'Im Browser öffnen': 'send', 'Protokoll öffnen': 'file', 'Über': 'info', Vorlesen: 'speak', Kürzer: 'shorter', Förmlicher: 'tone', Lockerer: 'tone', Kopieren: 'copy', Festhalten: 'keep', Lesemodus: 'reader', Sprache: 'translate', Fristen: 'calendar', Notizbuch: 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Erneut versuchen': 'send' };
-  function flash(label, text) { const b = $('foot').querySelector(`[data-a="${label}"] span`); if (!b) return; b.textContent = text; setTimeout(() => (b.textContent = label), 1300); }
+  const ACTION_ICONS = { 'Alle Änderungen': 'notebook', 'Im Browser öffnen': 'send', 'Protokoll öffnen': 'file', 'Über': 'info', Vorlesen: 'speak', Kürzer: 'shorter', Förmlicher: 'tone', Lockerer: 'tone', Kopieren: 'copy', Festhalten: 'keep', 'Als PDF speichern': 'file', Drucken: 'file', Lesemodus: 'reader', Sprache: 'translate', Fristen: 'calendar', Notizbuch: 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Erneut versuchen': 'send' };
+  function flash(label, text) { const b = $('foot').querySelector(`[data-a="${label}"] span`); if (!b) return; b.textContent = T(text); setTimeout(() => (b.textContent = T(label)), 1300); }
   function showError(res, retry) {
     state = 'error';
     $('main').innerHTML = `<p class="error">${esc(res.error)}</p>`;
@@ -867,8 +901,8 @@
       `## ${T('Erkenntnisse')}`, ...r.findings.map((f) => `- **[${T(f.kind)}] ${f.title}** – ${f.detail}`), '',
       `## ${T('Angaben')}`, ...r.figures.map((f) => `- ${f.label}: ${f.value} (${T(`S. ${f.page}`)})`)].join('\n');
   }
-  async function copyResult() { await navigator.clipboard.writeText(markdown(result)); flash('Kopieren', '✓ Kopiert'); }
-  async function keepResult() { await window.spider.cocoonAddText(markdown(result)); flash('Festhalten', '✓ Im Netz'); }
+  async function copyResult() { await navigator.clipboard.writeText(markdown(result)); flash('Kopieren', 'Kopiert'); }
+  async function keepResult() { await window.spider.cocoonAddText(markdown(result)); flash('Festhalten', 'Im Netz'); }
   function close() {
     stopSpeaking();
     run++; state = 'idle';

@@ -15,7 +15,7 @@ await main.waitForSelector('#btnGo'); await main.keyboard.press('Enter');
 let status = '';
 for (let i = 0; i < 120; i++) {
   status = await main.textContent('#scanLabel');
-  if (status !== 'SCANNING') break;
+  if (status !== 'Liest …') break;
   if (i % 10 === 0) console.log('  …', (await main.textContent('#panelBody')).trim().slice(0, 90));
   await new Promise((r) => setTimeout(r, 1000));
 }

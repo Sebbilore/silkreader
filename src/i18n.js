@@ -39,6 +39,13 @@
     'Silkreader Pro': 'Silkreader Pro', 'Silkreader Pro ✓': 'Silkreader Pro ✓', 'Silkreader Pro …': 'Silkreader Pro …', 'Pro ist aktiv': 'Pro is active', 'Pro ist aktiv ✓': 'Pro is active ✓',
     'per Code, gültig bis {d}': 'via code, valid until {d}', 'per Code, unbegrenzt': 'via code, unlimited', 'über den Microsoft Store': 'via the Microsoft Store',
     'Mehr aus deinen Briefen holen.': 'Get more out of your letters.', 'Kommt bald': 'Coming soon',
+    // ---- neues Design ----
+    'Frage zum Text stellen': 'Ask about the text', 'Weitere Aktionen': 'More actions', 'Was du tun musst': 'What you need to do',
+    'bis {d}': 'by {d}', 'noch {n} Tage': '{n} days left', 'Bei Bedarf {w} einlegen': 'If needed, file {w}', 'Frist beachten': 'Note the deadline',
+    'In den Kalender': 'Add to calendar', 'Kündigen bis {d}': 'Cancel by {d}', 'Worum es geht': 'What it is about',
+    'Mehr aus dem Text': 'More from the text', 'Weniger anzeigen': 'Show less',
+    'KI-Ergebnis. Beträge und Fristen bitte im Original prüfen.': 'AI result. Please check amounts and deadlines in the original.',
+    'Im Kalender geöffnet': 'Opened in calendar', 'Darstellung': 'Appearance', 'Wie Windows': 'Use Windows setting', 'Hell': 'Light', 'Dunkel': 'Dark', 'KI': 'AI', 'Spinne und Verhalten': 'Spider and behaviour', 'Zum Ändern anklicken und neue Tasten drücken.': 'Click to change, then press the new keys.', 'abgelaufen': 'expired', 'sonst verlängert sich der Vertrag': 'otherwise the contract renews', 'Kopiert': 'Copied', 'Gespeichert': 'Saved', 'Im Netz': 'In the web',
     'Immer frei: Zusammenfassen, Fragen an den Text, Fristen, Notizbuch, In deiner Sprache.': 'Always free: summaries, questions about the text, deadlines, notebook, in your language.',
     'Pro im Microsoft Store holen': 'Get Pro in the Microsoft Store', 'Pro kaufen geht in der Silkreader-Version aus dem Microsoft Store.': 'Pro can be bought in the Microsoft Store version of Silkreader.', 'Silkreader im Microsoft Store öffnen': 'Open Silkreader in the Microsoft Store', 'Du hast einen Code?': 'Have a code?', 'Einlösen': 'Redeem',
     'Dieser Code ist unvollständig. Bitte genau so einfügen, wie du ihn bekommen hast.': 'This code is incomplete. Please paste it exactly as you received it.',
@@ -63,7 +70,7 @@
     'Als PDF speichern': 'Save as PDF', 'Drucken': 'Print', '✓ gespeichert': '✓ saved', 'erklärt am {d}': 'explained on {d}',
     'Erstellt mit Silkreader. KI-Ergebnis – wichtige Angaben bitte im Original prüfen.': 'Made with Silkreader. AI result – please check important details in the original.',
     'Brief fotografieren': 'Photograph a letter', 'Brief fotografieren …': 'Photograph a letter …', 'Foto aufnehmen': 'Take photo', 'Nochmal': 'Retake', 'Lese …': 'Reading …',
-    'Brief gerade in den Rahmen halten · Leertaste = Foto': 'Hold the letter straight inside the frame · Space = photo', 'Ist der Text gut lesbar?': 'Is the text easy to read?',
+    'Brief gerade in den Rahmen halten. Leertaste macht das Foto.': 'Hold the letter straight inside the frame. Space takes the photo.', 'Ist der Text gut lesbar?': 'Is the text easy to read?',
     'Keine Kamera gefunden oder der Zugriff ist gesperrt (Windows-Einstellungen → Datenschutz → Kamera).': 'No camera found or access is blocked (Windows Settings → Privacy → Camera).',
     'Alle Rechte vorbehalten': 'All rights reserved',
     'Sprache': 'Language', 'In meiner Sprache erklären': 'Explain in my language', 'Erklären auf …': 'Explain in …',
@@ -86,7 +93,7 @@
     'Nur der Anfang wurde bearbeitet (eingebautes Modell).': 'Only the beginning was processed (built-in model).',
     'KI-Ergebnis · wichtige Angaben bitte im Original prüfen': 'AI result · please check important details in the original',
     'Was soll ich lesen?': 'What should I read?', 'Text einfügen … (Enter)': 'Paste text … (Enter)',
-    'Datei lesen …': 'Read file …', 'Bereich lesen': 'Read region', 'Zuletzt': 'Recent',
+    'Datei lesen …': 'Read file …', 'Bereich lesen': 'Read region', 'Zuletzt': 'Recent', 'Zuletzt gelesen': 'Recently read', 'Datei': 'File',
     'Erst Text markieren – oder hier einfügen:': 'Select some text first – or paste it here:',
     'Die Zwischenablage ist leer – Text hier einfügen:': 'The clipboard is empty – paste text here:',
     'Suchen …': 'Search …', 'Nichts gefunden.': 'Nothing found.', 'Nichts gefunden': 'Nothing found',
@@ -123,7 +130,7 @@
     'Hier ablegen': 'Drop here', 'Klick: Lesen': 'Click: Read', 'Klick: Übersetzen': 'Click: Translate', 'Klick: Einfach': 'Click: Simplify', 'Klick: Antworten': 'Click: Reply',
 
     // ---- Bereich wählen ----
-    'Bereich aufziehen, den die Spinne lesen soll · Esc = abbrechen': 'Drag over the area the spider should read · Esc = cancel', 'Bereich wählen': 'Choose region',
+    'Bereich aufziehen, den die Spinne lesen soll. Esc bricht ab.': 'Drag over the area the spider should read. Esc cancels.', 'Bereich wählen': 'Choose region',
 
     // ---- Willkommen ----
     'Willkommen': 'Welcome', 'Hallo, ich bin Silkreader': "Hi, I'm Silkreader",
@@ -193,7 +200,7 @@
     'Text hier einfügen (Strg+V) …': 'Paste text here (Ctrl+V) …', 'Analysieren': 'Analyze', 'Rechtsklick für Menü ·': 'Right-click for menu ·',
     'analysieren ·': 'analyze ·', 'schließen ·': 'close ·', 'Datei ·': 'file ·', 'Notizbuch ·': 'notebook ·', 'schließen': 'close', 'Notizbuch durchsuchen …': 'Search notebook …',
     'KI-Analyse': 'AI analysis', 'Animation überspringen': 'Skip animation', 'Ergebnis kopieren': 'Copy result', 'Bereit zum Analysieren': 'Ready to analyze',
-    'in Kokon packen': 'put in a cocoon', 'Einstellungen öffnen': 'Open settings', 'FEHLER': 'ERROR', 'FERTIG': 'DONE', 'SCANNING': 'SCANNING',
+    'in Kokon packen': 'put in a cocoon', 'Einstellungen öffnen': 'Open settings', 'FEHLER': 'ERROR', 'FERTIG': 'DONE', 'SCANNING': 'SCANNING', 'Bereit': 'Ready', 'Liest …': 'Reading …', 'Fehler': 'Error', 'Fertig': 'Done', 'Nächste Fristen': 'Upcoming deadlines', 'Datei öffnen': 'Open file', 'liest sofort': 'reads right away', 'Keine offenen Fristen.': 'No open deadlines.', 'Noch nichts gelesen.': 'Nothing read yet.',
     'Darstellung gekürzt – analysiert wird das ganze Dokument.': 'Display shortened – the whole document is analyzed.',
     'Die Spinne liest das Dokument …': 'The spider is reading the document …', 'In einen Kokon gepackt 🕸': 'Put in a cocoon 🕸',
     'Noch keine Analysen – die Spinne merkt sich hier die letzten 20.': 'No analyses yet – the spider keeps the last 20 here.',

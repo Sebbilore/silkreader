@@ -43,11 +43,11 @@ await pop.waitForSelector('#moreBtn', { timeout: 20000 });
 await sleep(800);
 const L = await pop.evaluate(() => ({
   card: !!document.querySelector('.letter'), kind: document.querySelector('.letter .lh b')?.textContent,
-  todo: [...document.querySelectorAll('.todo li')].map((l) => l.textContent), kv: document.querySelector('.kv')?.innerText,
+  todo: [document.querySelector('.letter .big')?.textContent + ' ' + document.querySelector('.letter .when2')?.textContent, ...[...document.querySelectorAll('.todo li')].map((l) => l.textContent)], kv: document.querySelector('.kv')?.innerText,
   reply: !!document.getElementById('lReply'), unsure: document.querySelectorAll('.unsure').length, ck: [...document.querySelectorAll('.ck')].map((c) => c.textContent).join(''),
 }));
 ok('Brief-Karte da', L.card && L.kind === 'Rechnung', L.kind);
-ok('To-do: bezahlen bis', L.todo.some((t) => /98,90 € bezahlen bis 15\.11\.2030/.test(t)), JSON.stringify(L.todo));
+ok('Aufgabe: bezahlen bis', L.todo.some((t) => /98,90 € bezahlen bis \S+, 15\. November 2030/.test(t)), JSON.stringify(L.todo));
 ok('IBAN und Verwendungszweck', /DE89 3704/.test(L.kv) && /RE-2026-4711/.test(L.kv), L.kv?.replace(/\n/g, ' | '));
 ok('Antwort-Knopf', L.reply);
 // Test-Antworten passen nicht zum Brief → die Zahlen müssen als unsicher markiert sein

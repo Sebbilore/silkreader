@@ -11,30 +11,30 @@
   html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; user-select: none; cursor: default; font-family: var(--font); }
   svg { display: block; width: 100%; height: 100%; overflow: visible; }
   /* Netz aus Seide */
-  .silk { fill: none; stroke: var(--silk); stroke-width: .8; stroke-linecap: round; filter: drop-shadow(0 0 1px rgba(10,10,20,.9)); }
+  .silk { fill: none; stroke: var(--line-2); stroke-width: 1; stroke-linecap: round; }
   .spoke { stroke-dasharray: 140; stroke-dashoffset: 140; animation: silk-draw .22s var(--ease-out) forwards; }
-  .spiral { stroke-dasharray: 2600; stroke-dashoffset: 2600; animation: silk-draw .45s .12s var(--ease-out) forwards; stroke-width: .7; opacity: .8; }
+  .spiral { stroke-dasharray: 2600; stroke-dashoffset: 2600; animation: silk-draw .45s .12s var(--ease-out) forwards; stroke-width: .9; }
   #web { transform-origin: 150px 150px; }
   #web.pluck { animation: pluck .38s var(--ease-spring); }
   @keyframes pluck { 30% { transform: scale(1.018) rotate(.5deg); } 60% { transform: scale(.994) rotate(-.3deg); } }
-  #rim { fill: none; stroke: var(--pink); stroke-width: 1; opacity: .55; }
-  .dew { fill: var(--dew); filter: drop-shadow(0 0 2.5px #fff) drop-shadow(0 0 4px var(--pink-glow)); }
+  #rim { fill: none; stroke: var(--line-2); stroke-width: 1; }
+  .disc { fill: var(--surface); }
+  .dew { fill: var(--muted); }
   /* Felder */
   .slot { cursor: pointer; }
   .slot .hit { fill: transparent; }
-  .slot .hl { fill: url(#gHl); opacity: 0; transition: opacity var(--t-fast); }
+  .slot .hl { fill: var(--line); opacity: 0; transition: opacity var(--t-fast); }
   .slot.on .hl { opacity: 1; }
-  .slot .ic { fill: none; stroke: var(--text); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+  .slot .ic { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
     transition: transform var(--t-mid) var(--ease-spring), stroke var(--t-fast); }
-  .slot.on .ic { stroke: var(--pink); transform: scale(1.22); filter: drop-shadow(0 0 4px var(--pink-glow)); }
-  .slot .lb { fill: var(--muted); font: 600 9px var(--font); text-anchor: middle; paint-order: stroke; stroke: rgba(10,10,15,.9); stroke-width: 2.5px;
-    transition: fill var(--t-fast); }
-  .slot.on .lb { fill: #fff; }
+  .slot.on .ic { stroke: var(--pink); transform: scale(1.1); }
+  .slot .lb { fill: var(--text); font: 400 9.5px var(--font); text-anchor: middle; transition: fill var(--t-fast); }
+  .slot.on .lb { fill: var(--strong); font-weight: 600; }
   .icons { opacity: 0; animation: fade .2s .12s forwards; } @keyframes fade { to { opacity: 1; } }
   /* Mitte: die kleine Spinne */
-  #center .bd { fill: url(#gBody); stroke: var(--pink); stroke-width: 1.4; }
-  #center .shine { fill: rgba(255,255,255,.4); }
-  #center .eye { fill: #fff; } #center .pu { fill: var(--ink); } #center .gl { fill: #fff; }
+  #center .bd { fill: var(--surface); stroke: var(--pink); stroke-width: 1.3; }
+  #center .shine { fill: transparent; }
+  #center .eye { fill: #fff; stroke: var(--line-2); stroke-width: .4; } #center .pu { fill: #111; } #center .gl { fill: #fff; }
   #root { transform-origin: 150px 150px; animation: silk-pop var(--t-mid) var(--ease-spring); }
   #root.closing { animation: silk-out .14s ease-in forwards; }
 </style>
@@ -68,8 +68,8 @@
       <radialGradient id="gDisc" cx="40%" cy="30%" r="75%"><stop offset="0" stop-color="#2a2a38" stop-opacity=".96"/><stop offset="1" stop-color="#0c0c11" stop-opacity=".95"/></radialGradient>
       <radialGradient id="gHl" cx="${C}" cy="${C}" r="${R}" gradientUnits="userSpaceOnUse"><stop offset=".2" stop-color="#ff2d8a" stop-opacity="0"/><stop offset="1" stop-color="#ff2d8a" stop-opacity=".32"/></radialGradient>
       <radialGradient id="gBody" cx="35%" cy="28%" r="80%"><stop offset="0" stop-color="#4a4a5c"/><stop offset=".35" stop-color="#1d1d27"/><stop offset="1" stop-color="#08080c"/></radialGradient>`;
-    mk('circle', { cx: C, cy: C + 6, r: R + 4, fill: 'rgba(0,0,0,.35)', style: 'filter:blur(8px)' }, root);
-    mk('circle', { cx: C, cy: C, r: R + 4, fill: 'url(#gDisc)' }, root);
+    mk('circle', { cx: C, cy: C + 4, r: R + 4, fill: 'rgba(0,0,0,.25)', style: 'filter:blur(8px)' }, root);
+    mk('circle', { class: 'disc', cx: C, cy: C, r: R + 4 }, root);
     mk('circle', { id: 'rim', cx: C, cy: C, r: R + 4 }, root);
     // Speichen zwischen den Feldern, Spirale darüber
     const web = mk('g', { id: 'web' }, root);

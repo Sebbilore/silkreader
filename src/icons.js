@@ -18,6 +18,7 @@
     copy: '<rect x="-3.5" y="-3.5" width="11" height="11" rx="2"/><path d="M-3.5 3.5h-1.5a2 2 0 0 1 -2 -2v-7a2 2 0 0 1 2 -2h7a2 2 0 0 1 2 2v1.5"/>',
     keep: '<path d="M0 -8v16M-7 -4l14 8M-7 4l14 -8"/><circle r="2.5"/>',
     close: '<path d="M-5 -5l10 10M5 -5l-10 10"/>',
+    camera: '<path d="M-7.5 -3.5h3l1.5-2.5h6l1.5 2.5h3v10h-15z"/><circle cx="0" cy="1.5" r="3"/>',
     calendar: '<rect x="-7.5" y="-6" width="15" height="13" rx="2"/><path d="M-7.5 -2h15M-3.5 -8v4M3.5 -8v4"/>',
     search: '<circle cx="-1.5" cy="-1.5" r="5.5"/><path d="M2.5 2.5l5 5"/>',
     send: '<path d="M-7 0h12M1 -5l5 5 -5 5"/>',

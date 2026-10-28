@@ -280,6 +280,23 @@ function setBusy(busy) {
   if (bubbleWin && !bubbleWin.isDestroyed()) bubbleWin.webContents.send('busy', busy);
 }
 
+// Hell oder dunkel: folgt Windows, außer in den Einstellungen ist etwas anderes gewählt.
+// Alle Fenster lesen das über prefers-color-scheme (theme.css).
+function applyTheme(t = loadSettings().theme) {
+  const { nativeTheme } = require('electron');
+  nativeTheme.themeSource = ['light', 'dark'].includes(t) ? t : 'system';
+}
+const winBg = () => (require('electron').nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#f3f3f3');
+ipcMain.on('theme-dark', (e) => { e.returnValue = require('electron').nativeTheme.shouldUseDarkColors; });
+app.whenReady().then(() => require('electron').nativeTheme.on('updated', () => {
+  const dark = require('electron').nativeTheme.shouldUseDarkColors;
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (w.isDestroyed()) continue;
+    w.webContents.send('theme-changed', dark);
+    if (/^#[0-9a-f]{6}$/i.test(w.getBackgroundColor())) w.setBackgroundColor(winBg()); // durchsichtige Fenster bleiben durchsichtig
+  }
+}));
+
 // Das Analysefenster wird beim Start unsichtbar vorbereitet und beim Schließen nur versteckt –
 // so öffnet es sich danach ohne Verzögerung.
 let quitting = false;
@@ -289,7 +306,7 @@ function createMain() {
   mainWin = new BrowserWindow({
     show: false,
     width: 1280, height: 860, minWidth: 820, minHeight: 560,
-    title: 'Silkreader', backgroundColor: '#0b0b10', autoHideMenuBar: true,
+    title: 'Silkreader', backgroundColor: winBg(), autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
   });
   mainWin.loadFile(path.join(__dirname, 'index.html'));
@@ -328,7 +345,7 @@ function openSettings() {
   if (settingsWin && !settingsWin.isDestroyed()) return settingsWin.focus();
   settingsWin = new BrowserWindow({
     width: 580, height: 820, resizable: true, title: T('Einstellungen'),
-    backgroundColor: '#0b0b10', autoHideMenuBar: true,
+    backgroundColor: winBg(), autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
   });
   settingsWin.loadFile(path.join(__dirname, 'settings.html'));
@@ -572,7 +589,7 @@ function showWelcome() {
   if (welcomeWin && !welcomeWin.isDestroyed()) return welcomeWin.focus();
   welcomeWin = new BrowserWindow({
     width: 560, height: 640, resizable: false, maximizable: false, minimizable: false, title: T('Willkommen'),
-    backgroundColor: '#0c0c11', autoHideMenuBar: true, show: false,
+    backgroundColor: winBg(), autoHideMenuBar: true, show: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
   });
   welcomeWin.loadFile(path.join(__dirname, 'welcome.html'));
@@ -625,7 +642,7 @@ ipcMain.handle('set-ui-lang', (_e, l) => {
 
 // Datenschutz und Lizenzen in kleinen Fenstern
 function openDoc(file, title, size = { width: 680, height: 720 }) {
-  const w = new BrowserWindow({ ...size, title, backgroundColor: '#0c0c11', autoHideMenuBar: true,
+  const w = new BrowserWindow({ ...size, title, backgroundColor: winBg(), autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false } });
   w.loadFile(path.join(__dirname, file));
   return w;
@@ -1048,7 +1065,7 @@ function openCamera() {
   if (!pro.allowed('ocr')) return showPopupPayload({ kind: 'pro', feature: 'ocr' });
   if (cameraWin && !cameraWin.isDestroyed()) { cameraWin.focus(); return; }
   cameraWin = new BrowserWindow({
-    width: 900, height: 680, title: T('Brief fotografieren'), backgroundColor: '#0c0c11', autoHideMenuBar: true,
+    width: 900, height: 680, title: T('Brief fotografieren'), backgroundColor: winBg(), autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
   });
   cameraWin.loadFile(path.join(__dirname, 'camera.html'));
@@ -2174,6 +2191,7 @@ function collectDeadlines({ withDone = false } = {}) {
   return out.sort((a, b) => a.iso.localeCompare(b.iso));
 }
 ipcMain.handle('deadlines-list', () => collectDeadlines({ withDone: true }));
+ipcMain.handle('show-deadlines', () => showPopupPayload({ kind: 'deadlines' }));
 ipcMain.handle('deadline-done', (_e, key, done = true) => {
   const st = loadDeadlineState();
   if (done) st.done[key] = Date.now(); else delete st.done[key];
@@ -2452,6 +2470,7 @@ ipcMain.handle('get-settings', () => {
     hideFullscreen: s.hideFullscreen !== false,
     hideInShare: s.hideInShare !== false,
     watchDownloads: s.watchDownloads === true,
+    theme: ['light', 'dark'].includes(s.theme) ? s.theme : 'system',
     clickMode: clickMode(),
     explainLang: s.explainLang || null,
     qualityReady: modelReady('quality'), qualityPossible: ramGB() >= BUILTIN_MODELS.quality.minRamGB,
@@ -2472,7 +2491,7 @@ ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await
 ipcMain.handle('ollama-models', async () => {
   try { return { ok: true, models: await ollamaModels() }; } catch { return { ok: false, models: [] }; }
 });
-ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied, copyHint, privateMode, hideFullscreen, hideInShare, watchDownloads, clickMode: cm }) => {
+ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied, copyHint, privateMode, hideFullscreen, hideInShare, watchDownloads, clickMode: cm, theme }) => {
   if (apiKey) setApiKey(apiKey.trim());
   const s = loadSettings();
   if (['builtin', 'claude', 'ollama'].includes(provider)) s.provider = provider;
@@ -2485,6 +2504,7 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   if (typeof privateMode === 'boolean') s.privateMode = privateMode;
   if (typeof hideFullscreen === 'boolean') s.hideFullscreen = hideFullscreen;
   if (typeof watchDownloads === 'boolean') s.watchDownloads = watchDownloads;
+  if (['system', 'light', 'dark'].includes(theme)) { s.theme = theme; applyTheme(theme); }
   if (typeof hideInShare === 'boolean') { s.hideInShare = hideInShare; setImmediate(() => [bubbleWin, popupWin, ringWin].forEach(protectFromCapture)); }
   if (CLICK_MODES.includes(cm)) { s.clickMode = cm; bubbleWin?.webContents.send('click-mode', cm); }
   if (model && MODELS[model]) s.model = model;
@@ -2663,6 +2683,7 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
+    applyTheme();
     I18N.setLang(uiLang());
     // Webseiten-Berechtigungen: nur Schreiben in die Zwischenablage (Kopieren-Knöpfe), sonst nichts
     const { session: ses } = require('electron');

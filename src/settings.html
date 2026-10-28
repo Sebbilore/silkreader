@@ -8,43 +8,55 @@
 <script src="a11y.js"></script>
 <title>Einstellungen</title>
 <style>
-  :root { --bg: #0c0c11; --card: #1a1a23; --line: rgba(255,255,255,.1); --text: #f1f1f6; --muted: #9494a6; --pink: #ff2d8a; }
-  body { margin: 0; padding: 22px 26px; background: var(--bg); color: var(--text); font: 14px/1.5 var(--font); }
-  h1 { font-size: 18px; margin: 0 0 14px; }
+  body { margin: 0; padding: 20px 28px 28px; background: var(--ink); color: var(--text); font: 14px/1.5 var(--font); }
+  h1 { display: flex; align-items: center; gap: 10px; font: 600 26px/1.2 var(--font-display); margin: 0 0 18px; }
+  h1 svg { width: 24px; height: 24px; color: var(--pink); }
+  h2 { font-size: 14px; font-weight: 600; margin: 22px 0 8px; }
   label { display: block; font-weight: 600; margin: 16px 0 6px; }
-  input, select { width: 100%; box-sizing: border-box; background: var(--card); color: var(--text); border: 1px solid var(--line);
-    border-radius: 8px; padding: 9px 10px; font: inherit; }
-  input:focus, select:focus { outline: none; border-color: var(--pink); }
-  .hint { color: var(--muted); font-size: 12px; margin-top: 5px; }
-  a { color: var(--pink); cursor: pointer; }
-  code { font-family: Consolas, monospace; background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; color: var(--text); user-select: all; }
+  input, select { width: 100%; box-sizing: border-box; height: 32px; background: var(--raised); color: var(--text); border: 1px solid var(--control-line); border-bottom-color: var(--faint);
+    border-radius: var(--r-s); padding: 0 10px; font: inherit; font-size: 13px; }
+  input:focus, select:focus { outline: none; border-bottom-color: var(--pink); box-shadow: inset 0 -1px 0 var(--pink); }
+  .hint { color: var(--muted); font-size: 12.5px; margin-top: 5px; }
+  a { color: var(--pink-2); cursor: pointer; }
+  code { font-family: Consolas, monospace; background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-s); padding: 1px 5px; color: var(--text); user-select: all; }
   .choice { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
   .choice.two { grid-template-columns: 1fr 1fr; }
-  .progress { height: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 5px; overflow: hidden; margin: 10px 0 6px; }
+  .progress { height: 4px; background: var(--line-2); border-radius: 2px; overflow: hidden; margin: 12px 0 6px; }
   .progress i { display: block; height: 100%; width: 0; background: var(--pink); transition: width .3s; }
-  .opt { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; background: var(--card); }
-  .opt.on { border-color: var(--pink); box-shadow: 0 0 0 1px var(--pink); }
-  .opt b { display: block; } .opt span { color: var(--muted); font-size: 12px; } .opt span.bad { display: block; color: #ff7a9c; margin-top: 3px; }
-  .box { border: 1px solid var(--line); border-radius: 10px; padding: 4px 14px 14px; margin-top: 14px; }
-  .row { display: flex; gap: 8px; margin-top: 22px; align-items: center; }
+  .opt { border: 1px solid var(--line); border-radius: var(--r-m); padding: 10px 12px; cursor: pointer; background: var(--card); transition: border-color var(--t-fast); }
+  .opt:hover { border-color: var(--line-2); }
+  .opt.on { border-color: var(--pink); }
+  .opt b { display: block; font-weight: 600; } .opt span { color: var(--muted); font-size: 12.5px; } .opt span.bad { display: block; color: var(--bad); margin-top: 3px; }
+  .box { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-l); padding: 2px 16px 16px; margin-top: 10px; }
+  .row { display: flex; gap: 8px; margin-top: 24px; align-items: center; }
   .inline { display: flex; gap: 8px; } .inline select { flex: 1; }
-  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); padding: 8px 16px; }
-  button.primary { background: var(--pink); border-color: var(--pink); color: #fff; font-weight: 600; }
-  .ok { color: #ff2d8a; }
-  label.check { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; margin-top: 18px; }
-  label.check input { width: auto; margin-top: 3px; accent-color: var(--pink); }
-  .keys div { display: flex; gap: 10px; align-items: baseline; font-size: 12px; margin: 4px 0; color: var(--muted); }
-  .keys kbd { font: 11px Consolas, monospace; color: var(--text); background: var(--card); border: 1px solid var(--line); border-bottom-width: 2px;
-    border-radius: 4px; padding: 1px 6px; min-width: 112px; text-align: center; }
-  .keys em { color: #ff7a9c; font-style: normal; }
-  .keys .fired { color: var(--pink); font-weight: 600; }
-  .keys kbd.rec { cursor: pointer; } .keys kbd.rec:hover { border-color: var(--pink); }
-  .keys kbd.on { border-color: var(--pink); color: var(--pink); } .bad { color: #ff7a9c; }
-  ol { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 12px; } ol li { margin-bottom: 4px; }
+  button { font: inherit; font-size: 13px; cursor: pointer; height: 32px; border-radius: var(--r-s); border: 1px solid var(--control-line); background: var(--raised); color: var(--text); padding: 0 16px; }
+  button:hover { border-color: var(--faint); }
+  button.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 600; }
+  .ok { color: var(--ok); }
+  /* Schalter-Zeilen wie in den Windows-Einstellungen */
+  .rows { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+  label.check { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-direction: row-reverse; font-weight: 400; margin: 0; padding: 12px 16px; background: var(--card); cursor: pointer; }
+  .rows label.check:first-child { border-radius: var(--r-m) var(--r-m) 0 0; } .rows label.check:last-child { border-radius: 0 0 var(--r-m) var(--r-m); }
+  label.check input { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 40px; height: 20px; margin: 0; padding: 0; border: 1px solid var(--muted); border-radius: 10px; background: transparent; cursor: pointer; transition: background var(--t-fast); }
+  label.check input::before { content: ''; position: absolute; left: 3px; top: 3px; width: 12px; height: 12px; border-radius: 6px; background: var(--muted); transition: transform var(--t-mid) var(--ease-out); }
+  label.check input:checked { background: var(--primary); border-color: var(--primary); }
+  label.check input:checked::before { background: var(--on-primary); transform: translateX(20px); }
+  .keys { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+  .keys div { display: flex; gap: 12px; align-items: center; font-size: 13px; padding: 8px 16px; background: var(--card); color: var(--text); }
+  .keys div:first-child { border-radius: var(--r-m) var(--r-m) 0 0; } .keys div:last-child { border-radius: 0 0 var(--r-m) var(--r-m); }
+  .keys kbd { order: 2; margin-left: auto; font: 12.5px var(--font); color: var(--text); background: var(--raised); border: 1px solid var(--control-line);
+    border-radius: var(--r-s); padding: 3px 10px; min-width: 96px; text-align: center; }
+  .keys em { color: var(--bad); font-style: normal; }
+  .keys .fired { color: var(--ok); font-weight: 600; }
+  .keys kbd.rec { cursor: pointer; } .keys kbd.rec:hover { border-color: var(--faint); }
+  .keys kbd.on { border-color: var(--pink); color: var(--pink-2); } .bad { color: var(--bad); }
+  ol { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; } ol li { margin-bottom: 4px; }
 </style>
 </head>
 <body>
-<h1>🕷 Einstellungen</h1>
+<h1><svg viewBox="-36 -30 72 60" aria-hidden="true"><g stroke="currentColor" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 -5L18 -15L24 -4M10 -1L21 -7L28 4M10 3L20 2L26 13M8 7L16 9L20 20M-8 -5L-18 -15L-24 -4M-10 -1L-21 -7L-28 4M-10 3L-20 2L-26 13M-8 7L-16 9L-20 20"/></g><circle r="11" fill="currentColor"/></svg>Einstellungen</h1>
+<h2 style="margin-top:0">KI</h2>
 
 <div class="choice">
   <div class="opt" data-p="builtin"><b>Eingebaut</b><span>Kostenlos und offline, direkt in der App</span></div>
@@ -69,7 +81,7 @@
   <label for="ollamaModel">Lokales Modell</label>
   <div class="inline">
     <select id="ollamaModel"></select>
-    <button id="refresh" title="Neu laden">↻</button>
+    <button id="refresh" title="Neu laden" aria-label="Neu laden">↻</button>
   </div>
   <div class="hint" id="ollamaStatus"></div>
   <ol id="ollamaSteps">
@@ -88,13 +100,18 @@
   <select id="model"></select>
 </div>
 
-<label for="lang">Sprache der Analyse</label>
+<h2>Sprache</h2>
+<label for="lang" style="margin-top:0">Sprache der Analyse</label>
 <select id="lang">
   <option value="Deutsch">Deutsch</option><option value="Englisch">Englisch</option><option value="Französisch">Französisch</option><option value="Spanisch">Spanisch</option><option value="Italienisch">Italienisch</option>
   <option value="der Sprache des Dokuments">Wie das Dokument</option>
 </select>
 <label for="uiLang">Sprache der App</label>
 <select id="uiLang" data-noi18n><option value="de">Deutsch</option><option value="en">English</option></select>
+<h2>Spinne und Verhalten</h2>
+<label for="theme" style="margin-top:0">Darstellung</label>
+<select id="theme"><option value="system">Wie Windows</option><option value="light">Hell</option><option value="dark">Dunkel</option></select>
+<div class="rows">
 <label class="check"><input type="checkbox" id="hatch"> Spinnen-Animation: Eine große Spinne kriecht herein und liest den markierten Text (die kleine versteckt sich so lange)</label>
 
 <label class="check"><input type="checkbox" id="pinCopied"> Kopierte Dateien (Strg+C im Explorer) automatisch ins Spinnennetz hängen</label>
@@ -103,8 +120,10 @@
 <label class="check"><input type="checkbox" id="hideFullscreen"> Bei Vollbild, Präsentationen und Spielen automatisch ausblenden</label>
 <label class="check"><input type="checkbox" id="hideInShare"> In Bildschirmfreigaben (Teams, Zoom …) und Bildschirmfotos unsichtbar</label>
 <label class="check"><input type="checkbox" id="lowPower"> Sparmodus: ohne Grafikbeschleunigung – braucht weniger Arbeitsspeicher (wirkt nach einem Neustart von Silkreader)</label>
+</div>
 
-<label>Tastenkürzel <span class="hint" style="font-weight:400">– zum Ändern anklicken und neue Tasten drücken</span></label>
+<h2>Tastenkürzel</h2>
+<div class="hint" style="margin-top:-4px">Zum Ändern anklicken und neue Tasten drücken.</div>
 <div id="shortcuts" class="keys"></div>
 
 <div class="row">
@@ -213,6 +232,7 @@
     $('hideFullscreen').checked = s.hideFullscreen;
     $('hideInShare').checked = s.hideInShare;
     $('uiLang').value = s.uiLang;
+    $('theme').value = s.theme || 'system';
     wantedOllama = s.ollamaModel;
     if (s.hasKey) $('key').placeholder = '•••••••• (gespeichert – leer lassen, um ihn zu behalten)';
     setProvider(s.provider);
@@ -270,13 +290,15 @@
       provider, apiKey: $('key').value, model: $('model').value,
       ollamaModel: $('ollamaModel').value, language: $('lang').value, builtinModel, hatchAnimation: $('hatch').checked, lowPower: $('lowPower').checked, pinCopied: $('pinCopied').checked,
       copyHint: $('copyHint').checked,
-      privateMode: $('privateMode').checked, hideFullscreen: $('hideFullscreen').checked, hideInShare: $('hideInShare').checked,
+      privateMode: $('privateMode').checked, hideFullscreen: $('hideFullscreen').checked, hideInShare: $('hideInShare').checked, theme: $('theme').value,
     });
     $('key').value = '';
     $('msg').textContent = 'Gespeichert ✓';
     setTimeout(() => window.close(), 700);
   });
   $('close').addEventListener('click', () => window.close());
+  // Darstellung wirkt sofort
+  $('theme').addEventListener('change', (e) => window.spider.saveSettings({ theme: e.target.value }));
   $('lPriv').addEventListener('click', () => window.spider.openPrivacy());
   $('lLic').addEventListener('click', () => window.spider.openLicenses());
   $('lLog').addEventListener('click', () => window.spider.openLog());

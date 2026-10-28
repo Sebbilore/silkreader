@@ -1,51 +1,69 @@
-/* Silkreader · „Mitternachtsseide“
-   Eine Farbpalette, eine Schrift, eine Form- und Bewegungssprache für alle Fenster. */
+/* Silkreader – ruhig wie ein eingebautes Windows-Werkzeug.
+   Neutrale Grautöne, Pink nur als Markenfarbe (Spinne, Hauptknopf, Auswahl, Fokus).
+   Hell oder dunkel folgt Windows (oder der Einstellung „Darstellung“ über nativeTheme). */
 :root {
-  /* Farben */
-  --ink: #0c0c11;            /* tiefstes Schwarz (Hintergründe) */
-  --glass: rgba(20, 20, 28, .9);   /* Blasen, Ring – dunkles Milchglas */
-  --glass-2: rgba(30, 30, 40, .82);
-  --card: #1a1a23;
+  color-scheme: dark;
+  /* Flächen */
+  --ink: #1c1c1c;            /* großer Fenstergrund */
+  --surface: #202020;        /* Blasen, Ring, kleine Fenster */
+  --glass: var(--surface);
+  --glass-2: #262626;
+  --card: #2b2b2b;           /* Zeilen und Karten */
+  --raised: #333333;         /* Knöpfe, Felder */
+  --control-line: #454545;
   --line: rgba(255, 255, 255, .08);
   --line-2: rgba(255, 255, 255, .14);
-  --silk: rgba(244, 244, 250, .92); /* Seidenfäden */
-  --text: #f1f1f6;
-  --muted: #9494a6;
-  --faint: #5f5f70;
-  --pink: #ff2d8a;           /* einziger Akzent */
-  --pink-2: #ff6aa9;
-  --pink-soft: rgba(255, 45, 138, .16);
-  --pink-glow: rgba(255, 45, 138, .45);
+  /* Schrift */
+  --text: #f2f2f2;
+  --strong: #ffffff;
+  --muted: #ababab;
+  --faint: #8f8f8f;
+  /* Marke */
+  --pink: #ff5c9d;           /* Spinne, Auswahl, Fokus */
+  --pink-2: #ff7aae;         /* Links */
+  --primary: #c42b67;        /* der eine Hauptknopf */
+  --on-primary: #ffffff;
+  --pink-soft: rgba(255, 92, 157, .14);
+  --pink-glow: rgba(255, 92, 157, .3);
+  /* Zustände */
+  --warn: #f5c27a; --warn-bg: #3a2f1f;
+  --ok: #6fd39a; --bad: #ff8a9e;
+  /* Seidenfäden */
+  --silk: rgba(244, 244, 250, .85);
   --dew: rgba(255, 255, 255, .95);
 
-  /* Schrift */
   --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
 
-  /* Formen */
-  --r-s: 8px; --r-m: 12px; --r-l: 18px; --r-pill: 999px;
-  --shadow: 0 18px 44px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35);
-  --sheen: inset 0 1px 0 rgba(255, 255, 255, .07);   /* feiner Lichtrand oben */
+  /* Formen wie Windows 11: Fenster 8 px, Bedienelemente 4 px */
+  --r-s: 4px; --r-m: 6px; --r-l: 8px; --r-pill: 4px;
+  --shadow: 0 8px 24px rgba(0, 0, 0, .35), 0 1px 3px rgba(0, 0, 0, .3);
+  --sheen: 0 0 0 transparent;
 
-  /* Bewegung */
-  --ease-spring: cubic-bezier(.2, 1.4, .4, 1);
+  /* Bewegung: kurz und ruhig */
+  --ease-spring: cubic-bezier(.2, 1.1, .4, 1);
   --ease-out: cubic-bezier(.2, .8, .2, 1);
-  --t-fast: .14s; --t-mid: .24s; --t-slow: .36s;
+  --t-fast: .12s; --t-mid: .2s; --t-slow: .26s;
+}
+/* Hell: per Attribut (preload.js) oder, falls es fehlt, nach Windows */
+:root[data-theme="light"] {
+    color-scheme: light;
+    --ink: #f3f3f3; --surface: #fbfbfb; --glass-2: #f3f3f3; --card: #ffffff; --raised: #ffffff; --control-line: #d0d0d0;
+    --line: rgba(0, 0, 0, .08); --line-2: rgba(0, 0, 0, .14);
+    --text: #1b1b1b; --strong: #000000; --muted: #5c5c5c; --faint: #6b6b6b;
+    --pink: #d81b6a; --pink-2: #b0245c; --pink-soft: rgba(216, 27, 106, .1); --pink-glow: rgba(216, 27, 106, .25);
+    --warn: #7a4300; --warn-bg: #fcefd9; --ok: #1f7a4d; --bad: #b3261e;
+    --silk: rgba(40, 40, 50, .55);
+    --shadow: 0 8px 24px rgba(0, 0, 0, .14), 0 1px 3px rgba(0, 0, 0, .1);
 }
 
 /* Gemeinsame Bausteine */
-.glass {
-  background:
-    radial-gradient(120% 80% at 0% 0%, rgba(255, 45, 138, .07), transparent 55%),
-    linear-gradient(180deg, rgba(34, 34, 46, .94), rgba(16, 16, 22, .94));
-  border: 1px solid var(--line-2);
-  box-shadow: var(--shadow), var(--sheen);
-}
+.glass { background: var(--surface); border: 1px solid var(--line-2); box-shadow: var(--shadow); }
 .icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
-@keyframes silk-pop { from { transform: scale(.3); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes silk-out { to { transform: scale(.4); opacity: 0; } }
-@keyframes silk-rise { from { opacity: 0; transform: translateY(6px); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes silk-pop { from { transform: scale(.94); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes silk-out { to { transform: scale(.96); opacity: 0; } }
+@keyframes silk-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @keyframes silk-draw { to { stroke-dashoffset: 0; } }
 @keyframes silk-spin { to { transform: rotate(360deg); } }
 @keyframes dew-glint { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
@@ -69,7 +87,7 @@
 
 /* Tastaturbedienung: deutlich sichtbarer Fokus */
 :focus { outline: none; }
-:focus-visible { outline: 2px solid var(--pink); outline-offset: 2px; border-radius: 6px; }
+:focus-visible { outline: 2px solid var(--pink); outline-offset: 2px; border-radius: var(--r-s); }
 
 /* Windows-Einstellung „Animationen anzeigen“ aus: Bewegungen auf das Nötigste reduzieren */
 @media (prefers-reduced-motion: reduce) {

@@ -1,5 +1,13 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
+// Hell oder dunkel: als Attribut am Dokument (theme.css), folgt Windows bzw. der Einstellung „Darstellung“
+let themeDark = ipcRenderer.sendSync('theme-dark');
+const setTheme = (dark) => { themeDark = dark; if (document.documentElement) document.documentElement.dataset.theme = dark ? 'dark' : 'light'; };
+// Das Vorladeskript läuft, bevor es <html> gibt: setzen, sobald das Element da ist (kein Aufblitzen)
+if (document.documentElement) setTheme(themeDark);
+else new MutationObserver((_m, obs) => { if (document.documentElement) { obs.disconnect(); setTheme(themeDark); } }).observe(document, { childList: true });
+ipcRenderer.on('theme-changed', (_e, dark) => setTheme(dark));
+
 contextBridge.exposeInMainWorld('spider', {
   uiLang: ipcRenderer.sendSync('ui-lang'),
   analyze: (doc) => ipcRenderer.invoke('analyze', doc),
@@ -20,6 +28,7 @@ contextBridge.exposeInMainWorld('spider', {
   proRefresh: () => ipcRenderer.invoke('pro-refresh'),
   showPro: (feature) => ipcRenderer.invoke('pro-show', feature),
   deadlinesList: () => ipcRenderer.invoke('deadlines-list'),
+  showDeadlines: () => ipcRenderer.invoke('show-deadlines'),
   deadlineDone: (key, done) => ipcRenderer.invoke('deadline-done', key, done),
   reviewAnswer: (a) => ipcRenderer.invoke('review-answer', a),
   onTransformProgress: (cb) => ipcRenderer.on('transform-progress', (_e, t) => cb(t)),

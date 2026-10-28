@@ -30,7 +30,32 @@ function showStart() {
   $('start').style.display = 'flex';
   $('analysis').style.display = 'none';
   $('input').focus();
+  renderSide();
 }
+
+// Rechte Spalte der Startseite: nächste Fristen und zuletzt Gelesenes
+const T = (s, v) => (window.T ? window.T(s, v) : s);
+async function renderSide() {
+  const [dls, hist] = await Promise.all([window.spider.deadlinesList(), window.spider.historyList('')]);
+  const open = dls.filter((d) => !d.done);
+  const loc = window.I18N?.locale || 'de-DE';
+  $('dlList').innerHTML = open.length ? open.slice(0, 5).map((d) => `<button class="dlRow${d.days <= 7 ? ' soon' : ''}" data-h="${esc(d.histId)}">
+    <span class="d">${new Date(`${d.iso}T00:00:00`).toLocaleDateString(loc, { day: 'numeric', month: 'short' })}</span>
+    <span class="t">${esc(d.title)}<span>${d.days === 0 ? T('heute') : d.days === 1 ? T('morgen') : T('in {n} Tagen', { n: d.days })}</span></span></button>`).join('')
+    : `<div class="empty">${T('Keine offenen Fristen.')}</div>`;
+  $('recentList').innerHTML = hist.length ? hist.slice(0, 5).map((h) => `<button data-h="${esc(h.id)}"><span class="t">${esc(h.title || h.docTitle)}</span>
+    <small>${new Date(h.date).toLocaleDateString(loc, { day: '2-digit', month: '2-digit' })}</small></button>`).join('')
+    : `<div class="empty">${T('Noch nichts gelesen.')}</div>`;
+  const soon = open.filter((d) => d.days <= 7).length;
+  $('dlBadge').textContent = soon; $('dlBadge').classList.toggle('hidden', !soon);
+}
+for (const id of ['dlList', 'recentList']) $(id).addEventListener('click', (e) => { const b = e.target.closest('[data-h]'); if (b) window.spider.historyOpen(b.dataset.h); });
+document.querySelectorAll('#side .ic').forEach((el) => { el.outerHTML = window.silkIcon ? window.silkIcon(el.dataset.i) : ''; });
+$('navRead').addEventListener('click', showStart);
+$('navNotebook').addEventListener('click', () => openNotebook());
+$('navDeadlines').addEventListener('click', () => window.spider.showDeadlines?.());
+$('navSettings').addEventListener('click', () => window.spider.openSettings());
+$('btnFile').addEventListener('click', () => window.spider.pickFile());
 
 function showAnalysis() {
   $('start').style.display = 'none';
@@ -145,7 +170,7 @@ function showPreview(doc) {
   renderDocument(doc);
   spider.hide();
   $('docTitle').innerHTML = `${esc(doc.title)}`;
-  $('scanLabel').textContent = 'BEREIT';
+  $('scanLabel').textContent = 'Bereit';
   $('counter').textContent = `${words.length.toLocaleString('de-DE')} Wörter${doc.pages.length > 1 ? ` · ${doc.pages.length} Seiten` : ''}`;
   $('bar').classList.remove('indeterminate');
   $('bar').firstElementChild.style.width = '0';
@@ -177,7 +202,7 @@ async function startAnalysis(doc) {
   if (renderedDoc !== doc) renderDocument(doc);
 
   $('docTitle').innerHTML = `${esc(doc.title)}`;
-  $('scanLabel').textContent = 'SCANNING';
+  $('scanLabel').textContent = 'Liest …';
   $('counter').textContent = `${words.length.toLocaleString('de-DE')} Wörter${doc.pages.length > 1 ? ` · ${doc.pages.length} Seiten` : ''}`;
   $('bar').classList.add('indeterminate');
   $('bar').firstElementChild.style.width = '';
@@ -196,7 +221,7 @@ async function startAnalysis(doc) {
   if (!res.ok) {
     spider.hide();
     $('bar').classList.remove('indeterminate');
-    $('scanLabel').textContent = 'FEHLER';
+    $('scanLabel').textContent = 'Fehler';
     $('panelBody').innerHTML = `<div class="error">${esc(res.error)}<div class="row">
       ${res.needsKey ? '<button class="primary" id="errSettings">Einstellungen öffnen</button>' : ''}
       <button id="errRetry">Erneut versuchen</button></div></div>`;
@@ -258,7 +283,7 @@ async function presentResult(r, myRun) {
   spider.speed = 340;
 
   if (myRun !== run) return;
-  $('scanLabel').textContent = 'FERTIG';
+  $('scanLabel').textContent = 'Fertig';
   $('btnSkip').classList.add('hidden');
 }
 
