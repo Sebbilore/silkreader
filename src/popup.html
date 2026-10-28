@@ -6,6 +6,7 @@
 <title>Silkreader</title>
 <link rel="stylesheet" href="theme.css">
 <script src="i18n.js"></script>
+<script src="eggs.js"></script>
 <script src="a11y.js"></script>
 <script src="icons.js"></script>
 <script src="facts.js"></script>
@@ -459,7 +460,25 @@
   const stopSpeaking = () => { if (speaking) window.speechSynthesis.cancel(); };
 
   // ---------- Frage an den Text ----------
+  // Fragen an die Spinne selbst beantwortet sie ohne KI (und freut sich)
+  const SMALLTALK = [
+    [/^(hallo|hi|hey|moin|servus|hello)\b[\s!.,]*(spinne|silk\w*|spider)?[\s!.]*$/i, 'Hallo! Schön, dass du da bist.', 'hello'],
+    [/wer bist du|was bist du|who are you|what are you/i, 'Ich bin Silkreader, eine kleine Spinne. Ich lese deine Briefe hier auf dem PC und erkläre sie dir.', 'flip'],
+    [/^(danke|vielen dank|thanks|thank you)\b/i, 'Gern geschehen!', 'heart'],
+    [/sinn des lebens|meaning of life|^42$/i, '42. Aber frag mich lieber etwas zu deinem Text.', 'twirl'],
+    [/magst du (mich|fliegen)|do you like (me|flies)/i, 'Fliegen? Lieber Briefe. Und dich mag ich sowieso.', 'heart'],
+  ];
   async function ask(q) {
+    const talk = SMALLTALK.find(([re]) => re.test(q.trim()));
+    if (talk) {
+      const box = document.createElement('div');
+      box.className = 'answer';
+      box.innerHTML = `<div class="q">${esc(q)}</div><div class="a">${esc(T(talk[1]))}</div>`;
+      $('answers').appendChild(box);
+      box.scrollIntoView({ block: 'nearest' });
+      window.spider.easterEgg(talk[2]);
+      return;
+    }
     const box = document.createElement('div');
     box.className = 'answer';
     box.innerHTML = `<div class="q">${esc(q)}</div><div class="a muted">Die Spinne sucht …</div>`;
@@ -829,7 +848,7 @@
     $('title').textContent = 'Über Silkreader';
     const info = await window.spider.appInfo();
     $('main').innerHTML = `<div class="about">
-      <svg class="sp" viewBox="-36 -30 72 60"><g stroke="#ff2d8a" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <svg class="sp" id="aboutSpider" viewBox="-36 -30 72 60"><g stroke="#ff2d8a" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <path d="M8 -5L18 -15L24 -4M10 -1L21 -7L28 4M10 3L20 2L26 13M8 7L16 9L20 20M-8 -5L-18 -15L-24 -4M-10 -1L-21 -7L-28 4M-10 3L-20 2L-26 13M-8 7L-16 9L-20 20"/></g>
         <circle r="11" fill="#14141b" stroke="#ff2d8a" stroke-width="1.4"/><ellipse cx="-4.4" cy="-1.6" rx="3.9" ry="4.4" fill="#fff"/><ellipse cx="4.4" cy="-1.6" rx="3.9" ry="4.4" fill="#fff"/>
         <circle cx="-4" cy="-1" r="1.9" fill="#0c0c11"/><circle cx="4.8" cy="-1" r="1.9" fill="#0c0c11"/><path d="M-2.6 5.4Q0 8.4 2.6 5.4" stroke="#ff2d8a" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>
@@ -849,6 +868,18 @@
     $('aNew').addEventListener('click', () => window.spider.openExternal(`${info.downloadRepo}/releases`));
     $('aRep').addEventListener('click', () => { setBack(about); report(); });
     $('aPro').addEventListener('click', () => { setBack(about); proView(); });
+    // Fünfmal auf die Spinne klicken: Sie dreht sich und verrät etwas über sich
+    let pokes = 0;
+    $('aboutSpider').style.cursor = 'pointer';
+    $('aboutSpider').addEventListener('click', (e) => {
+      const sp = e.currentTarget;
+      sp.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(360deg)' }], { duration: 500, easing: 'ease-out' });
+      if (++pokes === 5) {
+        pokes = 0;
+        window.spider.easterEgg('dance');
+        sp.insertAdjacentHTML('afterend', `<p class="muted" style="text-align:center">${T('Gebaut aus acht Beinen Neugier und sehr viel Seide.')}</p>`);
+      }
+    });
     $('foot').classList.add('hidden');
   }
 

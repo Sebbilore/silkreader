@@ -2518,6 +2518,10 @@ ipcMain.handle('open-external', (_e, url) => {
 });
 
 ipcMain.on('bubble-menu', () => openRing({ at: spiderScreenPos() }));
+// Kleine Überraschungen aus den Fenstern (Konami-Code, Fragen an die Spinne, Info-Seite)
+ipcMain.on('easter-egg', (_e, name) => {
+  if (['party', 'heart', 'twirl', 'hello', 'dance', 'flip', 'giggle'].includes(name) && bubbleWin?.isVisible()) bubbleWin.webContents.send('rig-trick', name);
+});
 // Altes Menü (noch über das Tray-Symbol erreichbar)
 function classicMenu() {
   return Menu.buildFromTemplate([

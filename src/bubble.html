@@ -47,6 +47,12 @@
   .letter .env { fill: #fff; stroke: #c9c9d6; stroke-width: .4; }
   .letter .flap { fill: none; stroke: var(--pink); stroke-width: .8; stroke-linejoin: round; }
   .letter .heart { fill: var(--pink); }
+  /* Saison-Hüte (Halloween, Weihnachten, Neujahr) */
+  .witch .brim, .witch .crown { fill: #2b2b2b; stroke: #555; stroke-width: .4; } .witch .band2 { fill: var(--pink); }
+  .santa .cap { fill: #d6243a; } .santa .fur, .santa .pom { fill: #fff; }
+  .partyhat .cone { fill: var(--pink); } .partyhat .dot, .partyhat .pom { fill: #fff; }
+  #fx { font: 600 10px var(--font); fill: var(--text); paint-order: stroke; stroke: var(--surface); stroke-width: 2.6px; text-anchor: middle; pointer-events: none; }
+  #confetti rect { pointer-events: none; }
   #spider { cursor: grab; }
   #spider.grabbing { cursor: grabbing; }
   #fly .wing { fill: rgba(220,235,255,.85); stroke: rgba(40,40,60,.6); stroke-width: .4; }
@@ -149,11 +155,16 @@
         <g transform="translate(3.6 -11)"><circle class="globe" r="2.4"/><path class="globe" d="M-2.4 0h4.8M0 -2.4c1.2 1 1.2 3.8 0 4.8M0 -2.4c-1.2 1 -1.2 3.8 0 4.8"/></g><circle class="pom" cx="0" cy="-15.6" r="2"/></g>
       <g class="bulb" id="accSimplify"><g id="bulbBob"><path class="glass" d="M0 -27a4.6 4.6 0 0 1 2.8 8.2c-.6.5 -.8 1 -.8 1.8h-4c0 -.8 -.2 -1.3 -.8 -1.8A4.6 4.6 0 0 1 0 -27z"/>
         <rect class="base" x="-2" y="-16.6" width="4" height="2.4" rx=".8"/><path class="ray" d="M-7.5 -23h-2M7.5 -23h2M-5.5 -28.5l-1.4 -1.4M5.5 -28.5l1.4 -1.4M0 -30v-2"/></g></g>
+      <g class="witch" id="accHalloween"><ellipse class="brim" cx="0" cy="-8.6" rx="13" ry="2.4"/><path class="crown" d="M-6.4 -9 L-1 -24 Q1 -27.5 4.2 -25.6 L1.6 -23.4 L6.4 -9 Z"/><rect class="band2" x="-6.2" y="-12.2" width="12.4" height="2.4" rx=".6"/></g>
+      <g class="santa" id="accXmas"><path class="cap" d="M-9.4 -7.2 Q-3 -21 11.6 -15.4 L9.8 -7.2 Z"/><rect class="fur" x="-10.6" y="-9" width="21.2" height="3.4" rx="1.7"/><circle class="pom" cx="12.4" cy="-15.6" r="2.3"/></g>
+      <g class="partyhat" id="accNewyear"><path class="cone" d="M-6 -8.4 L0 -25 L6 -8.4 Z"/><circle class="dot" cx="-1.6" cy="-13" r=".9"/><circle class="dot" cx="1.8" cy="-17.6" r=".8"/><circle class="dot" cx="2.4" cy="-11" r=".8"/><circle class="pom" cx="0" cy="-25.6" r="1.9"/></g>
       <g class="letter" id="accReply" transform="translate(15 9) rotate(-14)"><rect class="env" x="-5.5" y="-4" width="11" height="8" rx="1"/><path class="flap" d="M-5.5 -4l5.5 4.2 5.5 -4.2"/><path class="heart" d="M0 1.6l-1.4 -1.3a.8.8 0 0 1 1.4 -.8a.8.8 0 0 1 1.4 .8z"/></g>
     </g>
     <path id="sparkle" d="M14 -14l1 -3 1 3 3 1 -3 1 -1 3 -1 -3 -3 -1z"/>
   </g>
   <text id="zzz" x="0" y="0" opacity="0">z</text>
+  <text id="fx" x="0" y="0" opacity="0"></text>
+  <g id="confetti"></g>
 </svg>
 <div id="zoneGlow"></div>
 <div id="items"></div>
@@ -170,7 +181,7 @@
     eyeL: $('eyeL'), eyeR: $('eyeR'), pupilL: $('pupilL'), pupilR: $('pupilR'), mouth: $('mouth'),
     fly: $('fly'), wingL: $('wingL'), wingR: $('wingR'), zzz: $('zzz'),
     glintL: $('glintL'), glintR: $('glintR'), happyL: $('happyL'), happyR: $('happyR'), browL: $('browL'), browR: $('browR'),
-    sparkle: $('sparkle'), bulbBob: $('bulbBob'),
+    sparkle: $('sparkle'), bulbBob: $('bulbBob'), fx: $('fx'),
   };
   const W = window.innerWidth, H = window.innerHeight;
   const AX = W / 2; // Aufhängepunkt oben in der Mitte
@@ -282,6 +293,7 @@
     } },
   };
   function doTrick(name) {
+    if (!TRICKS[name]) return;
     if (typeof kick === 'function') kick();
     trick = name;
     trickStart = performance.now();
@@ -327,7 +339,7 @@
     requestAnimationFrame(frame);
   }
   function frame(now) {
-    const active = dragging || hover || trick || catching || busy || talking || Math.abs(omega) > 0.6 || Math.abs(lenV) > 40;
+    const active = dragging || hover || trick || catching || busy || talking || fx || bits.length || Math.abs(omega) > 0.6 || Math.abs(lenV) > 40;
     const calm = !active && document.body.classList.contains('faded');
     const minGap = sleeping ? 330 : active ? 0 : calm ? 250 : 100;
     schedule(minGap);
@@ -359,6 +371,7 @@
     const v = (ax - lastAnchor) / Math.max(dt, 0.001);
     const acc = (v - anchorV) / Math.max(dt, 0.001);
     anchorV = v; lastAnchor = ax;
+    if (dragging && Math.abs(v) > 700) { const sg = Math.sign(v); if (shake.dir && sg !== shake.dir) shake.flips.push(now); shake.dir = sg; }
     const L = Math.max(30, len + 20);
     const nearMouse = Math.hypot(cursor.x - spiderPos.x, cursor.y - spiderPos.y) < 130 && !dragging;
     const breeze = sleeping || nearMouse || calm ? 0 : Math.sin(t * 0.7) * 0.25 + Math.sin(t * 1.9) * 0.1;
@@ -373,7 +386,8 @@
     let sx = AX + Math.sin(theta) * Math.max(len, 0);
     let sy = Math.cos(theta) * len + 11;
     let rot = -theta * 57.3 + spin + (busy ? Math.sin(t * 14) * 8 : 0) + (trick === 'shrug' ? Math.sin(t * 22) * 14 : 0)
-      + (trick === 'scared' && lenOverride === null ? Math.sin(t * 60) * 7 : 0);
+      + (trick === 'scared' && lenOverride === null ? Math.sin(t * 60) * 7 : 0)
+      + (trick === 'giggle' ? Math.sin(t * 40) * 9 : 0) + (trick === 'dizzy' ? Math.sin(t * 2.6) * 20 : 0);
 
     if (trick === 'web') {
       const p = (now - trickStart) / (trickUntil - trickStart);
@@ -420,6 +434,8 @@
 
     drawLegs(t);
     drawFace(now);
+    drawFx(now);
+    drawConfetti(now, dt);
     hitTest(now);
   }
 
@@ -446,8 +462,10 @@
   }
 
   function drawLegs(t) {
-    const speed = busy ? 20 : hover ? 9 : trick === 'dance' ? 16 : trick === 'web' ? 14 : sleeping ? 0.6 : 3;
-    const amp = busy ? 2.2 : trick === 'dance' ? 3.5 : trick === 'web' ? 2.4 : hover ? 1.8 : sleeping ? 0.4 : 1.1;
+    const party = trick === 'dance' || trick === 'party' || trick === 'giggle';
+    const speed = busy ? 20 : hover ? 9 : party ? 16 : trick === 'web' ? 14 : sleeping ? 0.6 : 3;
+    const amp = busy ? 2.2 : party ? 3.5 : trick === 'web' ? 2.4 : hover ? 1.8 : sleeping ? 0.4 : 1.1;
+    const since = performance.now() - trickStart;
     LEGS.forEach((l, n) => {
       let { hx, hy, kx, ky, fx, fy } = l;
       const ph = Math.sin(t * speed + l.i * 1.3 + (l.side > 0 ? 0 : Math.PI));
@@ -459,6 +477,13 @@
         kx = 16; ky = -22; fx = 22 + w; fy = -32;
       }
       if (trick === 'bungee' && len > baseLen + 40) { fy -= 10; ky -= 8; } // Beine hoch im freien Fall
+      if (trick === 'stretch') { // alle Beine weit ausstrecken, dann wieder entspannen
+        const e = since < 900 ? since / 900 : Math.max(0, 1 - (since - 1300) / 700);
+        fx *= 1 + 0.3 * e; kx *= 1 + 0.12 * e; fy -= 5 * e * (l.i < 2 ? 1 : -0.4);
+      }
+      if (trick === 'twirl') { fx *= 0.68; fy = fy * 0.6 + 3; kx *= 0.8; }
+      if (trick === 'drum' && l.i === 0) { kx = 13 * l.side; ky = 10; fx = 11 * l.side; fy = 17 + Math.sin(t * 38 + (l.side > 0 ? 0 : Math.PI)) * 4; }
+      if (trick === 'party' && l.i === 0) { kx = 16 * l.side; ky = -20; fx = 21 * l.side + Math.sin(t * 16) * 3; fy = -30; } // Arme hoch
       // Fußgelenk: kurz vor dem Fuß, leicht nach oben geknickt
       const ax = kx + (fx - kx) * 0.68, ay = ky + (fy - ky) * 0.68 - 1.6;
       const L = legEls[n];
@@ -473,6 +498,10 @@
   let proudUntil = 0;
   function moodNow(now) {
     if (trick === 'scared' || trick === 'return' || trick === 'shrug') return 'scared';
+    if (trick === 'stretch') return 'yawn';
+    if (trick === 'dizzy') return 'dizzy';
+    if (trick === 'giggle' || trick === 'heart' || trick === 'party') return 'proud';
+    if (trick === 'sneeze' && now - trickStart < 900) return 'sniff';
     if (busy) return 'focus';
     if (now < proudUntil) return 'proud';
     if (sleeping) return 'sleep';
@@ -487,8 +516,13 @@
   function drawFace(now) {
     const mood = moodNow(now);
     if (now > nextBlink) { blinkUntil = now + 130; nextBlink = now + (mood === 'sleepy' ? 1600 : 2500) + Math.random() * 4000; }
-    const closed = mood === 'sleep' || now < blinkUntil;
-    const happyEyes = mood === 'proud';
+    const closed = mood === 'sleep' || mood === 'yawn' || mood === 'sniff' || now < blinkUntil;
+    const happyEyes = mood === 'proud' || mood === 'dizzy';
+    // Spiralaugen beim Schwindel, sonst Lach-Augen
+    const hp = mood === 'dizzy' ? ['M-4.4 -1.6 m-.7 0 a.7 .7 0 1 1 1.4 0 a1.5 1.5 0 1 1 -3 .2 a2.4 2.4 0 1 1 4.6 .5', 'M4.4 -1.6 m-.7 0 a.7 .7 0 1 1 1.4 0 a1.5 1.5 0 1 1 -3 .2 a2.4 2.4 0 1 1 4.6 .5'] : ['M-7 -1 q2.6 -3.4 5.2 0', 'M1.8 -1 q2.6 -3.4 5.2 0'];
+    if (el.happyL.getAttribute('d') !== hp[0]) { el.happyL.setAttribute('d', hp[0]); el.happyR.setAttribute('d', hp[1]); }
+    el.happyL.setAttribute('transform', mood === 'dizzy' ? `rotate(${(now / 4) % 360} -4.4 -1.6)` : '');
+    el.happyR.setAttribute('transform', mood === 'dizzy' ? `rotate(${(now / 4) % 360} 4.4 -1.6)` : '');
     const ry = closed ? 0.5 : mood === 'focus' ? 3 : mood === 'sleepy' ? 2 : mood === 'scared' ? 5.1 : mood === 'surprised' ? 5 : 4.4;
     el.eyeL.setAttribute('ry', ry); el.eyeR.setAttribute('ry', ry);
     el.eyeL.style.opacity = el.eyeR.style.opacity = happyEyes ? 0 : 1;
@@ -498,7 +532,8 @@
     el.browL.style.opacity = el.browR.style.opacity = brows ? 1 : 0;
     if (brows) { el.browL.setAttribute('d', brows[0]); el.browR.setAttribute('d', brows[1]); }
     // Pupillen schauen zum Mauszeiger – oder zur Fliege; beim Lesen nach unten auf den Text
-    const look = trick === 'fly' && fly.on && el.fly.style.display !== 'none' ? fly : mood === 'focus' ? { x: spiderPos.x, y: spiderPos.y + 80 } : cursor;
+    const look = trick === 'fly' && fly.on && el.fly.style.display !== 'none' ? fly : trick === 'look' ? { x: spiderPos.x + (now - trickStart < 1300 ? -300 : 300), y: spiderPos.y - 10 }
+      : mood === 'focus' ? { x: spiderPos.x, y: spiderPos.y + 80 } : cursor;
     const ang = (-theta * 57.3 + spin) * Math.PI / 180;
     const pr = mood === 'scared' ? 1.05 : mood === 'surprised' ? 1.3 : mood === 'sleepy' ? 1.5 : 1.9;
     for (const [p, g, ex] of [[el.pupilL, el.glintL, -4.4], [el.pupilR, el.glintR, 4.4]]) {
@@ -519,6 +554,9 @@
     const chewing = now < chewUntil;
     const mouth = talking ? (Math.sin(now / 85) > 0 ? 'M-2.4 5.2 Q0 9.4 2.4 5.2 Z' : 'M-2 6 Q0 7.4 2 6')
       : mood === 'sleep' ? 'M-2 6 Q0 6.8 2 6'
+      : mood === 'yawn' ? 'M-2.4 5 a2.4 3 0 1 0 4.8 0 a2.4 3 0 1 0 -4.8 0'
+      : mood === 'dizzy' ? 'M-2.6 6.6 q1.3 -1.4 2.6 0 q1.3 1.4 2.6 0'
+      : mood === 'sniff' ? 'M-1.6 6.2 Q0 5.4 1.6 6.2'
       : chewing ? (Math.sin(now / 70) > 0 ? 'M-2.4 5.4 Q0 8.4 2.4 5.4' : 'M-2.4 6.4 L2.4 6.4')
       : mood === 'proud' ? 'M-3.8 4.8 Q0 10.4 3.8 4.8 Z'
       : mood === 'focus' ? 'M-1.8 6.3 L1.8 6.3'
@@ -564,7 +602,9 @@
     // Aufwachen, wenn die Maus in die Nähe kommt; Winken, wenn sie neu auftaucht
     const near = d < 130;
     if (near) { if (sleeping) wake(); else lastActivity = now; }
-    if (near && !wasNear && !trick && now - lastHello > 30000) { doTrick('hello'); lastHello = now; }
+    if (near && !wasNear && !trick && now - lastHello > 30000) { if (!nightOwl()) doTrick('hello'); lastHello = now; }
+    // Streicheln: Maus ruht ein paar Sekunden auf der Spinne
+    if (hover && hoverSince && now - hoverSince > 4000 && !trick && now - lastPet > 25000) { lastPet = now; doTrick('heart'); }
     wasNear = near;
   }
   TRICKS.hello = { w: 0, run: () => 1400 };
@@ -586,6 +626,103 @@
   TRICKS.wrap = { w: 0, run: () => { spinTarget += 720; return 1200; } };
   // Nichts markiert: Kopf schütteln mit Fragezeichen
   TRICKS.shrug = { w: 0, run: () => 1300 };
+
+  // ---------- Weitere Animationen und kleine Überraschungen ----------
+  const T_ = (t) => (window.T ? window.T(t) : t);
+  // Schwebender Text über der Spinne (Hatschi!, Herz, Hihi …)
+  let fx = null;
+  function floatText(text, ms = 1600) { fx = { start: performance.now(), ms }; el.fx.textContent = text; kick(); }
+  function drawFx(now) {
+    if (!fx) return;
+    const p = (now - fx.start) / fx.ms;
+    if (p >= 1) { fx = null; el.fx.setAttribute('opacity', '0'); return; }
+    el.fx.setAttribute('x', spiderPos.x.toFixed(1)); el.fx.setAttribute('y', (spiderPos.y - 22 - p * 14).toFixed(1));
+    el.fx.setAttribute('opacity', (p < 0.12 ? p / 0.12 : 1 - Math.max(0, p - 0.65) / 0.35).toFixed(2));
+  }
+  // Konfetti (Party, Neujahr)
+  let bits = [];
+  function confetti(n = 36) {
+    const g = $('confetti');
+    const cols = ['#ff5c9d', '#ffffff', '#ffd166', '#7ad1ff', '#c42b67'];
+    for (let i = 0; i < n; i++) {
+      const r = document.createElementNS(NS, 'rect');
+      r.setAttribute('width', '3'); r.setAttribute('height', '1.8'); r.setAttribute('fill', cols[i % cols.length]);
+      g.appendChild(r);
+      bits.push({ el: r, x: spiderPos.x, y: spiderPos.y - 6, vx: (Math.random() - 0.5) * 180, vy: -90 - Math.random() * 140,
+        a: Math.random() * 360, va: (Math.random() - 0.5) * 720, born: performance.now() });
+    }
+    kick();
+  }
+  function drawConfetti(now, dt) {
+    if (!bits.length) return;
+    bits = bits.filter((b) => {
+      b.vy += 260 * dt; b.vx *= 0.99; b.x += b.vx * dt; b.y += b.vy * dt; b.a += b.va * dt;
+      const age = (now - b.born) / 1000;
+      if (age > 2.6 || b.y > H + 10) { b.el.remove(); return false; }
+      b.el.setAttribute('transform', `translate(${b.x.toFixed(1)} ${b.y.toFixed(1)}) rotate(${b.a.toFixed(0)})`);
+      b.el.setAttribute('opacity', Math.min(1, 2.6 - age).toFixed(2));
+      return true;
+    });
+  }
+  Object.assign(TRICKS, {
+    stretch: { w: 1, run: () => 2200 },                                   // gähnen und strecken
+    heart:   { w: 1, run: () => { floatText('♥', 1800); return 1800; } },
+    sneeze:  { w: 1, run: () => {                                         // erst kribbelt es, dann: Hatschi!
+      setTimeout(() => {
+        if (trick !== 'sneeze') return;
+        floatText(T_('Hatschi!'), 1300);
+        lenOverride = Math.max(minLen, baseLen - 30);
+        setTimeout(() => { if (trick === 'sneeze') lenOverride = null; }, 240);
+      }, 900);
+      return 2200;
+    } },
+    twirl:   { w: 1, run: () => { spinTarget += 1080; return 2400; } },   // dreht sich am Faden
+    look:    { w: 2, run: () => 2600 },                                   // schaut nach links und rechts
+    drum:    { w: 1, run: () => 1800 },                                   // trommelt mit den Vorderbeinen
+    // nur als Überraschung
+    giggle:  { w: 0, run: () => { floatText(T_('Hihi, das kitzelt!'), 1800); return 1800; } },
+    dizzy:   { w: 0, run: () => { floatText(T_('Mir ist schwindelig …'), 2600); return 3000; } },
+    party:   { w: 0, run: () => { confetti(); [0, 700, 1400].forEach((d) => setTimeout(() => { if (trick === 'party') spinTarget += 360; }, d)); return 3200; } },
+  });
+  // Saison: Hexenhut zu Halloween, Mütze zu Weihnachten, Partyhut zu Neujahr
+  let seasonCache = { at: 0, v: null };
+  function season() {
+    if (window.__season !== undefined) return window.__season; // für Tests
+    const now = Date.now();
+    if (now - seasonCache.at < 60000) return seasonCache.v;
+    const d = new Date(), m = d.getMonth() + 1, day = d.getDate();
+    const v = (m === 10 && day >= 30) || (m === 11 && day === 1) ? 'halloween'
+      : m === 12 && day >= 20 && day <= 26 ? 'xmas'
+      : (m === 12 && day === 31) || (m === 1 && day === 1) ? 'newyear' : null;
+    seasonCache = { at: now, v };
+    return v;
+  }
+  if (season() === 'newyear') setTimeout(() => confetti(50), 2500);
+  // Nachteule: zwischen Mitternacht und 4 Uhr einmal pro Nacht
+  function nightOwl() {
+    const d = new Date();
+    if (d.getHours() >= 4) return false;
+    try { if (localStorage.getItem('silkOwl') === d.toDateString()) return false; localStorage.setItem('silkOwl', d.toDateString()); } catch { return false; }
+    doTrick('stretch');
+    setTimeout(() => showTip(T_('Noch wach? Ich auch …'), 3200), 400);
+    return true;
+  }
+  // Kitzeln: Maus schnell über der Spinne hin und her
+  const tickle = { lastX: null, dir: 0, flips: [] };
+  function checkTickle(p) {
+    const now = performance.now();
+    if (dragging || Math.hypot(p.x - spiderPos.x, p.y - spiderPos.y) > 30) { tickle.lastX = null; return; }
+    if (tickle.lastX !== null) {
+      const dx = p.x - tickle.lastX;
+      if (Math.abs(dx) > 2) { const dir = Math.sign(dx); if (tickle.dir && dir !== tickle.dir) tickle.flips.push(now); tickle.dir = dir; }
+    }
+    tickle.lastX = p.x;
+    tickle.flips = tickle.flips.filter((x) => now - x < 1500);
+    if (tickle.flips.length >= 7 && trick !== 'giggle') { tickle.flips = []; if (trick) endTrick(); doTrick('giggle'); }
+  }
+  // Schütteln: Spinne am Faden schnell hin und her ziehen
+  const shake = { dir: 0, flips: [] };
+  let lastPet = 0;
 
   // ---------- Ablage-Netz ----------
   // Festgehaltene Dokumente kleben als kleine Dateisymbole (mit Vorschau) im Netz.
@@ -726,12 +863,12 @@
   const MODES = [['read', 'Lesen', ''], ['translate', 'Übersetzen', '⇄'], ['simplify', 'Einfach', 'Aa'], ['reply', 'Antworten', '↩']];
   let clickMode = 'read', lastWheel = 0, tipTimer = null, glassesUntil = 0;
   let taskMode = null, taskUntil = 0, shownAcc = null, talking = false;
-  const ACC = { read: 'accRead', translate: 'accTranslate', simplify: 'accSimplify', reply: 'accReply' };
+  const ACC = { read: 'accRead', translate: 'accTranslate', simplify: 'accSimplify', reply: 'accReply', halloween: 'accHalloween', xmas: 'accXmas', newyear: 'accNewyear' };
   // Welches Accessoire trägt die Spinne gerade? Läuft eine Aufgabe: deren Accessoire (Lesebrille, Mütze, Glühbirne, Brief),
   // sonst das des Klick-Modus (im Lese-Modus ohne Brille – die gibt es nur beim Lesen)
   function updateAccessory(now) {
     if (busy && taskMode) taskUntil = now + 3000;
-    const m = now < taskUntil ? taskMode : now < glassesUntil ? 'read' : clickMode === 'read' ? null : clickMode;
+    const m = now < taskUntil ? taskMode : now < glassesUntil ? 'read' : clickMode === 'read' ? season() : clickMode;
     if (m === shownAcc) return;
     shownAcc = m;
     for (const [mode, id] of Object.entries(ACC)) $(id).classList.toggle('on', mode === m);
@@ -784,10 +921,15 @@
   window.spider.onRigInit((d) => { minLen = d.minLen; maxLen = d.maxLen; baseLen = d.length; setClickMode(d.clickMode, false); });
   window.spider.onCursor((p) => {
     cursor = p;
+    checkTickle(p);
     if (Math.hypot(p.x - spiderPos.x, p.y - spiderPos.y) < 230 || webIsOpen()) kick();
   });
   window.spider.onThreadLength((l) => { baseLen = l; });
-  window.spider.onRigDragging((d) => { dragging = d; el.spider.classList.toggle('grabbing', d); });
+  window.spider.onRigDragging((d) => {
+    dragging = d; el.spider.classList.toggle('grabbing', d);
+    if (!d && shake.flips.filter((x) => performance.now() - x < 2000).length >= 4) { if (trick) endTrick(); doTrick('dizzy'); }
+    if (!d) { shake.flips = []; shake.dir = 0; }
+  });
   window.spider.onRigTrick((t) => { wake(); if (trick) endTrick(); doTrick(t); });
   window.spider.onBusy((b) => {
     busy = b;

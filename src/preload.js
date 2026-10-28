@@ -60,6 +60,7 @@ contextBridge.exposeInMainWorld('spider', {
   onCocoons: (cb) => ipcRenderer.on('cocoons', (_e, list) => cb(list)),
   onCocoonCopied: (cb) => ipcRenderer.on('cocoon-copied', (_e, id) => cb(id)),
   onRigTrick: (cb) => ipcRenderer.on('rig-trick', (_e, t) => cb(t)),
+  easterEgg: (name) => ipcRenderer.send('easter-egg', name),
   onOverlayStart: (cb) => ipcRenderer.on('overlay-start', (_e, d) => cb(d)),
   overlayDone: () => ipcRenderer.send('overlay-done'),
   analyzeText: (text) => ipcRenderer.invoke('analyze-text', text),
