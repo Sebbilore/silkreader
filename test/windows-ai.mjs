@@ -85,7 +85,8 @@ try {
   const t = await silk(() => global.__silk.transformTimed('translate', 'Der Umsatz stieg um 18 Prozent auf 412 Millionen Euro. Die Dividende steigt auf 1,10 Euro je Aktie.'));
   check('Übersetzen mit echter KI (Deutsch → Englisch)', /revenue|sales|turnover|dividend/i.test(t.text || '') && !/Umsatz/.test(t.text || ''), `${(t.ms / 1000).toFixed(1)} s: ${String(t.text).slice(0, 160)}`);
   const t2 = await silk(() => global.__silk.transformTimed('translate', 'Revenue rose by 18 percent to 412 million euros.'));
-  check('Übersetzen mit echter KI (Englisch → Deutsch)', /Umsatz|stieg|Prozent/i.test(t2.text || ''), `${(t2.ms / 1000).toFixed(1)} s: ${String(t2.text).slice(0, 160)}`);
+  // Jede richtige deutsche Wortwahl zählt (Umsatz, Einnahmen, Erlöse …) – nur Englisch darf es nicht mehr sein
+  check('Übersetzen mit echter KI (Englisch → Deutsch)', /Umsatz|Einnahmen|Erlös|stieg|gestiegen|gesteigert|Prozent|Millionen/i.test(t2.text || '') && !/\b(revenue|rose|million)\b/i.test(t2.text || ''), `${(t2.ms / 1000).toFixed(1)} s: ${String(t2.text).slice(0, 160)}`);
   const rp = await silk(() => global.__silk.transformTimed('reply', 'Hallo Frau Weber, können wir den Termin am Donnerstag auf 14 Uhr verschieben? Viele Grüße, Jan'));
   check('Antwort-Entwurf mit echter KI', (rp.text || '').length > 30 && /Donnerstag|14|Termin/i.test(rp.text || ''), `${(rp.ms / 1000).toFixed(1)} s: ${String(rp.text).slice(0, 160)}`, false);
   const sm = await silk(() => global.__silk.transformTimed('simplify', 'Die Nettoverschuldung erhöhte sich infolge des negativen Free Cashflows auf 238 Millionen Euro.'));
