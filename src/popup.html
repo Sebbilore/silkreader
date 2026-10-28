@@ -848,10 +848,10 @@
     $('title').textContent = 'Über Silkreader';
     const info = await window.spider.appInfo();
     $('main').innerHTML = `<div class="about">
-      <svg class="sp" id="aboutSpider" viewBox="-36 -30 72 60"><g stroke="#ff2d8a" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <svg class="sp" id="aboutSpider" viewBox="-36 -30 72 60"><g stroke="var(--pink)" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <path d="M8 -5L18 -15L24 -4M10 -1L21 -7L28 4M10 3L20 2L26 13M8 7L16 9L20 20M-8 -5L-18 -15L-24 -4M-10 -1L-21 -7L-28 4M-10 3L-20 2L-26 13M-8 7L-16 9L-20 20"/></g>
-        <circle r="11" fill="#14141b" stroke="#ff2d8a" stroke-width="1.4"/><ellipse cx="-4.4" cy="-1.6" rx="3.9" ry="4.4" fill="#fff"/><ellipse cx="4.4" cy="-1.6" rx="3.9" ry="4.4" fill="#fff"/>
-        <circle cx="-4" cy="-1" r="1.9" fill="#0c0c11"/><circle cx="4.8" cy="-1" r="1.9" fill="#0c0c11"/><path d="M-2.6 5.4Q0 8.4 2.6 5.4" stroke="#ff2d8a" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>
+        <circle r="11" fill="#2b2b2b" stroke="var(--pink)" stroke-width="1.2"/><ellipse cx="-4.4" cy="-1.6" rx="3.9" ry="4.4" fill="#fff"/><ellipse cx="4.4" cy="-1.6" rx="3.9" ry="4.4" fill="#fff"/>
+        <circle cx="-4" cy="-1" r="1.9" fill="#111"/><circle cx="4.8" cy="-1" r="1.9" fill="#111"/><path d="M-2.6 5.4Q0 8.4 2.6 5.4" stroke="var(--pink)" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
       <h2>Silkreader</h2><div class="v">Version ${esc(info.version)}</div>
       <p>Eine Spinne, die für dich liest.</p>
       <p>Zusammenfassungen und Antworten erstellt eine KI. Sie kann sich irren – bei Verträgen, Fristen und Zahlen bitte immer das Original prüfen.</p>
