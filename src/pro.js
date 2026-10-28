@@ -7,6 +7,8 @@
 const crypto = require('crypto');
 
 const ENABLED = true;
+// Kaufen ist noch nicht freigeschaltet: Pro gibt es vorerst nur per Code, die App zeigt „kommt bald“.
+const COMING_SOON = true;
 // Im Partner Center unter Add-ons: Produkt-ID (selbst gewählt) und Store-ID (9…, nach dem Anlegen sichtbar)
 const ADDON_ID = 'silkreader.pro';
 const ADDON_STORE_ID = '9NBHSZQJ7CJP';
@@ -119,9 +121,10 @@ function status() {
     enabled: ENABLED, active: active(),
     source: state.store ? 'store' : state.code ? 'code' : null,
     until: state.code?.until ? state.code.until.toISOString() : null,
-    canBuy: !!(process.windowsStore && ADDON_STORE_ID),
+    comingSoon: COMING_SOON,
+    canBuy: !COMING_SOON && !!(process.windowsStore && ADDON_STORE_ID),
     // Installer-Version: kein Kauf möglich, aber Hinweis auf die Store-Version
-    viaStoreApp: !process.windowsStore,
+    viaStoreApp: !COMING_SOON && !process.windowsStore,
     features: FEATURES,
   };
 }

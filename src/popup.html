@@ -94,7 +94,7 @@
   .fchk { flex: none; width: 18px; height: 18px; margin-top: 1px; border: 1.5px solid var(--pink); border-radius: 5px; background: none; cursor: pointer; padding: 0; }
   .fr.done .fchk { background: var(--pink); } .fr.done .ft { opacity: .55; } .fr.done .fn { text-decoration: line-through; }
   details.sec summary { cursor: pointer; }
-  .pro-on { color: #6fd39a; font-weight: 600; margin: 4px 0 8px; } .pro-why { margin: 2px 0 8px; font-size: 13.5px; }
+  .pro-on { color: #6fd39a; font-weight: 600; margin: 4px 0 8px; } .pro-why { margin: 2px 0 8px; font-size: 13.5px; } .pro-soon { margin: 0 0 4px; color: var(--muted, #a9a9b6); font-size: 13px; line-height: 1.45; }
   .pro-list { list-style: none; padding: 0; margin: 0 0 6px; font-size: 12.5px; } .pro-list li { margin: 3px 0; display: flex; gap: 8px; }
   .pro-list li::before { content: "✓"; color: var(--pink); font-weight: 700; } .pro-list li.hit span { color: #fff; font-weight: 650; }
   .go { background: var(--pink); color: #fff; border: none; border-radius: var(--r-pill); padding: 8px 16px; font: inherit; font-weight: 650; cursor: pointer; }
@@ -774,10 +774,10 @@
     $('main').innerHTML = `
       ${st.active
         ? `<div class="pro-on">✓ ${T('Pro ist aktiv')}${st.source === 'code' ? ` <span class="muted">· ${until ? T('per Code, gültig bis {d}', { d: until }) : T('per Code, unbegrenzt')}</span>` : st.source === 'store' ? ` <span class="muted">· ${T('über den Microsoft Store')}</span>` : ''}</div>`
-        : feature ? `<p class="pro-why">${T('{f} gibt es mit Silkreader Pro.', { f: T(st.features[feature] || feature) })}</p>` : `<p class="pro-why">${T('Mehr aus deinen Briefen holen – einmal kaufen, kein Abo.')}</p>`}
+        : feature ? `<p class="pro-why">${T('{f} gibt es mit Silkreader Pro.', { f: T(st.features[feature] || feature) })}</p>` : `<p class="pro-why">${T('Mehr aus deinen Briefen holen.')}</p>`}
       <ul class="pro-list">${list}</ul>
       <p class="muted" style="margin:4px 0 10px">${T('Immer frei: Zusammenfassen, Fragen an den Text, Fristen, Notizbuch, In deiner Sprache.')}</p>
-      ${st.active ? '' : `${st.canBuy ? `<button class="go" id="proBuy">${T('Pro im Microsoft Store holen')}</button>` : st.viaStoreApp ? `<p class="muted" style="margin:0 0 8px">${T('Pro kaufen geht in der Silkreader-Version aus dem Microsoft Store.')}</p><button class="go" id="proBuy">${T('Silkreader im Microsoft Store öffnen')}</button>` : ''}
+      ${st.active ? '' : `${st.comingSoon ? `<p class="pro-soon">${T('Silkreader Pro kommt bald. Bis dahin lassen sich die Pro-Funktionen nur mit einem persönlichen Code freischalten.')}</p>` : st.canBuy ? `<button class="go" id="proBuy">${T('Pro im Microsoft Store holen')}</button>` : st.viaStoreApp ? `<p class="muted" style="margin:0 0 8px">${T('Pro kaufen geht in der Silkreader-Version aus dem Microsoft Store.')}</p><button class="go" id="proBuy">${T('Silkreader im Microsoft Store öffnen')}</button>` : ''}
       <div class="set" style="margin-top:12px"><div class="h">${T('Du hast einen Code?')}</div>
         <div class="coderow"><input class="ask" id="proCode" placeholder="SILK-…" spellcheck="false" data-noi18n><button class="go small" id="proRedeem">${T('Einlösen')}</button></div>
         <div class="muted" id="proMsg"></div></div>`}`;

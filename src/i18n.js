@@ -38,7 +38,7 @@
     'Mit Windows starten …': 'Start with Windows …',
     'Silkreader Pro': 'Silkreader Pro', 'Silkreader Pro ✓': 'Silkreader Pro ✓', 'Silkreader Pro …': 'Silkreader Pro …', 'Pro ist aktiv': 'Pro is active', 'Pro ist aktiv ✓': 'Pro is active ✓',
     'per Code, gültig bis {d}': 'via code, valid until {d}', 'per Code, unbegrenzt': 'via code, unlimited', 'über den Microsoft Store': 'via the Microsoft Store',
-    'Mehr aus deinen Briefen holen – einmal kaufen, kein Abo.': 'Get more out of your letters – buy once, no subscription.',
+    'Mehr aus deinen Briefen holen.': 'Get more out of your letters.', 'Silkreader Pro kommt bald. Bis dahin lassen sich die Pro-Funktionen nur mit einem persönlichen Code freischalten.': 'Silkreader Pro is coming soon. Until then, Pro features can only be unlocked with a personal code.',
     'Immer frei: Zusammenfassen, Fragen an den Text, Fristen, Notizbuch, In deiner Sprache.': 'Always free: summaries, questions about the text, deadlines, notebook, in your language.',
     'Pro im Microsoft Store holen': 'Get Pro in the Microsoft Store', 'Pro kaufen geht in der Silkreader-Version aus dem Microsoft Store.': 'Pro can be bought in the Microsoft Store version of Silkreader.', 'Silkreader im Microsoft Store öffnen': 'Open Silkreader in the Microsoft Store', 'Du hast einen Code?': 'Have a code?', 'Einlösen': 'Redeem',
     'Dieser Code ist unvollständig. Bitte genau so einfügen, wie du ihn bekommen hast.': 'This code is incomplete. Please paste it exactly as you received it.',
