@@ -47,6 +47,8 @@ ok('Briefdatum ist keine Frist', !L?.deadlines.some((d) => d.iso === '2026-10-20
 ok('Verwendungszweck', L?.refs.some((r) => r.label === 'Verwendungszweck' && r.value.includes('RE-2026-4711')), JSON.stringify(L?.refs));
 ok('Empfänger', /Stadtwerke/.test(L?.recipient), L?.recipient);
 ok('Falsche IBAN abgelehnt', !F.ibanValid('DE89 3704 0044 0532 0130 01'));
+const L2 = F.letterFacts(brief.replace('Kundennummer: 123456', 'Kundennummer: 700 512 33'), { now });
+ok('Nummern mit Leerzeichen', L2?.refs.some((r) => r.value === '700 512 33'), JSON.stringify(L2?.refs));
 
 const bescheid = `Finanzamt Musterstadt
 Datum: 01.10.2026

@@ -188,8 +188,8 @@
     const refs = [
       ['Verwendungszweck', ref(/verwendungszweck\s*:?\s*([^\n]{3,60})/i)],
       ['Aktenzeichen', ref(/(?:aktenzeichen|az\.|geschäftszeichen|unser zeichen)\s*:?\s*([A-Z0-9][^\n,;]{2,40})/i)],
-      ['Rechnungsnummer', ref(/rechnungs(?:-?nr\.?|nummer)\s*:?\s*([A-Z0-9][A-Z0-9\-/]{2,30})/i)],
-      ['Kundennummer', ref(/kunden(?:-?nr\.?|nummer)\s*:?\s*([A-Z0-9][A-Z0-9\-/]{2,30})/i)],
+      ['Rechnungsnummer', ref(/rechnungs(?:-?nr\.?|nummer)\s*:?\s*([A-Z0-9][A-Z0-9\-/]{2,30}(?: \d{2,6}){0,4})/i)],
+      ['Kundennummer', ref(/kunden(?:-?nr\.?|nummer)\s*:?\s*([A-Z0-9][A-Z0-9\-/]{1,30}(?: \d{2,6}){0,4})/i)],
       ['Steuernummer', ref(/steuernummer\s*:?\s*([\d/ ]{8,20})/i)],
     ].filter(([, v], i, all) => v && !all.slice(0, i).some(([, w]) => w === v)).map(([label, value]) => ({ label, value }));
     const recipient = ref(/(?:empfänger|kontoinhaber|zahlungsempfänger)\s*:?\s*([^\n]{3,60})/i);

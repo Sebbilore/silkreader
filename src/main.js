@@ -287,13 +287,15 @@ function applyTheme(t = loadSettings().theme) {
   nativeTheme.themeSource = ['light', 'dark'].includes(t) ? t : 'system';
 }
 const winBg = () => (require('electron').nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#f3f3f3');
+// Fenster mit festem Hintergrund (alle anderen sind durchsichtig)
+const OPAQUE_PAGES = /\/(index|settings|welcome|camera|privacy|licenses)\.html|\/legal\//;
 ipcMain.on('theme-dark', (e) => { e.returnValue = require('electron').nativeTheme.shouldUseDarkColors; });
 app.whenReady().then(() => require('electron').nativeTheme.on('updated', () => {
   const dark = require('electron').nativeTheme.shouldUseDarkColors;
   for (const w of BrowserWindow.getAllWindows()) {
     if (w.isDestroyed()) continue;
     w.webContents.send('theme-changed', dark);
-    if (/^#[0-9a-f]{6}$/i.test(w.getBackgroundColor())) w.setBackgroundColor(winBg()); // durchsichtige Fenster bleiben durchsichtig
+    if (OPAQUE_PAGES.test(w.webContents.getURL())) w.setBackgroundColor(winBg()); // Spinne, Blase und Ring bleiben durchsichtig
   }
 }));
 
