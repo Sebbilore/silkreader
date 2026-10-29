@@ -321,20 +321,30 @@ function setBusy(busy) {
 // Alle Fenster lesen das über prefers-color-scheme (theme.css).
 function applyTheme(t = loadSettings().theme) {
   const { nativeTheme } = require('electron');
-  nativeTheme.themeSource = ['light', 'dark'].includes(t) ? t : 'system';
+  // „Hoher Kontrast“ ist dunkel mit eigenen Farben (Schwarz, Weiß, Gelb)
+  nativeTheme.themeSource = t === 'contrast' ? 'dark' : ['light', 'dark'].includes(t) ? t : 'system';
+  setImmediate(broadcastTheme);
 }
-const winBg = () => (require('electron').nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#f3f3f3');
+// dark | light | contrast – auch, wenn Windows selbst auf hohen Kontrast steht
+function themeMode() {
+  const { nativeTheme } = require('electron');
+  const t = loadSettings().theme;
+  if (t === 'contrast' || (t !== 'light' && t !== 'dark' && nativeTheme.shouldUseHighContrastColors)) return 'contrast';
+  return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+}
+const winBg = () => ({ contrast: '#000000', dark: '#1c1c1c', light: '#f3f3f3' })[themeMode()];
 // Fenster mit festem Hintergrund (alle anderen sind durchsichtig)
 const OPAQUE_PAGES = /\/(index|settings|welcome|camera|privacy|licenses)\.html|\/legal\//;
-ipcMain.on('theme-dark', (e) => { e.returnValue = require('electron').nativeTheme.shouldUseDarkColors; });
-app.whenReady().then(() => require('electron').nativeTheme.on('updated', () => {
-  const dark = require('electron').nativeTheme.shouldUseDarkColors;
+ipcMain.on('theme-dark', (e) => { e.returnValue = themeMode(); });
+function broadcastTheme() {
+  const mode = themeMode();
   for (const w of BrowserWindow.getAllWindows()) {
     if (w.isDestroyed()) continue;
-    w.webContents.send('theme-changed', dark);
+    w.webContents.send('theme-changed', mode);
     if (OPAQUE_PAGES.test(w.webContents.getURL())) w.setBackgroundColor(winBg()); // Spinne, Blase und Ring bleiben durchsichtig
   }
-}));
+}
+app.whenReady().then(() => require('electron').nativeTheme.on('updated', broadcastTheme));
 
 // Das Analysefenster wird beim Start unsichtbar vorbereitet und beim Schließen nur versteckt –
 // so öffnet es sich danach ohne Verzögerung.
@@ -702,6 +712,39 @@ ipcMain.handle('open-log', () => openLog());
 ipcMain.handle('app-info', () => ({ version: app.getVersion(), platform: `${process.platform} ${require('os').release()}`, downloadRepo: DOWNLOAD_REPO }));
 
 // Problem melden: GitHub öffnet sich im Browser – nichts wird automatisch verschickt
+// ---------- Nach einem Absturz: freundlich fragen, ob das Problem gemeldet werden darf ----------
+// Gesendet wird nur, was im Browser zu sehen ist (Version, Windows, Protokoll) – nie ein Brief oder Text.
+const runFlag = () => path.join(app.getPath('userData'), 'running.flag');
+let crashAsked = 0;
+function offerCrashReport(reason) {
+  if (Date.now() - crashAsked < 10 * 60 * 1000 || loadSettings().crashAsk === false) return;
+  crashAsked = Date.now();
+  let last = '';
+  try { last = fs.readFileSync(logFile(), 'utf8').split('\n').filter((l) => /FEHLER|gone|Absturz/.test(l)).slice(-1)[0] || ''; } catch {}
+  showPopupPayload({ kind: 'crash', reason, detail: `Silkreader ${app.getVersion()} · ${process.platform} ${require('os').release()}\n${last.slice(0, 300)}` });
+}
+function watchCrashes() {
+  let unclean = false;
+  try { unclean = fs.existsSync(runFlag()); fs.writeFileSync(runFlag(), String(Date.now())); } catch {}
+  if (unclean && !TESTING) { logLine('Absturz: letzter Lauf nicht sauber beendet'); setTimeout(() => offerCrashReport('last-run'), 8000); }
+  app.on('render-process-gone', (_e, wc, d) => {
+    if (d.reason === 'clean-exit') return;
+    logLine(`Absturz: Fenster gone (${d.reason}, ${d.exitCode}) ${wc.getURL().split('/').pop()}`);
+    // Die Spinne und der Ring laden sich einfach neu
+    setTimeout(() => { try { if (!wc.isDestroyed()) wc.reload(); } catch {} }, 500);
+    if (!/popup\.html/.test(wc.getURL())) setTimeout(() => offerCrashReport(d.reason), 1500);
+  });
+  app.on('child-process-gone', (_e, d) => { if (d.reason !== 'clean-exit' && d.type === 'GPU') logLine(`Absturz: GPU (${d.reason})`); });
+}
+ipcMain.handle('crash-report', () => {
+  let log = '';
+  try { log = fs.readFileSync(logFile(), 'utf8').split('\n').filter(Boolean).slice(-40).join('\n'); } catch {}
+  const body = `**Silkreader ist abgestürzt / Silkreader crashed**\n\n**System**\nSilkreader ${app.getVersion()} · ${process.platform} ${require('os').release()} · ${process.arch}\n\n**Protokoll / Log**\n\`\`\`\n${log}\n\`\`\``;
+  shell.openExternal(`${DOWNLOAD_REPO}/issues/new?title=${encodeURIComponent('Absturz')}&body=${encodeURIComponent(body.slice(0, 6500))}`);
+  return true;
+});
+ipcMain.handle('crash-never', () => { const s = loadSettings(); s.crashAsk = false; saveSettings(s); });
+
 ipcMain.handle('report-problem', (_e, { text, withLog }) => {
   const st = loadSettings();
   let log = '';
@@ -2544,6 +2587,15 @@ ipcMain.handle('learn-correct', (_e, doc, field, wrong, right) => {
   logLine(`Gelernt (${field})`);
   return { ok: true, explain: r.explain, extras };
 });
+// Frage per Mikrofon: Windows-Spracheingabe (offline in neueren Windows-Versionen) schreibt ins Fragefeld
+ipcMain.handle('voice-typing', (e) => {
+  if (process.platform !== 'win32') return false;
+  BrowserWindow.fromWebContents(e.sender)?.focus();
+  setTimeout(() => winkeys.voiceTyping(), 120);
+  logLine('Spracheingabe geöffnet');
+  return true;
+});
+ipcMain.on('voice-available', (e) => { e.returnValue = process.platform === 'win32' && !!winkeys.load(); });
 ipcMain.handle('learn-feedback', (_e, good) => { if (learnOn()) learner().feedback(!!good); });
 ipcMain.handle('learn-list', () => ({ ...learner().list(), enabled: loadSettings().learn !== false, privateMode: !!loadSettings().privateMode }));
 ipcMain.handle('learn-forget', (_e, what, id) => {
@@ -2714,7 +2766,7 @@ ipcMain.handle('get-settings', () => {
     hideFullscreen: s.hideFullscreen !== false,
     hideInShare: s.hideInShare !== false,
     watchDownloads: s.watchDownloads === true,
-    theme: ['light', 'dark'].includes(s.theme) ? s.theme : 'system',
+    theme: ['light', 'dark', 'contrast'].includes(s.theme) ? s.theme : 'system',
     fontSize: ZOOM[s.fontSize] ? s.fontSize : 'normal',
     learn: s.learn !== false,
     morning: s.morning !== false,
@@ -2752,7 +2804,7 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   if (typeof privateMode === 'boolean') s.privateMode = privateMode;
   if (typeof hideFullscreen === 'boolean') s.hideFullscreen = hideFullscreen;
   if (typeof watchDownloads === 'boolean') s.watchDownloads = watchDownloads;
-  if (['system', 'light', 'dark'].includes(theme)) { s.theme = theme; applyTheme(theme); }
+  if (['system', 'light', 'dark', 'contrast'].includes(theme)) { s.theme = theme; saveSettings(s); applyTheme(theme); }
   if (typeof hideInShare === 'boolean') { s.hideInShare = hideInShare; setImmediate(() => [bubbleWin, popupWin, ringWin].forEach(protectFromCapture)); }
   if (CLICK_MODES.includes(cm)) { s.clickMode = cm; bubbleWin?.webContents.send('click-mode', cm); }
   if (model && MODELS[model]) s.model = model;
@@ -2973,6 +3025,7 @@ if (!app.requestSingleInstanceLock()) {
     registerExplorerMenu();
     watchFullscreen();
     watchDeadlines();
+    watchCrashes();
     watchDownloads();
     refreshPro().catch((e) => logLine(`Pro: ${e.message}`));
     const startFile = fileFromArgs(process.argv);
@@ -2986,13 +3039,13 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.on('before-quit', () => { quitting = true; });
-  app.on('will-quit', () => globalShortcut.unregisterAll());
+  app.on('will-quit', () => { globalShortcut.unregisterAll(); try { fs.unlinkSync(runFlag()); } catch {} });
   // Die App läuft im Hintergrund weiter, solange die Spinne da ist.
   app.on('window-all-closed', (e) => e?.preventDefault?.());
 }
 
 // Nur für automatische Tests: ein paar Funktionen erreichbar machen
-if (TESTING) global.__silk = { openBookmark, maybeMorning, remindBookmarks, loadBookmarks, saveBookmarks, remindAt, learner, letterExtras, deadlineAction, showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
+if (TESTING) global.__silk = { offerCrashReport, openBookmark, maybeMorning, remindBookmarks, loadBookmarks, saveBookmarks, remindAt, learner, letterExtras, deadlineAction, showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
   get popupWin() { return popupWin; }, get cocoons() { return cocoons; }, get lastScreenSel() { return lastScreenSel; }, set lastScreenSel(v) { lastScreenSel = v; },
   set copiedOffer(v) { copiedOffer = v; },
   get downloadOffer() { return downloadOffer; }, spiderTake, runCrawlOverlay,

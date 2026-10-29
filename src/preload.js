@@ -2,7 +2,8 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 // Hell oder dunkel: als Attribut am Dokument (theme.css), folgt Windows bzw. der Einstellung „Darstellung“
 let themeDark = ipcRenderer.sendSync('theme-dark');
-const setTheme = (dark) => { themeDark = dark; if (document.documentElement) document.documentElement.dataset.theme = dark ? 'dark' : 'light'; };
+// mode: 'dark' | 'light' | 'contrast' (ältere Hauptprozesse schicken true/false)
+const setTheme = (mode) => { themeDark = mode; if (document.documentElement) document.documentElement.dataset.theme = mode === true ? 'dark' : mode === false ? 'light' : mode; };
 // Das Vorladeskript läuft, bevor es <html> gibt: setzen, sobald das Element da ist (kein Aufblitzen)
 if (document.documentElement) setTheme(themeDark);
 else new MutationObserver((_m, obs) => { if (document.documentElement) { obs.disconnect(); setTheme(themeDark); } }).observe(document, { childList: true });
@@ -30,6 +31,10 @@ contextBridge.exposeInMainWorld('spider', {
   reviewState: () => ipcRenderer.invoke('review-state'),
   nextTip: () => ipcRenderer.invoke('next-tip'),
   learnCorrect: (doc, field, wrong, right) => ipcRenderer.invoke('learn-correct', doc, field, wrong, right),
+  crashReport: () => ipcRenderer.invoke('crash-report'),
+  crashNever: () => ipcRenderer.invoke('crash-never'),
+  voiceTyping: () => ipcRenderer.invoke('voice-typing'),
+  voiceAvailable: ipcRenderer.sendSync('voice-available'),
   learnFeedback: (good) => ipcRenderer.invoke('learn-feedback', good),
   learnList: () => ipcRenderer.invoke('learn-list'),
   learnForget: (what, id) => ipcRenderer.invoke('learn-forget', what, id),

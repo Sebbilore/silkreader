@@ -122,6 +122,16 @@
   .mrow:first-child { border-radius: var(--r-m) var(--r-m) 0 0; } .mrow:last-child { border-radius: 0 0 var(--r-m) var(--r-m); } .mrow:only-child { border-radius: var(--r-m); } .mrow b { font-weight: 600; white-space: nowrap; } .mrow.soon b { color: var(--warn); } .small1 { font-size: 12px; margin-top: 10px; }
   .alldone { display: flex; flex-direction: column; gap: 2px; padding: 14px; border-radius: var(--r-l); background: var(--pink-soft); } .alldone b { font-size: 16px; font-weight: 600; }
   .bm { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; } .bm > span { flex: 1; min-width: 0; } .bm .icon { width: 15px; height: 15px; color: var(--pink); flex: none; } .bm .x { width: 26px; height: 26px; }
+  .readalong { margin: 0 0 12px; padding: 12px 12px 8px; border-radius: var(--r-l); background: var(--card); }
+  .readalong .rtext { font-size: 15.5px; line-height: 1.7; max-height: 170px; overflow: auto; } .readalong .rtext span.now { background: var(--pink); color: #1b1b1b; border-radius: 3px; box-shadow: 0 0 0 2px var(--pink); }
+  .readalong .rbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; } .rprog { flex: 1; height: 4px; border-radius: 2px; background: var(--line-2); overflow: hidden; } .rprog i { display: block; height: 100%; width: 0; background: var(--pink); transition: width .2s; }
+  .readalong .rates { display: flex; gap: 2px; } .readalong .chip { font-size: 11.5px; padding: 2px 7px; }
+  .askrow { display: flex; gap: 6px; align-items: center; } .askrow .ask { flex: 1; min-width: 0; } .mic.on { color: var(--on-primary); background: var(--primary); border-radius: 50%; }
+  .crash { display: flex; gap: 12px; align-items: center; } .crash .sp { width: 52px; height: 52px; flex: none; } .crash p { margin: 0; }
+  .crashpre { white-space: pre-wrap; font-size: 11.5px; background: var(--card); padding: 8px; border-radius: var(--r-s); margin: 6px 0 0; }
+  .keylist { display: flex; flex-direction: column; gap: 2px; } .keylist div { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 12px; background: var(--card); font-size: 13px; }
+  .keylist div:first-child { border-radius: var(--r-m) var(--r-m) 0 0; } .keylist div:last-child { border-radius: 0 0 var(--r-m) var(--r-m); }
+  .keylist kbd { font: 12px var(--font); background: var(--raised); border: 1px solid var(--control-line); border-radius: var(--r-s); padding: 1px 8px; white-space: nowrap; }
   .tipline { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 2px; padding: 9px 10px 9px 12px; border-radius: var(--r-m); background: var(--pink-soft); font-size: 12.5px; color: var(--text); }
   .tipline .icon { width: 16px; height: 16px; color: var(--pink); flex: none; margin-top: 1px; } .tipline span { flex: 1; } .tipline b { font-weight: 600; } .tipline .x { flex: none; width: 22px; height: 22px; }
   .review { margin: 12px 0 2px; padding: 10px 12px; border-radius: var(--r-l); background: var(--card); border: 1px solid var(--line); font-size: 13px; }
@@ -527,7 +537,7 @@
     $('main').querySelectorAll('[data-cal]').forEach((b) => b.addEventListener('click', () => addCal(b, { iso: b.dataset.cal, sentence: T('Spätestens kündigen, sonst verlängert sich der Vertrag.') })));
     $('cPro')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); proView('contract'); });
     $('main').scrollTop = 0;
-    footer({ ask: true, actions: [['Kopieren', copyResult], ['Vorlesen', () => speak(bullets(r.summary).join('. '))], ['In meiner Sprache', explainPicker], ['Festhalten', keepResult], ['Später lesen', laterPicker], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)], ['Als PDF speichern', () => window.spider.exportResult(P.doc, result, 'pdf')], ['Drucken', () => window.spider.exportResult(P.doc, result, 'print')]] });
+    footer({ ask: true, actions: [['Kopieren', copyResult], ['Vorlesen', () => speak(bullets(r.summary).join('. '), 'Vorlesen', null, { show: true })], ['In meiner Sprache', explainPicker], ['Festhalten', keepResult], ['Später lesen', laterPicker], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)], ['Als PDF speichern', () => window.spider.exportResult(P.doc, result, 'pdf')], ['Drucken', () => window.spider.exportResult(P.doc, result, 'print')]] });
     $('lExplain')?.addEventListener('click', explainPicker);
     $('exPdf')?.addEventListener('click', async (e) => { const ok = await window.spider.exportResult(P.doc, result, 'pdf'); if (ok) e.target.closest('button').lastChild.textContent = T('Gespeichert'); });
     $('exPrint')?.addEventListener('click', () => window.spider.exportResult(P.doc, result, 'print'));
@@ -571,22 +581,66 @@
   // ---------- Vorlesen (Windows-Stimmen, offline) – die Spinne bewegt dabei den Mund ----------
   let speaking = false;
   const VOICE_LANG = { de: 'de-DE', en: 'en-US', tr: 'tr-TR', ar: 'ar-SA', uk: 'uk-UA', ru: 'ru-RU', pl: 'pl-PL', ro: 'ro-RO' };
-  function speak(text, label = 'Vorlesen', langCode = null) {
+  // Tempo merkt sich die Blase (nur auf diesem PC)
+  const RATES = { slow: 0.8, normal: 1.05, fast: 1.3 };
+  let rateKey = (() => { try { return localStorage.getItem('silkRate') || 'normal'; } catch { return 'normal'; } })();
+  let lastSpeak = null, speakGen = 0;
+  function speak(text, label = 'Vorlesen', langCode = null, { show = false, from = 0, restart = false } = {}) {
     const synth = window.speechSynthesis;
-    if (speaking) { synth.cancel(); return; }
-    const u = new SpeechSynthesisUtterance(text);
+    if (speaking && !restart) { synth.cancel(); return; }
+    const gen = ++speakGen; // eine ältere, abgebrochene Stimme meldet ihr Ende später – das ignorieren
+    if (speaking) synth.cancel();
+    lastSpeak = { text, label, langCode, show };
+    const u = new SpeechSynthesisUtterance(text.slice(from));
     const voices = synth.getVoices();
     const lang = langCode || (/[äöüß]|\b(der|die|und|ist)\b/i.test(text) ? 'de' : 'en');
     u.voice = voices.find((v) => v.lang.toLowerCase().startsWith(lang)) || null;
     u.lang = VOICE_LANG[lang] || 'en-US';
-    u.rate = 1.05;
+    u.rate = RATES[rateKey] || 1.05;
     const btn = $('foot').querySelector(`[data-a="${label}"]`);
+    // Mitlesen: das gerade gesprochene Wort leuchtet
+    let box = $('readAlong');
+    if (show && !box) {
+      box = document.createElement('div');
+      box.id = 'readAlong'; box.className = 'readalong rise';
+      let pos = 0;
+      const words = text.split(/(\s+)/).map((w) => { const start = pos; pos += w.length; return /\S/.test(w) ? `<span data-c="${start}">${esc(w)}</span>` : w; }).join('');
+      box.innerHTML = `<div class="rtext" data-noi18n>${words}</div><div class="rbar"><button class="x" id="rPause" aria-label="${T('Pause')}" title="${T('Pause')}">${silkIcon('pause')}</button>
+        <span class="rprog"><i id="rProg"></i></span><span class="rates" role="radiogroup" aria-label="${T('Tempo')}">${[['slow', 'Langsam'], ['normal', 'Normal'], ['fast', 'Schnell']].map(([k, l]) => `<button class="chip${k === rateKey ? ' on' : ''}" role="radio" aria-checked="${k === rateKey}" data-rate="${k}">${T(l)}</button>`).join('')}</span>
+        <button class="x" id="rClose" aria-label="${T('Schließen')}" title="${T('Schließen')}">${silkIcon('close')}</button></div>`;
+      $('main').prepend(box);
+      $('main').scrollTop = 0;
+      $('rClose').addEventListener('click', () => { synth.cancel(); box.remove(); });
+      $('rPause').addEventListener('click', () => {
+        if (synth.paused) { synth.resume(); $('rPause').innerHTML = silkIcon('pause'); } else { synth.pause(); $('rPause').innerHTML = silkIcon('speak'); }
+      });
+      box.querySelector('.rates').addEventListener('click', (e) => {
+        const c = e.target.closest('[data-rate]'); if (!c) return;
+        rateKey = c.dataset.rate; try { localStorage.setItem('silkRate', rateKey); } catch {}
+        box.querySelectorAll('[data-rate]').forEach((x) => { x.classList.toggle('on', x === c); x.setAttribute('aria-checked', String(x === c)); });
+        if (speaking) speak(text, label, langCode, { show, from: box._at || 0, restart: true }); // im neuen Tempo an der Stelle weiter
+      });
+    }
+    u.onboundary = (e) => {
+      if (gen !== speakGen || !box || !box.isConnected) return;
+      const at = from + (e.charIndex || 0);
+      box._at = at;
+      let hit = null;
+      for (const sp of box.querySelectorAll('[data-c]')) { if (Number(sp.dataset.c) <= at) hit = sp; else break; }
+      box.querySelector('.now')?.classList.remove('now');
+      if (hit) { hit.classList.add('now'); hit.scrollIntoView({ block: 'nearest' }); }
+      $('rProg').style.width = `${Math.min(100, (at / Math.max(1, text.length)) * 100)}%`;
+    };
     const set = (on) => {
       speaking = on;
       window.spider.rigTalk(on);
-      if (btn) btn.innerHTML = `${silkIcon(on ? 'stop' : 'speak')}<span>${on ? 'Stopp' : label}</span>`;
+      if (btn) btn.innerHTML = `${silkIcon(on ? 'stop' : 'speak')}<span>${T(on ? 'Stopp' : label)}</span>`;
     };
-    u.onend = u.onerror = () => set(false);
+    u.onend = u.onerror = () => {
+      if (gen !== speakGen) return;
+      set(false);
+      if (box?.isConnected) { box.querySelector('.now')?.classList.remove('now'); $('rProg').style.width = '100%'; }
+    };
     set(true);
     synth.speak(u);
   }
@@ -641,7 +695,7 @@
     $('qualityLink')?.addEventListener('click', () => window.spider.openSettings());
     // Nachschärfen mit einem Klick: kürzer, förmlicher, lockerer
     const again = (extra) => () => { P = { ...P, extra: `${P.extra || ''} ${extra}`.trim() }; transform(); };
-    const readAloud = ['Vorlesen', () => speak(res.text, 'Vorlesen', P.mode?.startsWith('explain:') ? P.mode.slice(8) : null)];
+    const readAloud = ['Vorlesen', () => speak(res.text, 'Vorlesen', P.mode?.startsWith('explain:') ? P.mode.slice(8) : null, { show: true })];
     footer({ visible: 4, actions: [
       ['Kopieren', async () => { await navigator.clipboard.writeText(res.text); flash('Kopieren', 'Kopiert'); }],
       ...(P.mode === 'reply' ? [] : [readAloud]),
@@ -1074,6 +1128,28 @@
     setTimeout(() => $('repText')?.focus(), 60);
   }
 
+  // ---------- Nach einem Absturz ----------
+  function crash() {
+    state = 'done';
+    $('title').textContent = 'Silkreader';
+    $('main').innerHTML = `<div class="crash"><svg class="sp" viewBox="-36 -30 72 60" aria-hidden="true"><g stroke="var(--pink)" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 -5L18 -15L24 -4M10 -1L21 -7L28 4M10 3L20 2L26 13M8 7L16 9L20 20M-8 -5L-18 -15L-24 -4M-10 -1L-21 -7L-28 4M-10 3L-20 2L-26 13M-8 7L-16 9L-20 20"/></g><circle r="11" fill="#2b2b2b" stroke="var(--pink)" stroke-width="1.2"/><ellipse cx="-4.2" cy="-1.6" rx="3.6" ry="4.1" fill="#fff"/><ellipse cx="4.2" cy="-1.6" rx="3.6" ry="4.1" fill="#fff"/><circle cx="-3.8" cy="-1" r="1.8" fill="#111"/><circle cx="4.6" cy="-1" r="1.8" fill="#111"/></svg>
+      <p><b>${T('Da ist leider etwas schiefgelaufen.')}</b> ${T('Ich habe mich neu gestartet.')}</p></div>
+      <p>${T('Darf ich das Problem melden? Gesendet wird nur das Protokoll (Fehlermeldung, Windows-Version) – kein Brief und kein Text.')}</p>
+      <details class="sec"><summary class="muted">${T('Was genau gesendet wird')}</summary><pre class="crashpre" data-noi18n>${esc(P.detail || '')}</pre></details>
+      <p class="muted">${T('Beim Melden öffnet sich GitHub im Browser – dort siehst du alles, bevor es abgeschickt wird.')}</p>`;
+    footer({ visible: 2, actions: [['Problem melden', async () => { await window.spider.crashReport(); close(); }], ['Nein danke', close], ['Nie mehr fragen', async () => { await window.spider.crashNever(); close(); }]] });
+  }
+  // ---------- Tastenkürzel (Taste ?) ----------
+  async function shortcutsView() {
+    state = 'done';
+    $('title').textContent = 'Tastenkürzel';
+    const list = await window.spider.shortcuts();
+    const extra = [['?', 'Diese Hilfe'], ['Esc', 'Blase schließen'], ['Strg+C', 'Ergebnis kopieren'], ['Enter', 'Frage abschicken']];
+    $('main').innerHTML = `<div class="keylist">${list.map((k) => `<div><span>${T(k.desc)}</span><kbd>${esc(k.label)}</kbd></div>`).join('')}${extra.map(([k, d]) => `<div><span>${T(d)}</span><kbd>${esc(k)}</kbd></div>`).join('')}</div>
+      <p class="muted" style="margin-top:8px">${T('Ändern kannst du sie in den Einstellungen unter „Erweitert“.')}</p>`;
+    footer({ actions: [['Alle Einstellungen …', () => window.spider.openSettings()]] });
+  }
+
   // ---------- Zurück ----------
   let backFn = null;
   function setBack(fn) { backFn = fn; $('back').classList.toggle('hidden', !fn); }
@@ -1088,9 +1164,10 @@
     const n = visible ?? (actions.length <= 4 ? actions.length : 3);
     const btn = ([l]) => `<button class="link" data-a="${l}">${ACTION_ICONS[l] ? silkIcon(ACTION_ICONS[l]) : ''}<span>${T(l)}</span></button>`;
     const rest = actions.slice(n);
-    f.innerHTML = `${withAsk ? `<input class="ask" id="askIn" placeholder="${T('Frage zum Text stellen')}" aria-label="${T('Frage zum Text stellen')}">` : ''}<div class="actions">${actions.slice(0, n).map(btn).join('')}${rest.length ? `<span class="spacer"></span><button class="link mbtn" id="moreActs" aria-label="${T('Weitere Aktionen')}" aria-haspopup="menu" aria-expanded="false">${silkIcon('more')}</button><div class="menu hidden" id="actMenu" role="menu">${rest.map(btn).join('')}</div>` : ''}</div>`;
+    f.innerHTML = `${withAsk ? `<div class="askrow"><input class="ask" id="askIn" placeholder="${T('Frage zum Text stellen')}" aria-label="${T('Frage zum Text stellen')}">${window.spider.voiceAvailable || window.SILK_FORCE_MIC ? `<button class="x mic" id="askMic" title="${T('Frage sprechen (Windows-Spracheingabe)')}" aria-label="${T('Frage sprechen')}">${silkIcon('mic')}</button>` : ''}</div>` : ''}<div class="actions">${actions.slice(0, n).map(btn).join('')}${rest.length ? `<span class="spacer"></span><button class="link mbtn" id="moreActs" aria-label="${T('Weitere Aktionen')}" aria-haspopup="menu" aria-expanded="false">${silkIcon('more')}</button><div class="menu hidden" id="actMenu" role="menu">${rest.map(btn).join('')}</div>` : ''}</div>`;
     actions.forEach(([l, fn]) => f.querySelector(`[data-a="${l}"]`).addEventListener('click', (e) => { if (e.currentTarget.closest('.menu')) toggleMenu(false); fn(); }));
     $('moreActs')?.addEventListener('click', (e) => { e.stopPropagation(); toggleMenu($('actMenu').classList.contains('hidden')); });
+    $('askMic')?.addEventListener('click', () => { $('askIn').focus(); $('askMic').classList.add('on'); window.spider.voiceTyping(); setTimeout(() => $('askMic')?.classList.remove('on'), 6000); });
     $('askIn')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && e.target.value.trim()) { ask(e.target.value.trim()); e.target.value = ''; }
     });
@@ -1119,6 +1196,11 @@
   $('close').addEventListener('click', close);
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { e.preventDefault(); close(); }
+    else if (e.key === '?' && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '') && P.kind !== 'shortcuts') {
+      e.preventDefault(); const saved = { P, result };
+      setBack(function again() { P = saved.P; result = saved.result; if (result) showResult(); else route(); });
+      P = { kind: 'shortcuts' }; shortcutsView();
+    }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && state === 'done' && P.kind === 'analyze' && !getSelection().toString() && document.activeElement?.id !== 'askIn') { e.preventDefault(); copyResult(); }
   });
 
@@ -1162,6 +1244,25 @@
     footer({ actions: [['Alle Änderungen', () => window.spider.openExternal('https://github.com/Sebbilore/silkreader-download/blob/main/CHANGELOG.md')], ['OK', close]] });
   }
 
+  // Welche Ansicht zeigt die Blase?
+  function route() {
+    if (P.kind === 'analyze' && P.result) { result = P.result; showResult(); }
+    else if (P.kind === 'analyze') { $('title').textContent = P.doc.title; analyze(); }
+    else if (P.kind === 'home') home();
+    else if (P.kind === 'notebook') notebook();
+    else if (P.kind === 'deadlines') deadlines();
+    else if (P.kind === 'morning') morning();
+    else if (P.kind === 'crash') crash();
+    else if (P.kind === 'shortcuts') shortcutsView();
+    else if (P.kind === 'pro') proView(P.feature || null);
+    else if (P.kind === 'settings') settings();
+    else if (P.kind === 'about') about();
+    else if (P.kind === 'whatsnew') whatsNew();
+    else if (P.kind === 'report') report();
+    else if (P.kind === 'transform') { $('title').textContent = P.title; transform(); }
+    else if (P.kind === 'compare') { $('title').textContent = P.title; compare(); }
+    else { state = 'done'; $('title').textContent = P.title; $('main').innerHTML = `<p>${esc(P.text)}</p>`; footer({ actions: [['OK', close]] }); }
+  }
   window.spider.onPopupDoc((payload) => {
     stopSpeaking();
     P = payload; result = null; run++;
@@ -1171,20 +1272,7 @@
     $('bubble').classList.remove('closing');
     $('bubble').style.animation = 'none'; void $('bubble').offsetWidth; $('bubble').style.animation = '';
     $('foot').classList.add('hidden');
-    if (P.kind === 'analyze' && P.result) { result = P.result; showResult(); }
-    else if (P.kind === 'analyze') { $('title').textContent = P.doc.title; analyze(); }
-    else if (P.kind === 'home') home();
-    else if (P.kind === 'notebook') notebook();
-    else if (P.kind === 'deadlines') deadlines();
-    else if (P.kind === 'morning') morning();
-    else if (P.kind === 'pro') proView(P.feature || null);
-    else if (P.kind === 'settings') settings();
-    else if (P.kind === 'about') about();
-    else if (P.kind === 'whatsnew') whatsNew();
-    else if (P.kind === 'report') report();
-    else if (P.kind === 'transform') { $('title').textContent = P.title; transform(); }
-    else if (P.kind === 'compare') { $('title').textContent = P.title; compare(); }
-    else { state = 'done'; $('title').textContent = P.title; $('main').innerHTML = `<p>${esc(P.text)}</p>`; footer({ actions: [['OK', close]] }); }
+    route();
   });
 </script>
 </body>

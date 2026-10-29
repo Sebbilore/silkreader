@@ -57,6 +57,20 @@
     --shadow: 0 8px 24px rgba(0, 0, 0, .14), 0 1px 3px rgba(0, 0, 0, .1);
 }
 
+:root[data-theme="contrast"] {
+    color-scheme: dark;
+    --ink: #000000; --surface: #000000; --glass: #000000; --glass-2: #000000; --card: #000000; --raised: #000000; --control-line: #ffffff;
+    --line: rgba(255, 255, 255, .55); --line-2: #ffffff;
+    --text: #ffffff; --strong: #ffffff; --muted: #f0f0f0; --faint: #dcdcdc;
+    --pink: #ffff00; --pink-2: #00ffff; --primary: #ffff00; --on-primary: #000000; --pink-soft: rgba(255, 255, 0, .16); --pink-glow: transparent;
+    --warn: #ffd400; --warn-bg: #000000; --ok: #3ff23f; --bad: #ff7070;
+    --silk: #ffffff; --shadow: none;
+}
+/* Hoher Kontrast: Karten und Knöpfe mit klarer Kante, Links unterstrichen */
+:root[data-theme="contrast"] :is(.letter, .card, .fixbox, .readalong, .tipline, .scam, .alldone, .mrow, .line, .opt, .box, details.adv > summary, .chip) { outline: 1px solid #fff; outline-offset: -1px; }
+:root[data-theme="contrast"] :is(a, .link) { text-decoration: underline; }
+:root[data-theme="contrast"] :focus-visible { outline: 3px solid #00ffff !important; outline-offset: 1px; }
+
 /* Gemeinsame Bausteine */
 .glass { background: var(--surface); border: 1px solid var(--line-2); box-shadow: var(--shadow); }
 .icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: none; }

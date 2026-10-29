@@ -47,6 +47,16 @@ async function copy(hotkey) {
   return true;
 }
 
+/** Windows-Spracheingabe öffnen (Win+H): schreibt Gesprochenes ins gerade fokussierte Feld */
+function voiceTyping() {
+  if (!load()) return false;
+  api.keybd_event(0x5b, 0x5b, 1, 0); // linke Windows-Taste (erweitert)
+  api.keybd_event(0x48, 0x23, 0, 0);
+  api.keybd_event(0x48, 0x23, 2, 0);
+  api.keybd_event(0x5b, 0x5b, 3, 0);
+  return true;
+}
+
 const leftDown = () => (load() ? down(0x01) : null);
 /** Ist noch Umschalt, Strg, Alt oder die Windows-Taste gedrückt? */
 const modifiersDown = () => (load() ? [0x10, 0x11, 0x12, 0x5b, 0x5c].some(down) : false);
@@ -62,4 +72,4 @@ function fullscreenBusy() {
   return [1, 2, 3, 4, 7].includes(out[0]);
 }
 
-module.exports = { load, copy, leftDown, modifiersDown, clipboardSeq, fullscreenBusy };
+module.exports = { load, voiceTyping, copy, leftDown, modifiersDown, clipboardSeq, fullscreenBusy };

@@ -121,6 +121,25 @@ await app.evaluate(() => global.__silk.showPopupPayload({ kind: 'deadlines' }));
 for (let i = 0; i < 30 && await pop.$('.fr:not(.done) .fchk'); i++) { await pop.click('.fr:not(.done) .fchk'); await sleep(500); }
 ok('Alle Fristen erledigt 🎉', /Alle Fristen erledigt/.test(await pop.evaluate(() => document.body.innerText)));
 
+// 8) Bedienung: Vorlesen mit Mitlesen, Tastenkürzel mit ?, hoher Kontrast, Absturz-Meldung
+pop = await show(brief('55,00', '92,00', '15.12.2030', '3. Oktober 2030'), 'Vorlesen');
+await pop.click('[data-a="Vorlesen"]'); await sleep(400);
+ok('Mitlese-Feld beim Vorlesen', await pop.evaluate(() => document.querySelectorAll('#readAlong .rtext [data-c]').length > 5));
+await pop.click('#readAlong [data-rate="slow"]'); await sleep(200);
+ok('Tempo wählbar', await pop.evaluate(() => document.querySelector('#readAlong [data-rate="slow"]').classList.contains('on')));
+await pop.click('#rClose'); await sleep(200);
+await pop.keyboard.press('?'); await sleep(500);
+ok('„?“ zeigt die Tastenkürzel', (await pop.textContent('#title')) === 'Tastenkürzel' && (await pop.$$('.keylist div')).length >= 4);
+await pop.click('#back'); await sleep(500);
+ok('Zurück zum Ergebnis', !!(await pop.$('.letter')));
+await pop.evaluate(() => window.spider.saveSettings({ theme: 'contrast' })); await sleep(600);
+ok('Hoher Kontrast', await pop.evaluate(() => document.documentElement.dataset.theme === 'contrast' && getComputedStyle(document.body).getPropertyValue('--primary').trim().toLowerCase() === '#ffff00'));
+await pop.screenshot({ path: `${out}/v123-kontrast.png` });
+await pop.evaluate(() => window.spider.saveSettings({ theme: 'dark' })); await sleep(400);
+ok('Zurück auf dunkel', await pop.evaluate(() => document.documentElement.dataset.theme === 'dark'));
+await app.evaluate(() => global.__silk.offerCrashReport('crashed')); await sleep(700);
+ok('Absturz-Meldung fragt freundlich', /schiefgelaufen/.test(await pop.evaluate(() => document.body.innerText)) && !!(await pop.$('[data-a="Problem melden"]')));
+
 ok('keine Fehler im Fenster', errs.length === 0, errs.join(' | '));
 await app.close();
 console.log(fails ? `${fails} Fehler` : 'alles gut');
