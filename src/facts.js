@@ -157,8 +157,8 @@
   }
   const KINDS = [
     ['mahnung', 'Mahnung', /\b(mahnung|zahlungserinnerung|mahngebühr|letzte erinnerung|inkasso)\b/i],
-    ['rechnung', 'Rechnung', /\b(rechnung(snummer)?|rechnungsbetrag|zahlbar|invoice|gesamtbetrag|zu zahlen)\b/i],
-    ['bescheid', 'Bescheid', /\b(bescheid|rechtsbehelfsbelehrung|widerspruch|einspruch|aktenzeichen|finanzamt|jobcenter|agentur für arbeit|behörde|bußgeld|anhörung|steuernummer|familienkasse|krankenkasse|rentenversicherung|landratsamt|bürgeramt)\b/i],
+    ['rechnung', 'Rechnung', /\b(rechnung(snummer)?|rechnungsbetrag|zahlbar|invoice|gesamtbetrag|zu zahlen|zahlungsaufforderung|rundfunkbeitrag|beitragsnummer|abschlagsrechnung)\b/i],
+    ['bescheid', 'Bescheid', /\b(bescheid|rechtsbehelfsbelehrung|widerspruch|einspruch|aktenzeichen|finanzamt|jobcenter|agentur für arbeit|behörde|bußgeld|anhörung|steuernummer|familienkasse|krankenkasse|gesundheitskasse|pflegekasse|rentenversicherung|landratsamt|bürgeramt|beitragsbescheid|bußgeldstelle|verwarnungsgeld)\b/i],
     ['vertrag', 'Vertrag', /\b(vertrag|laufzeit|kündigungsfrist|vertragspartner|allgemeine geschäftsbedingungen|agb|mietvertrag|arbeitsvertrag)\b/i],
     ['kuendigung', 'Kündigung', /\b(kündigung|kündigen hiermit|kündigungsbestätigung)\b/i],
   ];
@@ -169,7 +169,8 @@
     const scores = KINDS.map(([id, label, re]) => ({ id, label, n: (text.match(new RegExp(re.source, 'gi')) || []).length }));
     const best = scores.filter((s) => s.n).sort((a, b) => b.n - a.n)[0];
     const looksLikeLetter = /\b(sehr geehrte|liebe[rs]?\s|guten tag|mit freundlichen grüßen|freundliche grüße|hochachtungsvoll|dear\s|sincerely)\b/i.test(text);
-    if (!best || (best.n < 2 && !looksLikeLetter)) return null;
+    if (!best && !looksLikeLetter) return null;
+    if (best && best.n < 2 && !looksLikeLetter) return null;
     // Beträge mit Zusammenhang („Rechnungsbetrag 129,90 €“)
     const amounts = [];
     for (const m of text.matchAll(/(?:(€|EUR)\s?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?|\d+(?:,\d{2})?)|(\d{1,3}(?:\.\d{3})*,\d{2}|\d+(?:,\d{2})?)\s?(€|EUR|Euro)(?![A-Za-z]))/g)) {
@@ -181,8 +182,12 @@
       amounts.push({ value, text: `${raw} €`, label, index: m.index });
     }
     // Wichtigster Betrag: mit „zu zahlen/gesamt/offen“ markiert, sonst der größte
-    const PRIO = /(gesamt|zu zahlen|offen|nachzahlung|rechnungsbetrag|forderung|amount due|total)/;
-    const main = amounts.find((a) => PRIO.test(a.label)) || amounts.slice().sort((a, b) => b.value - a.value)[0] || null;
+    // Reihenfolge zählt: „Offener Betrag 148 €“ schlägt „Hauptforderung 89 €“; bei Gleichstand der letzte (Summen stehen unten)
+    const PRIO = [/(offen|zu zahlen|gesamt|amount due|total|endbetrag|zahlbetrag)/, /(nachzahlung|rechnungsbetrag)/, /(forderung)/];
+    const rank = (a) => { const i = PRIO.findIndex((re) => re.test(a.label)); return i < 0 ? 99 : i; };
+    const ranked = amounts.filter((a) => rank(a) < 99).sort((a, b) => rank(a) - rank(b) || b.index - a.index);
+    const main = ranked[0] || amounts.slice().sort((a, b) => b.value - a.value)[0] || null;
+    if (!best && !main && !findDeadlines(text, opts).some((d) => d.deadline)) return null; // Brief ohne Betrag und Frist: keine Karte
     const ibans = [...new Set([...text.matchAll(/\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}(?:\s?[A-Z0-9]{1,3})?\b/g)].map((m) => m[0].trim()).filter(ibanValid))];
     const ref = (re) => (text.match(re) || [])[1]?.trim() || '';
     const refs = [

@@ -32,6 +32,12 @@ jobs:
       - name: Testwerkzeug
         run: npm i --no-save playwright-core@1.56.1
 
+      - name: Feste Regeln und Lernen (Testbriefe)
+        run: |
+          node test/facts.mjs
+          node test/letters.mjs
+          node test/learn.mjs
+
       - name: Zuletzt veröffentlichten Installer holen (für die Signaturprüfung)
         shell: pwsh
         run: |
@@ -46,7 +52,7 @@ jobs:
 
       - name: Bildschirmfotos und Protokoll
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: windows-test
           path: win-test
@@ -73,7 +79,7 @@ jobs:
         run: npm i --no-save playwright-core@1.56.1
 
       - name: KI-Modell aus dem Zwischenspeicher
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: silk-models
           key: silk-models-qwen2.5-1.5b-qwen3-4b-v1
@@ -84,7 +90,7 @@ jobs:
 
       - name: Ergebnisse
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: windows-ai
           path: win-ai

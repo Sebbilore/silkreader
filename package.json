@@ -26,7 +26,10 @@
       "!node_modules/node-llama-cpp/llama/**/*.{h,c,cpp,hpp,cu,cuh,txt,md}",
       "!node_modules/koffi/build/koffi/{darwin,freebsd,linux,musl,openbsd}_*/**",
       "!node_modules/koffi/src/**",
-      "!node_modules/koffi/vendor/**"
+      "!node_modules/koffi/vendor/**",
+      "!node_modules/**/*.{md,markdown,map,d.ts,d.mts,d.cts}",
+      "!node_modules/**/{test,tests,__tests__,example,examples,.github}/**",
+      "!node_modules/**/{CHANGELOG,HISTORY,AUTHORS,CONTRIBUTING}*"
     ],
     "icon": "build/icon.png",
     "nsis": {
