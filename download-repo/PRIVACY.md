@@ -6,7 +6,7 @@ Kurz gesagt: Silkreader hat keine eigenen Server, kein Konto, keine Werbung und 
 
 ## Verantwortlich
 
-Lorelab, Inhaber Sebastian Lorenz, Deutschland ·
+Lorelab, Inhaber Sebastian, Deutschland ·
 [Impressum](IMPRESSUM.md)
 
 ## Was auf deinem PC bleibt
@@ -44,7 +44,7 @@ Zusammenfassungen, Übersetzungen und Antworten erstellt eine KI. Sie kann sich 
 
 In short: Silkreader has no servers of its own, no account, no ads and no tracking.
 
-Controller: Lorelab, owner Sebastian Lorenz, Germany
+Controller: Lorelab, owner Sebastian, Germany
 
 ## What stays on your PC
 

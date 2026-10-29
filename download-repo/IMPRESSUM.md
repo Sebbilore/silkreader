@@ -3,7 +3,7 @@
 **Anbieter**
 
 Lorelab
-Inhaber: Sebastian Lorenz
+Inhaber: Sebastian
 Deutschland
 
 **Kontakt**
@@ -19,4 +19,4 @@ Fehler und Fragen gern auch unter [Issues](https://github.com/Sebbilore/silkread
 
 ---
 
-*Legal notice (English):* Lorelab, owner Sebastian Lorenz, Germany.
+*Legal notice (English):* Lorelab, owner Sebastian, Germany.
