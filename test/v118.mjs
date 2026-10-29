@@ -14,8 +14,8 @@ await sleep(2500);
 
 // 1) Übung: Schritt 4, Text markieren, Spinne „anklicken“ → Beispiel-Ergebnis (noch keine KI)
 const wel = await find('welcome.html');
-for (let i = 0; i < 3; i++) { await wel.click('#next'); await sleep(300); }
-console.log('Schritt 4:', await wel.textContent('#s4 h1'));
+await wel.click('#next'); await sleep(300);
+console.log('Übungsschritt:', await wel.textContent('#s2 h1'));
 await wel.click('#selAll');
 await sleep(300);
 await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('welcome')).focus());
@@ -25,7 +25,7 @@ const pop = await find('popup.html');
 await pop.waitForSelector('#moreBtn', { timeout: 20000 });
 console.log('Übung → Ergebnis:', await pop.textContent('#title'), '|', (await pop.textContent('.lead')).slice(0, 60));
 execSync(`import -window root ${out}/practice.png`);
-await wel.click('#next'); await sleep(500);
+await wel.click('#next'); await sleep(300); await wel.click('#next'); await sleep(500);
 
 // 2) Anzeige lokal/Cloud
 await app.evaluate((_e, t) => global.__silk.showPopupPayload({ kind: 'analyze', doc: { title: 'Bericht', source: 'text', pages: [t] }, autoStart: true }), fs.readFileSync('test/sample.txt', 'utf8'));

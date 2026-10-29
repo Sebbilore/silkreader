@@ -92,6 +92,15 @@
   .todo li::before { content: ""; flex: none; width: 10px; height: 10px; border: 1.5px solid var(--faint); border-radius: 3px; transform: translateY(1px); }
   .kv { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr) auto; gap: 4px 12px; font-size: 13px; align-items: baseline; }
   .btnrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .bigrow { display: flex; align-items: flex-start; gap: 6px; } .bigrow .big { flex: 1; } .say { margin-top: -2px; }
+  .split { position: relative; display: inline-flex; } .split > .btn:first-child { border-radius: var(--r-s) 0 0 var(--r-s); }
+  .split .caret { border-radius: 0 var(--r-s) var(--r-s) 0; border-left: 0; padding: 0 8px; } .split .caret .icon { width: 14px; height: 14px; }
+  .tplmenu { left: 0; right: auto; top: 36px; bottom: auto; min-width: 220px; } .tplmenu .mh { display: block; padding: 4px 10px 2px; font-size: 12px; color: var(--muted); }
+  .paydata { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; } .paydata summary { cursor: pointer; display: flex; gap: 8px; align-items: baseline; font-size: 13px; list-style: none; }
+  .paydata summary::before { content: '›'; color: var(--muted); transition: transform var(--t-fast); display: inline-block; } .paydata[open] summary::before { transform: rotate(90deg); }
+  .paydata summary span:first-child { flex: 1; } .paydata .kv { margin-top: 8px; }
+  .letter.locked { display: flex; gap: 12px; align-items: flex-start; border-style: dashed; background: none; } .letter.locked .lk { width: 18px; height: 18px; color: var(--pink); flex: none; margin-top: 2px; }
+  .letter.locked .lt { display: block; color: var(--strong); font-weight: 600; } .letter.locked .btn { margin-top: 8px; }
   .btn { height: 32px; padding: 0 14px; border: 1px solid var(--control-line); border-radius: var(--r-s); background: var(--raised); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
   .btn:hover { border-color: var(--faint); } .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 600; } .btn.primary:hover { filter: brightness(1.08); }
   .kv > span:nth-child(3n+1) { color: var(--muted); } .kv code { font: inherit; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
@@ -107,8 +116,13 @@
   .fr.done .fchk { background: var(--primary); border-color: var(--primary); } .fr.done .ft { opacity: .55; } .fr.done .fn { text-decoration: line-through; }
   details.sec summary { cursor: pointer; }
   .pro-on { color: var(--ok); font-weight: 600; margin: 4px 0 8px; } .pro-why { margin: 2px 0 8px; font-size: 13.5px; } .pro-soon { margin: 0 0 10px; color: var(--strong); font-size: 19px; font-weight: 600; }
-  .pro-list { list-style: none; padding: 0; margin: 0 0 8px; font-size: 13px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; } .pro-list li { margin: 0; }
-  .pro-list li.hit span { color: var(--strong); font-weight: 600; }
+  .pro-hero { display: flex; gap: 12px; align-items: center; margin: 2px 0 12px; } .pro-hero h2 { margin: 0 0 2px; font-size: 18px; font-weight: 600; color: var(--strong); } .pro-hero .pro-why, .pro-hero .pro-on { margin: 0; font-size: 13px; color: var(--muted); } .pro-hero .pro-on { color: var(--ok); }
+  .prorow { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; margin: 0 0 12px; border-radius: 6px; background: var(--card); border: 1px solid color-mix(in srgb, var(--pink) 40%, transparent); text-align: left; } .prorow > span:nth-child(2) { flex: 1; } .prorow svg { width: 20px; height: 20px; color: var(--pink); }
+  .pro-sp { width: 44px; height: 44px; flex-shrink: 0; }
+  .pro-list { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 2px; } .pro-list li { margin: 0; padding: 9px 12px; background: var(--card); display: flex; flex-direction: column; font-size: 12.5px; color: var(--muted); }
+  .pro-list li:first-child { border-radius: 6px 6px 0 0; } .pro-list li:last-child { border-radius: 0 0 6px 6px; } .pro-list li strong { color: var(--strong); font-weight: 600; font-size: 13.5px; }
+  .pro-list li.hit { box-shadow: inset 3px 0 0 var(--pink); } .pro-free { margin: 0 0 12px; font-size: 12.5px; }
+  .pro-code { padding: 12px; border-radius: 6px; border: 1px solid var(--line); } .pro-code label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 13px; }
   .go { background: var(--primary); color: var(--on-primary); border: none; border-radius: var(--r-s); height: 32px; padding: 0 16px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
   .go:hover { filter: brightness(1.08); } .go.small { padding: 0 14px; } .coderow { display: flex; gap: 8px; } .coderow input { flex: 1; min-width: 0; margin: 0; }
   .letter.locked .lh { margin-bottom: 4px; }
@@ -291,13 +305,11 @@
     const bigIdx = bigDate ? L.deadlines.indexOf(bigDate) : -1;
     return `<div class="letter rise">
       <div class="lh"><b>${T(L.label)}</b><span>${T('Was du tun musst')}</span></div>
-      ${big ? `<div class="big">${esc(big)}</div>` : ''}
+      ${big ? `<div class="bigrow"><div class="big">${esc(big)}</div><button class="x say" id="lSay" title="${T('Vorlesen')}" aria-label="${T('Vorlesen')}">${silkIcon('speak')}</button></div>` : ''}
       ${bigDate ? `<div class="when2"><span>${T('bis {d}', { d: longDay(bigDate.iso) })}${bigDate.relative ? ` <span class="muted">${T(bigDate.fromLetter ? '(ab Briefdatum)' : '(ca., ab heute)')}</span>` : ''}</span>${daysChip(bigDate.iso)}</div>` : ''}
       ${todo.length || actions.length ? `<ul class="todo">${todo.map((t) => `<li><span>${esc(t)}</span></li>`).join('')}${actions.map((t) => `<li data-noi18n><span>${emphChecked(t)}</span></li>`).join('')}</ul>` : ''}
-      ${kv.length ? `<div class="kv">${kv.map(([k, v, x]) => `<span>${k}</span><span>${v}</span><span>${x}</span>`).join('')}</div>` : ''}
-      <div class="btnrow">${bigIdx >= 0 ? `<button class="btn primary" data-ldl="${bigIdx}">${T('In den Kalender')}</button>` : ''}<button class="btn" id="lReply">${T('Antwort schreiben')}</button></div>
-      <div class="row"><button class="link" id="lExplain">${T('In meiner Sprache erklären')}</button></div>
-      ${tplRow([...(L.canObject ? ['objection'] : []), ...(L.amount ? ['installments'] : []), 'extension', 'question'], L)}
+      <div class="btnrow">${bigIdx >= 0 ? `<button class="btn primary" data-ldl="${bigIdx}">${T('In den Kalender')}</button>` : ''}${replyButton([...(L.canObject ? ['objection'] : []), ...(L.amount ? ['installments'] : []), 'extension', 'question'], L)}</div>
+      ${kv.length ? `<details class="paydata"><summary><span>${T('Zahlungsdaten')}</span><span class="muted">${esc(kv.slice(0, 2).map(([k]) => k).join(', '))}</span></summary><div class="kv">${kv.map(([k, v, x]) => `<span>${k}</span><span>${v}</span><span>${x}</span>`).join('')}</div></details>` : ''}
     </div>`;
   }
   // ---------- Antwort-Vorlagen (Pro) ----------
@@ -309,7 +321,11 @@
     question: () => [T('Rückfrage'), `Schreibe eine höfliche Rückfrage zu diesem Schreiben: Bitte um Erklärung von [Punkt] bzw. um Zusendung von [Unterlagen].${PH}`],
     cancel: () => [T('Kündigung'), `Schreibe eine Kündigung dieses Vertrags zum nächstmöglichen Termin. Bitte um schriftliche Bestätigung der Kündigung mit Datum des Vertragsendes.${PH}`],
   };
-  const tplRow = (keys, L = {}) => `<div class="tpl"><span class="muted">${T('Vorlage:')}</span>${keys.map((k) => `<button class="link" data-tpl="${k}">${esc(TEMPLATES[k](L)[0])}</button>`).join('')}</div>`;
+  const lockedCard = (title, text, id) => `<div class="letter locked rise">${silkIcon('lock', 'icon lk')}<div><b class="lt">${T(title)}</b><div class="muted">${T(text)}</div>
+    <button class="btn" id="${id}">${T('Pro ansehen')}</button></div></div>`;
+  // „Antworten“ schreibt gleich los; der Pfeil daneben zeigt die Vorlagen
+  const replyButton = (keys, L = {}) => `<span class="split"><button class="btn" id="lReply">${T('Antworten')}</button><button class="btn caret" id="lTplBtn" aria-haspopup="menu" aria-expanded="false" aria-label="${T('Vorlagen')}">${silkIcon('more')}</button>
+    <span class="menu tplmenu hidden" role="menu" id="lTplMenu"><span class="mh">${T('Vorlagen')}</span>${keys.map((k) => `<button class="link" role="menuitem" data-tpl="${k}">${esc(TEMPLATES[k](L)[0])}</button>`).join('')}</span></span>`;
 
   // ---------- Vertrags-Check (Pro) ----------
   function contractCard(C) {
@@ -330,7 +346,7 @@
       ${C.priceChange ? `<div class="note warn">${T('Preiserhöhungen sind möglich – bei einer Erhöhung hast du oft ein Sonderkündigungsrecht.')}</div>` : ''}
       ${C.monthlyAfter ? `<div class="note">${T('Gut zu wissen: Bei Verträgen ab März 2022 kannst du nach der Mindestlaufzeit meist monatlich kündigen.')}</div>` : ''}
       ${C.cancelBy && !C.cancelPassed ? `<div class="note">${T('Die Kündigungsfrist steht im Fristen-Netz – Silkreader erinnert dich rechtzeitig.')}</div>` : ''}
-      <div class="btnrow"><button class="btn primary" data-tpl="cancel">${T('Kündigung schreiben')}</button><button class="btn" id="lExplain">${T('In meiner Sprache erklären')}</button></div>
+      <div class="btnrow"><button class="btn primary" data-tpl="cancel">${T('Kündigung schreiben')}</button></div>
     </div>`;
   }
 
@@ -374,8 +390,8 @@
     const deadlines = L ? [] : findDeadlines(text); // Briefe zeigen ihre Fristen in der Karte
     const figs = r.figures.slice(0, 8);
     $('main').innerHTML = `
-      ${L ? letterCard(L, r) : r.letterLocked ? `<div class="letter locked"><div class="lh"><b>${T(r.letterLocked)}</b><span>${T('Was muss ich tun? Betrag, Frist, IBAN zum Kopieren')}</span></div><button class="link" id="lPro">${T('Mit Silkreader Pro anzeigen')}</button></div>` : ''}
-      ${r.contract ? contractCard(r.contract) : r.contractLocked ? `<div class="letter locked"><div class="lh"><b>${T('Vertrag')}</b><span>${T('Laufzeit, Kündigen bis, Verlängerung')}</span></div><button class="link" id="cPro">${T('Mit Silkreader Pro anzeigen')}</button></div>` : ''}
+      ${L ? letterCard(L, r) : r.letterLocked ? lockedCard('Brief-Hilfe mit Pro', 'Was du tun musst, bis wann, und die IBAN zum Kopieren.', 'lPro') : ''}
+      ${r.contract ? contractCard(r.contract) : r.contractLocked ? lockedCard('Vertrags-Check mit Pro', 'Kündigen bis wann, Verlängerung und eine Erinnerung, bevor es zu spät ist.', 'cPro') : ''}
       ${L || r.contract ? `<div class="h2">${T('Worum es geht')}</div>` : ''}
       <ul class="lead" data-noi18n>${bullets(r.summary).map((b) => `<li>${emphChecked(b)}</li>`).join('')}</ul>
       ${deadlines.map((d, i) => `<div class="dl">${silkIcon('calendar')}<span class="when">${d.date.toLocaleDateString(I18N.locale)}</span><span class="what" data-noi18n title="${esc(d.sentence)}">${esc(d.sentence)}</span><button class="link" data-dl="${i}">${T('In den Kalender')}</button></div>`).join('')}
@@ -405,11 +421,13 @@
       await navigator.clipboard.writeText(btn.dataset.copy); btn.textContent = T('Kopiert');
     }));
     $('lReply')?.addEventListener('click', () => replyToLetter(''));
+    $('lTplBtn')?.addEventListener('click', (e) => { e.stopPropagation(); const m = $('lTplMenu'); m.classList.toggle('hidden'); $('lTplBtn').setAttribute('aria-expanded', String(!m.classList.contains('hidden'))); });
+    $('lSay')?.addEventListener('click', () => speak([...document.querySelectorAll('.letter .big, .letter .when2 > span:first-child')].map((x) => x.textContent).join(', ')));
     $('main').querySelectorAll('[data-tpl]').forEach((b) => b.addEventListener('click', () => replyToLetter(TEMPLATES[b.dataset.tpl](L || {})[1])));
     $('main').querySelectorAll('[data-cal]').forEach((b) => b.addEventListener('click', () => addCal(b, { iso: b.dataset.cal, sentence: T('Spätestens kündigen, sonst verlängert sich der Vertrag.') })));
     $('cPro')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); proView('contract'); });
     $('main').scrollTop = 0;
-    footer({ ask: true, actions: [['Kopieren', copyResult], ['Vorlesen', () => speak(bullets(r.summary).join('. '))], ['Sprache', explainPicker], ['Festhalten', keepResult], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)], ['Als PDF speichern', () => window.spider.exportResult(P.doc, result, 'pdf')], ['Drucken', () => window.spider.exportResult(P.doc, result, 'print')]] });
+    footer({ ask: true, actions: [['Kopieren', copyResult], ['Vorlesen', () => speak(bullets(r.summary).join('. '))], ['In meiner Sprache', explainPicker], ['Festhalten', keepResult], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)], ['Als PDF speichern', () => window.spider.exportResult(P.doc, result, 'pdf')], ['Drucken', () => window.spider.exportResult(P.doc, result, 'print')]] });
     $('lExplain')?.addEventListener('click', explainPicker);
     $('exPdf')?.addEventListener('click', async (e) => { const ok = await window.spider.exportResult(P.doc, result, 'pdf'); if (ok) e.target.closest('button').lastChild.textContent = T('Gespeichert'); });
     $('exPrint')?.addEventListener('click', () => window.spider.exportResult(P.doc, result, 'print'));
@@ -771,30 +789,24 @@
     state = 'done';
     $('title').textContent = 'Einstellungen';
     const s = await window.spider.getSettings();
-    const chips = (name, list, cur) => `<div class="chips" data-set="${name}">${list.map(([v, l]) => `<button class="chip${v === cur ? ' on' : ''}" data-v="${esc(v)}">${l}</button>`).join('')}</div>`;
+    const chips = (name, list, cur) => `<div class="chips" data-set="${name}">${list.map(([v, l]) => `<button class="chip${v === cur ? ' on' : ''}" data-v="${esc(v)}">${T(l)}</button>`).join('')}</div>`;
+    const pst = await window.spider.proState();
     $('main').innerHTML = `
-      <div class="set"><div class="h">KI</div>${chips('provider', [['builtin', 'Eingebaut'], ['claude', 'Claude'], ['ollama', 'Ollama']], s.provider || 'builtin')}
-        <div class="muted ${s.provider === 'claude' && !s.hasKey ? '' : 'hidden'}" id="keyHint">Für Claude fehlt noch der Schlüssel – <button class="link" id="keyLink">eintragen …</button></div></div>
-      <div class="set"><div class="h">Klick auf die Spinne</div>${chips('clickMode', MODES, s.clickMode || 'read')}</div>
+      <button class="link prorow" id="sPro">${silkIcon('pro')}<span><b>Silkreader Pro</b> <span class="muted">${pst.active ? T('✓ aktiv') : pst.comingSoon ? T('kommt bald') : ''}</span></span><span class="muted">${pst.active ? '' : T('Code einlösen')}</span></button>
       <div class="set"><div class="h">Sprache der App</div><div class="chips" id="uiLang" data-noi18n>
         <button class="chip${s.uiLang === 'de' ? ' on' : ''}" data-l="de">Deutsch</button><button class="chip${s.uiLang === 'en' ? ' on' : ''}" data-l="en">English</button></div></div>
-      <div class="set"><div class="h">Sprache der Ergebnisse</div><select id="lang">${['Deutsch', 'Englisch', 'Französisch', 'Spanisch', 'Italienisch'].map((l) => `<option value="${l}"${l === s.language ? ' selected' : ''}>${l}</option>`).join('')}
+      <div class="set"><div class="h">Ergebnisse auf</div><select id="lang">${['Deutsch', 'Englisch', 'Französisch', 'Spanisch', 'Italienisch'].map((l) => `<option value="${l}"${l === s.language ? ' selected' : ''}>${l}</option>`).join('')}
         <option value="der Sprache des Dokuments"${s.language === 'der Sprache des Dokuments' ? ' selected' : ''}>Wie das Dokument</option></select></div>
-      <label class="tog"><input type="checkbox" id="hatch"${s.hatchAnimation ? ' checked' : ''}> Große Spinne liest mit</label>
-      <label class="tog"><input type="checkbox" id="pinCopied"${s.pinCopied ? ' checked' : ''}> Kopierte Dateien ins Netz</label>
-      <label class="tog"><input type="checkbox" id="copyHint"${s.copyHint ? ' checked' : ''}> Bei kopiertem Text anbieten, ihn zu lesen</label>
-      <label class="tog"><input type="checkbox" id="watchDownloads"${s.watchDownloads ? ' checked' : ''}> Neue Downloads (PDF, Fotos) zum Lesen anbieten</label>
-      <label class="tog"><input type="checkbox" id="privateMode"${s.privateMode ? ' checked' : ''}> Privatmodus: nichts im Notizbuch speichern</label>
-      <label class="tog"><input type="checkbox" id="hideFullscreen"${s.hideFullscreen ? ' checked' : ''}> Bei Vollbild und Präsentationen ausblenden</label>
-      <label class="tog"><input type="checkbox" id="hideInShare"${s.hideInShare ? ' checked' : ''}> In Bildschirmfreigaben unsichtbar</label>
-      <label class="tog"><input type="checkbox" id="lowPower"${s.lowPower ? ' checked' : ''}> Sparmodus <span class="muted">(nach Neustart)</span></label>`;
+      <div class="set"><div class="h">Schriftgröße</div>${chips('fontSize', [['normal', 'Normal'], ['large', 'Groß'], ['xlarge', 'Sehr groß']], s.fontSize || 'normal')}</div>
+      <label class="tog"><input type="checkbox" id="hatch"${s.hatchAnimation ? ' checked' : ''}> Große Spinne beim Lesen zeigen</label>
+      <label class="tog"><input type="checkbox" id="copyHint"${s.copyHint ? ' checked' : ''}> Bei kopiertem Text fragen, ob ich lesen soll</label>
+      <label class="tog"><input type="checkbox" id="hideFullscreen"${s.hideFullscreen ? ' checked' : ''}> Bei Vollbild und Präsentationen verstecken</label>`;
+    $('sPro').addEventListener('click', () => { setBack(settings); proView(); });
     $('main').querySelectorAll('[data-set]').forEach((g) => g.addEventListener('click', async (e) => {
       const b = e.target.closest('[data-v]'); if (!b) return;
       g.querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', c === b));
       await window.spider.saveSettings({ [g.dataset.set]: b.dataset.v });
-      if (g.dataset.set === 'provider') $('keyHint').classList.toggle('hidden', !(b.dataset.v === 'claude' && !s.hasKey));
     }));
-    $('keyLink').addEventListener('click', () => window.spider.openSettings());
     $('uiLang').addEventListener('click', async (e) => {
       const b = e.target.closest('[data-l]'); if (!b || b.dataset.l === I18N.lang) return;
       await window.spider.setUiLang(b.dataset.l);
@@ -803,10 +815,10 @@
       settings(); // Blase in der neuen Sprache neu aufbauen
     });
     $('lang').addEventListener('change', (e) => window.spider.saveSettings({ language: e.target.value }));
-    for (const id of ['hatch', 'pinCopied', 'copyHint', 'watchDownloads', 'privateMode', 'hideFullscreen', 'hideInShare', 'lowPower']) {
+    for (const id of ['hatch', 'copyHint', 'hideFullscreen']) {
       $(id).addEventListener('change', (e) => window.spider.saveSettings({ [id === 'hatch' ? 'hatchAnimation' : id]: e.target.checked }));
     }
-    footer({ actions: [['Tastenkürzel & mehr …', () => window.spider.openSettings()], ['Über', () => { setBack(settings); about(); }]] });
+    footer({ actions: [['Alle Einstellungen …', () => window.spider.openSettings()], ['Über', () => { setBack(settings); about(); }]] });
   }
 
   // ---------- Über Silkreader ----------
@@ -816,15 +828,25 @@
     $('title').textContent = 'Silkreader Pro';
     const st = await window.spider.proState();
     const until = st.until ? new Date(st.until).toLocaleDateString(I18N.locale) : null;
-    const list = Object.entries(st.features).map(([k, n]) => `<li class="${k === feature ? 'hit' : ''}"><span>${T(n)}</span></li>`).join('');
+    // Sechs Vorteile in Alltagssprache – die Pro-Funktionen sind darauf verteilt
+    const PERKS = [
+      ['Brief-Hilfe', 'Was du tun musst, bis wann, IBAN zum Kopieren.', ['letter']],
+      ['Antworten schreiben', 'Antwort, Widerspruch oder Ratenzahlung als fertiger Brief.', ['reply', 'templates']],
+      ['Übersetzen und einfach erklären', 'Schwierige Texte verständlich, in jede Richtung.', ['translate', 'simplify']],
+      ['Vertrags-Check', 'Kündigen bis wann? Mit Erinnerung, bevor es zu spät ist.', ['contract']],
+      ['Briefe auf Papier lesen', 'Scans, Fotos und die Webcam.', ['ocr']],
+      ['Gründliches KI-Modell und Mappen', 'Genauer bei langen Texten, Ordnung im Notizbuch.', ['quality', 'folders', 'askNotebook']],
+    ];
+    const list = PERKS.map(([h, d, keys]) => `<li class="${keys.includes(feature) ? 'hit' : ''}"><strong>${T(h)}</strong><span>${T(d)}</span></li>`).join('');
+    const head = st.active
+      ? `<div class="pro-on">✓ ${T('Pro ist aktiv')}${st.source === 'code' ? ` <span class="muted">· ${until ? T('per Code, gültig bis {d}', { d: until }) : T('per Code, unbegrenzt')}</span>` : st.source === 'store' ? ` <span class="muted">· ${T('über den Microsoft Store')}</span>` : ''}</div>`
+      : `<p class="pro-why">${feature ? T('{f} gibt es mit Silkreader Pro.', { f: T(st.features[feature] || feature) }) : st.comingSoon ? T('Kommt bald im Microsoft Store. Mit einem Code geht es schon jetzt.') : T('Mehr aus deinen Briefen holen.')}</p>`;
     $('main').innerHTML = `
-      ${st.active
-        ? `<div class="pro-on">✓ ${T('Pro ist aktiv')}${st.source === 'code' ? ` <span class="muted">· ${until ? T('per Code, gültig bis {d}', { d: until }) : T('per Code, unbegrenzt')}</span>` : st.source === 'store' ? ` <span class="muted">· ${T('über den Microsoft Store')}</span>` : ''}</div>`
-        : feature ? `<p class="pro-why">${T('{f} gibt es mit Silkreader Pro.', { f: T(st.features[feature] || feature) })}</p>` : `<p class="pro-why">${T('Mehr aus deinen Briefen holen.')}</p>`}
+      <div class="pro-hero">${proMark()}<div><h2>${T('Mehr Hilfe bei jedem Brief')}</h2>${head}</div></div>
       <ul class="pro-list">${list}</ul>
-      <p class="muted" style="margin:4px 0 10px">${T('Immer frei: Zusammenfassen, Fragen an den Text, Fristen, Notizbuch, In deiner Sprache.')}</p>
-      ${st.active ? '' : `${st.comingSoon ? `<p class="pro-soon">${T('Kommt bald')}</p>` : st.canBuy ? `<button class="go" id="proBuy">${T('Pro im Microsoft Store holen')}</button>` : st.viaStoreApp ? `<p class="muted" style="margin:0 0 8px">${T('Pro kaufen geht in der Silkreader-Version aus dem Microsoft Store.')}</p><button class="go" id="proBuy">${T('Silkreader im Microsoft Store öffnen')}</button>` : ''}
-      <div class="set" style="margin-top:12px"><div class="h">${T('Du hast einen Code?')}</div>
+      <p class="muted pro-free">${T('Immer kostenlos: Zusammenfassen, Fragen an den Text, Fristen, In meiner Sprache und das Notizbuch.')}</p>
+      ${st.active ? '' : `${st.comingSoon ? '' : st.canBuy ? `<button class="go" id="proBuy">${T('Pro im Microsoft Store holen')}</button>` : st.viaStoreApp ? `<p class="muted" style="margin:0 0 8px">${T('Pro kaufen geht in der Silkreader-Version aus dem Microsoft Store.')}</p><button class="go" id="proBuy">${T('Silkreader im Microsoft Store öffnen')}</button>` : ''}
+      <div class="pro-code"><label for="proCode">${T('Du hast einen Code?')}</label>
         <div class="coderow"><input class="ask" id="proCode" placeholder="SILK-…" spellcheck="false" data-noi18n><button class="go small" id="proRedeem">${T('Einlösen')}</button></div>
         <div class="muted" id="proMsg"></div></div>`}`;
     $('proBuy')?.addEventListener('click', async () => {
@@ -841,6 +863,8 @@
     $('proCode')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') redeem(); });
     $('foot').classList.add('hidden');
   }
+  const proMark = () => `<svg class="pro-sp" viewBox="-40 -32 80 64" aria-hidden="true"><g stroke="var(--pink)" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 -5L18 -15L24 -4M10 -1L21 -7L28 4M10 3L20 2L26 13M8 7L16 9L20 20M-8 -5L-18 -15L-24 -4M-10 -1L-21 -7L-28 4M-10 3L-20 2L-26 13M-8 7L-16 9L-20 20"/></g><circle r="11" fill="#2b2b2b" stroke="var(--pink)" stroke-width="1.3"/><ellipse cx="-4.2" cy="-1.6" rx="3.6" ry="4.1" fill="#fff"/><ellipse cx="4.2" cy="-1.6" rx="3.6" ry="4.1" fill="#fff"/><circle cx="-3.8" cy="-1" r="1.8" fill="#111"/><circle cx="4.6" cy="-1" r="1.8" fill="#111"/></svg>`;
+  document.addEventListener('click', (e) => { if (!e.target.closest('#lTplMenu, #lTplBtn')) $('lTplMenu')?.classList.add('hidden'); });
   const flashTitle = (t) => { const el = $('title'); const old = el.textContent; el.textContent = t; setTimeout(() => { if (el.textContent === t) el.textContent = old; }, 2200); };
 
   async function about() {
@@ -920,7 +944,7 @@
     });
     f.classList.remove('hidden');
   }
-  const ACTION_ICONS = { 'Alle Änderungen': 'notebook', 'Im Browser öffnen': 'send', 'Protokoll öffnen': 'file', 'Über': 'info', Vorlesen: 'speak', Kürzer: 'shorter', Förmlicher: 'tone', Lockerer: 'tone', Kopieren: 'copy', Festhalten: 'keep', 'Als PDF speichern': 'file', Drucken: 'file', Lesemodus: 'reader', Sprache: 'translate', Fristen: 'calendar', Notizbuch: 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Erneut versuchen': 'send' };
+  const ACTION_ICONS = { 'Alle Änderungen': 'notebook', 'Im Browser öffnen': 'send', 'Protokoll öffnen': 'file', 'Über': 'info', Vorlesen: 'speak', Kürzer: 'shorter', Förmlicher: 'tone', Lockerer: 'tone', Kopieren: 'copy', Festhalten: 'keep', 'Als PDF speichern': 'file', Drucken: 'file', Lesemodus: 'reader', Sprache: 'translate', 'In meiner Sprache': 'translate', Fristen: 'calendar', Notizbuch: 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Alle Einstellungen …': 'settings', 'Erneut versuchen': 'send' };
   function flash(label, text) { const b = $('foot').querySelector(`[data-a="${label}"] span`); if (!b) return; b.textContent = T(text); setTimeout(() => (b.textContent = T(label)), 1300); }
   function showError(res, retry) {
     state = 'error';

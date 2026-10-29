@@ -62,17 +62,31 @@
   button.go:hover { transform: translateY(-1px); }
   button.ghost { background: none; border: none; color: var(--muted); font: inherit; cursor: pointer; }
   button.ghost:hover { color: var(--text); }
+  /* 1.22: drei Schritte */
+  .s1 { align-items: center; text-align: center; }
+  .s1 .sub { max-width: 400px; }
+  .s1 .langs { justify-content: center; margin-top: 2px; }
+  .card { width: 100%; padding: 12px 14px; background: var(--card); border-radius: var(--r-m); text-align: left; margin-top: 20px; }
+  .card .row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+  .card .bar { display: block; margin: 8px 0 6px; height: 4px; background: var(--line-2); }
+  .tips { list-style: none; padding: 0; margin: 4px 0 0; display: flex; flex-direction: column; gap: 2px; }
+  .tips li { display: flex; gap: 12px; padding: 12px 14px; background: var(--card); }
+  .tips li:first-child { border-radius: var(--r-m) var(--r-m) 0 0; } .tips li:last-child { border-radius: 0 0 var(--r-m) var(--r-m); }
+  .tips b { width: 170px; flex: none; font-weight: 600; } .tips span { color: var(--muted); }
+  .prohint { display: flex; gap: 12px; align-items: center; margin-top: 16px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--pink) 40%, transparent); border-radius: var(--r-m); font-size: 13px; color: var(--muted); }
+  .prohint b { color: var(--strong); font-weight: 600; } .prohint .icon { width: 16px; height: 16px; color: var(--pink); flex: none; }
+  ol.do { margin: 0 0 14px; padding-left: 20px; color: var(--muted); }
+  .loadline { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+  .loadline .bar { display: block; flex: 1; margin: 0; height: 4px; background: var(--line-2); }
+  .nav .dots { flex: 1; } .nav .dots i { width: 6px; height: 4px; } .nav .dots i.on { width: 18px; }
+  .nav .right { display: flex; gap: 8px; align-items: center; }
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="top">
-    <div class="dots"><i class="on"></i><i></i><i></i><i></i></div>
-    <div class="langs" data-noi18n><button class="chip" data-l="de">Deutsch</button><button class="chip" data-l="en">English</button></div>
-  </div>
-
-  <!-- 1: So geht's -->
-  <section class="step on" id="s1">
+  <!-- 1: Hallo + Sprache, die KI lädt schon im Hintergrund -->
+  <section class="step on s1" id="s1">
     <svg class="spider" viewBox="-40 -46 80 86" aria-hidden="true">
       <line x1="0" y1="-46" x2="0" y2="-11" stroke="var(--silk)" stroke-width=".7"/>
       <g stroke="var(--pink)" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -85,60 +99,48 @@
       <path d="M-2.4 5.2Q0 7.6 2.4 5.2" stroke="var(--pink)" stroke-width="1.1" fill="none" stroke-linecap="round"/>
     </svg>
     <h1>Hallo, ich bin Silkreader</h1>
-    <p class="sub">Ich hänge oben an deinem Bildschirm und lese für dich.</p>
-    <ul class="how">
-      <li><span id="i1"></span><span>Text markieren und auf mich klicken – ich fasse ihn zusammen.</span></li>
-      <li><span id="i2"></span><span>Rechtsklick auf mich (oder Strg+Alt+Leertaste): mein Netz mit allen Aktionen.</span></li>
-      <li><span id="i3"></span><span>Mit dem Mausrad auf mir wählst du, was ein Klick tut: lesen, übersetzen, vereinfachen, antworten.</span></li>
-      <li><span id="i4"></span><span>Dateien auf mich ziehen: Ich halte sie in meinem Netz fest.</span></li>
-    </ul>
-  </section>
-
-  <!-- 2: KI wählen -->
-  <section class="step" id="s2">
-    <h1>Womit soll ich lesen?</h1>
-    <p class="sub">Das kannst du jederzeit in den Einstellungen ändern.</p>
-    <div class="opt" data-p="builtin"><b>Eingebaut</b><span>Kostenlos und offline. Einmalig ca. 1 GB herunterladen – deine Texte bleiben auf dem PC.</span>
-      <div class="extra"><button class="go" id="dl">Jetzt herunterladen</button><div class="bar" id="bar"><i></i></div><div class="small" id="dlInfo"></div></div></div>
-    <div class="opt" data-p="claude"><b>Claude</b><span>Beste Qualität. Braucht einen API-Schlüssel von Anthropic (ein paar Cent pro Text). Deine Texte werden dafür an Anthropic geschickt.</span>
-      <div class="extra"><input class="key" id="key" type="password" placeholder="API-Schlüssel (sk-ant-…)" autocomplete="off">
-        <div class="links"><button class="link" id="keyLink">Schlüssel erstellen</button></div></div></div>
-    <div class="opt" data-p="later"><b>Später entscheiden</b></div>
-  </section>
-
-  <!-- 3: Datenschutz -->
-  <section class="step" id="s3">
-    <h1>Deine Daten</h1>
-    <div class="data">
-      <div><h3><span id="i5"></span>Bleibt auf deinem PC</h3><p>Texte und Ergebnisse beim eingebauten Modell, dein Notizbuch (letzte 20 Texte) und angeheftete Dateien. Bildschirmfotos zum Finden der Markierung bleiben nur kurz im Arbeitsspeicher und werden nie gespeichert.</p></div>
-      <div><h3><span id="i6"></span>Verlässt deinen PC nur, wenn du es willst</h3><p>Mit Claude gehen die Texte, die du lesen lässt, an Anthropic. Updates werden bei GitHub abgefragt, das eingebaute Modell einmalig von Hugging Face geladen. Keine Werbung, kein Tracking, kein Konto.</p></div>
+    <p class="sub">Ich lese Briefe, Rechnungen und Verträge für dich und sage dir, was zu tun ist. Direkt auf deinem PC.</p>
+    <div class="langs" role="radiogroup" aria-label="Sprache" data-noi18n><button class="chip" role="radio" data-l="de">Deutsch</button><button class="chip" role="radio" data-l="en">English</button></div>
+    <div class="card" id="dlCard">
+      <div class="row"><span id="dlTitle">Ich lade mein Wissen herunter</span><span class="small" id="dlPct"></span></div>
+      <div class="bar"><i id="dlBar"></i></div>
+      <div class="row"><span class="small" id="dlInfo">1 GB, nur einmal. Danach arbeite ich ganz ohne Internet.</span><button class="link" id="dlLater">Später laden</button></div>
     </div>
-    <label class="tog"><input type="checkbox" id="hatch" checked><span>Große Spinne liest mit (dafür kurz ein Bildschirmfoto der Markierung, nur im Arbeitsspeicher)</span></label>
-    <label class="tog"><input type="checkbox" id="pinCopied"><span>Kopierte Dateien automatisch ins Netz hängen (liest dafür die Zwischenablage mit)</span></label>
-    <label class="tog"><input type="checkbox" id="copyHint"><span>Bei kopiertem Text anbieten, ihn zu lesen (liest dafür die Zwischenablage mit)</span></label>
-    <div class="note">KI kann sich irren – wichtige Angaben bitte im Original prüfen.</div>
-    <div class="links"><button class="link" id="privacy">Datenschutz im Detail</button><button class="link" id="licenses">Lizenzen</button></div>
   </section>
 
-  <!-- 4: Ausprobieren -->
-  <section class="step" id="s4">
+  <!-- 2: Ausprobieren mit dem Übungsbrief -->
+  <section class="step" id="s2">
     <h1>Probier es aus</h1>
-    <p class="sub">Markiere den Brief unten und klick dann auf mich – oben am Bildschirmrand.</p>
+    <ol class="do"><li>Markiere den Brief unten mit der Maus.</li><li>Klick auf die Spinne oben am Bildschirmrand.</li></ol>
     <div class="practice" id="practice"></div>
     <div class="links"><button class="link" id="selAll">Text für mich markieren</button></div>
     <div class="small" id="practiceHint" style="margin-top:10px"></div>
+    <div class="loadline hidden" id="loadLine"><span class="bar"><i id="dlBar2"></i></span><span id="dlPct2"></span></div>
+  </section>
+
+  <!-- 3: Fertig – drei Dinge reichen -->
+  <section class="step" id="s3">
+    <h1>Fertig! Das kann ich</h1>
+    <p class="sub">Drei Dinge reichen, alles andere findest du später.</p>
+    <ul class="tips">
+      <li><b>Klick auf die Spinne</b><span>Markierten Text lesen</span></li>
+      <li><b>Rechtsklick oder lange drücken</b><span>Alle Funktionen im Spinnennetz</span></li>
+      <li><b>Datei draufziehen</b><span>PDF oder Word-Datei lesen</span></li>
+    </ul>
+    <div class="prohint" id="proHint"><span id="iLock"></span><span id="proText"><b>Silkreader Pro kommt bald:</b> Brief-Hilfe, Antworten, Übersetzen und mehr. Du findest es im Spinnennetz unter Mehr.</span></div>
+    <p class="small" style="margin-top:14px">Alles bleibt auf deinem PC. KI kann sich irren – wichtige Angaben bitte im Original prüfen. <button class="link" id="privacy">Datenschutz</button></p>
   </section>
 
   <div class="nav">
-    <button class="ghost" id="back">Zurück</button>
-    <button class="go" id="next">Weiter</button>
+    <div class="dots"><i class="on"></i><i></i><i></i></div>
+    <div class="right"><button class="ghost" id="back">Zurück</button><button class="go" id="next">Weiter</button></div>
   </div>
 </div>
 <script>
   const $ = (id) => document.getElementById(id);
-  [['i1', 'read'], ['i2', 'pin'], ['i3', 'translate'], ['i4', 'file'], ['i5', 'screen'], ['i6', 'send']].forEach(([id, ic]) => { $(id).outerHTML = silkIcon(ic); });
-  let step = 1, provider = null;
-  const LAST = 4;
+  $('iLock').outerHTML = silkIcon('lock');
+  let step = 1, prefs = { hatchAnimation: true, pinCopied: false, copyHint: false };
+  const LAST = 3;
   // Übungsbrief (in der Sprache der Oberfläche) – die Spinne erkennt ihn und zeigt ohne KI ein Beispiel-Ergebnis
   $('practice').textContent = I18N.lang === 'en'
     ? 'Dear Ms Sample, your electricity bill for March is 84.20 euros. Please transfer the amount by 15 December 2026. From January, your monthly instalment rises to 92 euros. Kind regards, City Power'
@@ -150,74 +152,71 @@
   });
   const show = () => {
     document.querySelectorAll('.step').forEach((s, i) => s.classList.toggle('on', i + 1 === step));
-    document.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i < step));
+    document.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i + 1 === step));
     $('back').style.visibility = step > 1 ? 'visible' : 'hidden';
-    $('next').textContent = step === LAST ? "Los geht's" : 'Weiter';
+    $('next').textContent = T(step === LAST ? "Los geht's" : 'Weiter');
   };
   show();
 
-  // Sprache: sofort umschalten (Fenster lädt neu)
+  // Sprache: sofort umschalten (Fenster lädt neu, der Download läuft weiter)
   document.querySelectorAll('[data-l]').forEach((b) => {
     b.classList.toggle('on', b.dataset.l === I18N.lang);
+    b.setAttribute('aria-checked', String(b.dataset.l === I18N.lang));
     b.addEventListener('click', async () => { if (b.dataset.l !== I18N.lang) { await window.spider.setUiLang(b.dataset.l); location.reload(); } });
   });
 
-  // Gespeicherte Werte vorbelegen (Zwischenablage nur, wenn bewusst eingeschaltet)
-  window.spider.welcomeState().then((st) => {
-    $('hatch').checked = st.hatchAnimation;
-    $('pinCopied').checked = st.pinCopied;
-    $('copyHint').checked = st.copyHint;
-    // Wenig Arbeitsspeicher: Claude empfehlen
-    window.spider.modelStatus().then((ms) => {
-      if (ms.ramGB >= 4) return;
-      const tip = document.createElement('div');
-      tip.className = 'small';
-      tip.style.color = 'var(--bad)';
-      tip.textContent = T('Dein PC hat wenig Arbeitsspeicher ({ram} GB) – Claude ist hier meist die bessere Wahl.', { ram: ms.ramGB });
-      document.querySelector('.opt[data-p="builtin"] > span').after(tip);
-    });
-    if (st.provider === 'claude' && st.hasKey) choose('claude');
-    else if (st.modelReady) choose('builtin');
-  });
-
-  function choose(p) {
-    provider = p;
-    document.querySelectorAll('.opt').forEach((o) => o.classList.toggle('on', o.dataset.p === p));
-    if (p === 'claude') setTimeout(() => $('key').focus(), 50);
+  // Die schnelle KI lädt gleich im Hintergrund – bis man fertig geklickt hat, ist sie meist da
+  const pct = (p) => `${Math.round(p * 100)} %`;
+  function progress(p) {
+    for (const id of ['dlBar', 'dlBar2']) $(id).style.width = `${p * 100}%`;
+    $('dlPct').textContent = pct(p);
+    $('dlPct2').textContent = T('KI wird geladen, {p}', { p: pct(p) });
+    $('loadLine').classList.remove('hidden');
   }
-  document.querySelectorAll('.opt').forEach((o) => o.addEventListener('click', (e) => { if (!e.target.closest('.extra')) choose(o.dataset.p); }));
-
-  // Eingebautes Modell laden
-  $('dl').addEventListener('click', async () => {
-    const st = await window.spider.modelStatus();
-    $('dl').style.display = 'none'; $('bar').style.display = 'block';
-    $('dlInfo').textContent = T('Starte Download …');
-    window.spider.modelDownload(st.selected);
+  function ready() {
+    for (const id of ['dlBar', 'dlBar2']) $(id).style.width = '100%';
+    $('dlTitle').textContent = T('✓ Ich bin bereit'); $('dlPct').textContent = '';
+    $('dlInfo').textContent = T('Ab jetzt arbeite ich ganz ohne Internet.');
+    $('dlLater').classList.add('hidden'); $('loadLine').classList.add('hidden');
+  }
+  window.spider.welcomeState().then(async (st) => {
+    prefs = { hatchAnimation: st.hatchAnimation, pinCopied: st.pinCopied, copyHint: st.copyHint };
+    // Wer schon Claude nutzt, braucht keinen Download
+    if (st.provider === 'claude' && st.hasKey) { $('dlCard').classList.add('hidden'); return; }
+    if (st.modelReady) return ready();
+    const ms = await window.spider.modelStatus();
+    if (ms.downloading) return;
+    window.spider.saveSettings({ provider: 'builtin' });
+    window.spider.modelDownload(ms.selected);
+    progress(0);
   });
   window.spider.onModelProgress((p) => {
-    if (p.finished) { $('bar').firstElementChild.style.width = '100%'; $('dlInfo').textContent = T('✓ Fertig geladen'); return; }
-    if (p.error) { $('dlInfo').textContent = p.error; $('dl').style.display = ''; return; }
-    $('bar').firstElementChild.style.width = `${p.total ? (p.done / p.total) * 100 : 0}%`;
-    $('dlInfo').textContent = `${(p.done / 1e9).toFixed(2)} / ${(p.total / 1e9).toFixed(2)} GB`;
+    if (p.finished) return ready();
+    if (p.error) { $('dlInfo').textContent = T('Der Download hat nicht geklappt. Bitte prüfe die Internetverbindung.'); $('loadLine').classList.add('hidden'); $('dlLater').textContent = T('Nochmal versuchen'); $('dlLater').dataset.retry = '1'; return; }
+    if (p.total) progress(p.done / p.total);
   });
-  $('keyLink').addEventListener('click', () => window.spider.openExternal('https://platform.claude.com/settings/keys'));
+  $('dlLater').addEventListener('click', async () => {
+    if ($('dlLater').dataset.retry) { delete $('dlLater').dataset.retry; $('dlLater').textContent = T('Später laden'); const ms = await window.spider.modelStatus(); window.spider.modelDownload(ms.selected); return; }
+    window.spider.modelCancel();
+    $('dlCard').classList.add('hidden'); $('loadLine').classList.add('hidden');
+  });
+
+  // Pro: freundlicher Hinweis, wo man es findet
+  window.spider.proState().then((st) => {
+    if (st.active) $('proText').innerHTML = `<b>${T('Silkreader Pro ist aktiv.')}</b> ${T('Du findest es im Spinnennetz unter Mehr.')}`;
+  });
   $('privacy').addEventListener('click', () => window.spider.openPrivacy());
-  $('licenses').addEventListener('click', () => window.spider.openLicenses());
 
   $('back').addEventListener('click', () => { step = Math.max(1, step - 1); show(); });
-  $('next').addEventListener('click', async () => {
-    if (step === 2) {
-      if (provider === 'claude' && $('key').value.trim()) await window.spider.saveSettings({ provider: 'claude', apiKey: $('key').value.trim() });
-      else if (provider === 'builtin') await window.spider.saveSettings({ provider: 'builtin' });
-    }
-    if (step === 3) window.spider.welcomePrefs({ hatchAnimation: $('hatch').checked, pinCopied: $('pinCopied').checked, copyHint: $('copyHint').checked });
+  $('next').addEventListener('click', () => {
+    if (step === 1) window.spider.welcomePrefs(prefs);
     if (step < LAST) { step++; show(); return; }
-    window.spider.welcomeDone({ hatchAnimation: $('hatch').checked, pinCopied: $('pinCopied').checked, copyHint: $('copyHint').checked });
+    window.spider.welcomeDone(prefs);
   });
   window.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' || e.defaultPrevented) return;
     const a = document.activeElement;
-    if (a?.id === 'key' || a?.tagName === 'BUTTON' || a?.tagName === 'INPUT' || a?.classList.contains('opt')) return;
+    if (a?.tagName === 'BUTTON' || a?.tagName === 'INPUT') return;
     $('next').click();
   });
 </script>

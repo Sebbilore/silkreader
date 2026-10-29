@@ -140,12 +140,13 @@ try {
   shot('4-ergebnis');
   await hidePopup();
 
-  // 5) Spinnennetz-Ring: Strg+Alt+Leertaste gedrückt halten, nach links zum Notizbuch, loslassen
+  // 5) Spinnennetz-Ring: Strg+Alt+Leertaste gedrückt halten, nach unten links zum Notizbuch, loslassen
   setCursor(700, 450); await sleep(200);
   down(VK.CTRL); down(VK.ALT); down(VK.SPACE); await sleep(80); up(VK.SPACE);
   const ringOpen = await waitFor(() => visible('ring.html'), 4000);
   check('Ring öffnet sich am Mauszeiger', ringOpen);
-  for (let x = 700; x >= 627; x -= 8) { setCursor(x, 450); await sleep(25); }
+  // Notizbuch liegt unten links (6 Felder: Lesen oben, dann im Uhrzeigersinn)
+  for (let k = 1; k <= 10; k++) { setCursor(Math.round(700 - 7 * k), Math.round(450 + 4 * k)); await sleep(25); }
   await sleep(500);
   shot('5-ring');
   up(VK.ALT); up(VK.CTRL);

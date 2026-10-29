@@ -62,20 +62,15 @@ execSync('xdotool mousemove 748 448'); await sleep(200);
 execSync('xdotool click 1'); await sleep(500); // „Mehr“ → zweite Seite
 console.log('Seite 2:', await ring.evaluate(() => [...document.querySelectorAll('.slot')].map((s) => s.dataset.id).join(',')));
 shot('4-ring2');
-execSync('xdotool mousemove 800 572'); await sleep(200);
-console.log('unten gewählt:', await ring.evaluate(() => document.querySelector('.slot.on')?.dataset.id));
-execSync('xdotool click 1'); await sleep(900);
+await ring.click('.slot[data-id="settings"]'); await sleep(900);
 console.log('Ring zu:', !(await visible('ring.html')), '| Einstellungs-Blase:', await pop.textContent('#title'));
 shot('4-settings');
-await pop.click('[data-set="provider"] [data-v="claude"]');
-await sleep(300);
-console.log('Claude gewählt:', (await app.evaluate(() => 0) , JSON.parse(fs.readFileSync(`${home}/.config/Silkreader/settings.json`, 'utf8')).provider), '| Schlüssel-Hinweis:', await pop.evaluate(() => !document.getElementById('keyHint').classList.contains('hidden')));
-await pop.click('[data-set="provider"] [data-v="builtin"]');
-await pop.click('[data-set="clickMode"] [data-v="translate"]');
-await sleep(300);
 const rig = await find('bubble.html');
-console.log('Klick-Modus gespeichert:', JSON.parse(fs.readFileSync(`${home}/.config/Silkreader/settings.json`, 'utf8')).clickMode, '| Accessoire:', await rig.evaluate(() => [...document.querySelectorAll('#acc > g.on')].map((g) => g.id).join(',')));
-await pop.click('[data-set="clickMode"] [data-v="read"]');
+await pop.click('[data-set="fontSize"] [data-v="large"]');
+await sleep(500);
+console.log('Schriftgröße gespeichert:', JSON.parse(fs.readFileSync(`${home}/.config/Silkreader/settings.json`, 'utf8')).fontSize, '| Zoom:', await pop.evaluate(() => document.documentElement.style.zoom), '| Breite:', await app.evaluate(() => global.__silk.popupWin?.getSize?.()[0] ?? null));
+await pop.click('[data-set="fontSize"] [data-v="normal"]');
+await sleep(300);
 
 // Ring schließt mit Wegfahren
 await app.evaluate(() => global.__silk.openRing({ at: { x: 800, y: 500 } }));

@@ -4,7 +4,7 @@ await new Promise((r) => setTimeout(r, 3500));
 const w = app.windows().find((x) => x.url().includes('settings'));
 console.log('settings opened automatically:', !!w);
 await w.screenshot({ path: process.argv[3] + '/dl-before.png' });
-await w.click('#modelDl');
+await w.click('[data-dl]');
 await new Promise((r) => setTimeout(r, 8000));
 console.log('progress text:', await w.textContent('#modelProgress'));
 await w.screenshot({ path: process.argv[3] + '/dl-after.png' });

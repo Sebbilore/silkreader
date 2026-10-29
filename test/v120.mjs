@@ -53,7 +53,7 @@ ok('Zurück zur Fristen-Liste', (await pop.textContent('#title')) === 'Fristen')
 // 2) In meiner Sprache
 await show(brief(later, 3), 'Rechnung C'); await sleep(300);
 await pop.waitForSelector('#moreBtn', { timeout: 20000 }); await sleep(400);
-await pop.click('[data-a="Sprache"]'); await sleep(400);
+await pop.click('[data-a="In meiner Sprache"]'); await sleep(400);
 const chips = await pop.evaluate(() => [...document.querySelectorAll('.langpick [data-x]')].map((c) => c.textContent));
 ok('Sprachauswahl', chips.includes('Українська') && chips.includes('العربية') && chips.includes('Türkçe'), chips.join(' '));
 await pop.screenshot({ path: `${out}/v120-sprache.png` });

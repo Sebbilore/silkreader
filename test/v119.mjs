@@ -41,6 +41,7 @@ await show(brief, 'Markierter Text');
 const pop = await find('popup.html');
 await pop.waitForSelector('#moreBtn', { timeout: 20000 });
 await sleep(800);
+await pop.evaluate(() => document.querySelectorAll('.paydata').forEach((d) => { d.open = true; }));
 const L = await pop.evaluate(() => ({
   card: !!document.querySelector('.letter'), kind: document.querySelector('.letter .lh b')?.textContent,
   todo: [document.querySelector('.letter .big')?.textContent + ' ' + document.querySelector('.letter .when2')?.textContent, ...[...document.querySelectorAll('.todo li')].map((l) => l.textContent)], kv: document.querySelector('.kv')?.innerText,

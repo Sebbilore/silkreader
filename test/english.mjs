@@ -38,9 +38,8 @@ console.log('Welcome (en):', await wel2.textContent('#s1 h1'), '| Deutsch übrig
 execSync(`import -window root ${out}/w1.png`);
 await wel2.click('#next'); await sleep(400);
 console.log('Schritt 2:', await wel2.textContent('#s2 h1'), '| Deutsch übrig:', JSON.stringify(await german(wel2)));
-await wel2.click('.opt[data-p="later"]');
 await wel2.click('#next'); await sleep(400);
-console.log('Schritt 3:', await wel2.textContent('#s3 h1'), '| Zwischenablage vorab aus:', !(await wel2.isChecked('#pinCopied')) && !(await wel2.isChecked('#copyHint')), '| Deutsch übrig:', JSON.stringify(await german(wel2)));
+console.log('Schritt 3:', await wel2.textContent('#s3 h1'), '| Deutsch übrig:', JSON.stringify(await german(wel2)));
 execSync(`import -window root ${out}/w3.png`);
 await wel2.click('#next'); await sleep(800);
 const st = settings();

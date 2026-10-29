@@ -578,8 +578,34 @@
   // Nur über der Spinne (oder direkt am Faden) Mausereignisse annehmen, sonst durchklicken lassen
   let wasInside = null, hoverSince = 0;
   let lastNear = performance.now();
+  // Tipp-Zone: Die Spinne schaukelt – deshalb zählt auch, wo sie eben noch war (Spur der letzten 180 ms).
+  // Die Zone wächst, wenn die Spinne sich schnell bewegt oder die Maus auf sie zusteuert, und bleibt
+  // etwas größer, sobald man drin ist (kein Flackern am Rand).
+  const trail = [];
+  let lastCursor = null;
+  function tapZone(now) {
+    trail.push({ x: spiderPos.x, y: spiderPos.y, t: now });
+    while (trail.length && now - trail[0].t > 180) trail.shift();
+    const d = Math.min(...trail.map((p) => Math.hypot(cursor.x - p.x, cursor.y - p.y)));
+    const first = trail[0], last = trail[trail.length - 1];
+    const speed = trail.length > 1 ? Math.hypot(last.x - first.x, last.y - first.y) / Math.max(0.03, (last.t - first.t) / 1000) : 0;
+    let approach = 0;
+    if (lastCursor) {
+      const before = Math.hypot(lastCursor.x - spiderPos.x, lastCursor.y - spiderPos.y);
+      approach = before - Math.hypot(cursor.x - spiderPos.x, cursor.y - spiderPos.y); // > 0: kommt näher
+    }
+    lastCursor = { x: cursor.x, y: cursor.y };
+    let r = (noZoneHelper ? 54 : 46) + Math.min(14, speed * 0.04) + (approach > 2 ? 8 : 0);
+    if (wasInside) r += 12;
+    return { d, r };
+  }
+  // Will jemand die Spinne antippen, hält sie still: Spielereien brechen ab, sobald die Maus nah kommt
+  const CALM_TRICKS = new Set(['yoyo', 'peek', 'bungee', 'swing', 'twirl', 'look', 'drum', 'stretch', 'sneeze', 'flip']);
+  let tapAt = 0; // eigene Reaktion auf einen Tipp nicht gleich wieder abbrechen
   function hitTest(now) {
-    const d = Math.hypot(cursor.x - spiderPos.x, cursor.y - spiderPos.y);
+    const zone = tapZone(now);
+    const d = zone.d;
+    if (d < 90 && trick && CALM_TRICKS.has(trick) && !dragging && now - tapAt > 2000 && now - trickStart > 250) { endTrick(); lenOverride = null; }
     const onThread = cursor.y > 0 && cursor.y < spiderPos.y - 10 &&
       Math.abs(cursor.x - (AX + (spiderPos.x - AX) * (cursor.y / Math.max(spiderPos.y, 1)))) < 6;
     const inRect = (r) => r && cursor.x >= r.x && cursor.x <= r.x + r.w && cursor.y >= r.y && cursor.y <= r.y + r.h;
@@ -591,12 +617,12 @@
     if (nearAny || trick || busy || dragging) lastNear = now;
     const fade = now - lastNear > 30000;
     if (fade !== document.body.classList.contains('faded')) document.body.classList.toggle('faded', fade);
-    const inside = dragging || down !== null || d < (noZoneHelper ? 52 : 42) || onThread || (webIsOpen() && itemRects.some(inRect)) || inRect(zoneRect()) || onWeb(cursor);
+    const inside = dragging || down !== null || d < zone.r || onThread || (webIsOpen() && itemRects.some(inRect)) || inRect(zoneRect()) || onWeb(cursor);
     if (inside !== wasInside) {
       wasInside = inside;
       window.spider.rigHover(inside);
     }
-    if (!dragging) hover = inside && d < 44;
+    if (!dragging) hover = inside && d < zone.r;
     if (hover) { if (!hoverSince) hoverSince = now; } else hoverSince = 0;
 
     // Aufwachen, wenn die Maus in die Nähe kommt; Winken, wenn sie neu auftaucht
@@ -827,14 +853,26 @@
     window.spider.prewarm(); // Sprechblase lädt schon, während die Maustaste noch unten ist
     el.svg.setPointerCapture(e.pointerId);
     if (!down.onWeb) window.spider.rigDragStart(baseLen);
+    // Lange drücken (gut mit Touch und Stift): alle Funktionen im Spinnennetz
+    const d0 = down;
+    d0.timer = setTimeout(() => {
+      if (down !== d0 || dragging) return;
+      d0.long = true;
+      if (trick) endTrick();
+      doTrick('hello');
+      window.spider.bubbleMenu();
+    }, 550);
   });
   el.svg.addEventListener('pointerup', async (e) => {
     if (!down) return;
-    const wasWeb = down.onWeb;
+    const wasWeb = down.onWeb, wasLong = down.long;
+    tapAt = performance.now();
+    clearTimeout(down.timer);
     down = null;
     el.svg.releasePointerCapture(e.pointerId);
     if (wasWeb) { doTrick('wrap'); window.spider.pinSelection(); return; }
     const { moved } = await window.spider.rigDragEnd();
+    if (wasLong) return;
     if (!moved) {
       if (trick) endTrick();
       doTrick('yoyo');
@@ -902,20 +940,8 @@
     clearTimeout(tipTimer);
     tipTimer = setTimeout(() => tip.classList.remove('on'), 1400);
   }
-  el.svg.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const now = performance.now();
-    // Nur wenn die Maus schon kurz auf der Spinne ruht – beim Scrollen über sie hinweg ändert sich nichts
-    if (!hoverSince || now - hoverSince < 500) return;
-    if (now - lastWheel < 220) return;
-    lastWheel = now;
-    wake();
-    const i = MODES.findIndex(([id]) => id === clickMode);
-    const next = MODES[(i + (e.deltaY > 0 ? 1 : MODES.length - 1)) % MODES.length][0];
-    setClickMode(next, true);
-    doTrick('flip');
-    window.spider.setClickMode(next);
-  }, { passive: false });
+  // Das Mausrad auf der Spinne schaltet keinen Modus mehr um (kannte niemand, passierte aus Versehen).
+  el.svg.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
   window.spider.onClickMode((m) => setClickMode(m, false));
 
   window.spider.onRigInit((d) => { minLen = d.minLen; maxLen = d.maxLen; baseLen = d.length; setClickMode(d.clickMode, false); });

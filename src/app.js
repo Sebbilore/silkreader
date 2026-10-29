@@ -178,8 +178,8 @@ function showPreview(doc) {
   $('btnCopy').classList.add('hidden');
   $('panelBody').innerHTML = `<div class="ready">
       <div class="ready-icon">🕷</div>
-      <div class="ready-title">Bereit zum Analysieren</div>
-      <button class="primary big" id="btnGo">Analysieren <kbd>Enter</kbd></button>
+      <div class="ready-title">Bereit zum Lesen</div>
+      <button class="primary big" id="btnGo">Lesen <kbd>Enter</kbd></button>
       <div class="ready-keys"><kbd>Esc</kbd> schließen · <kbd>Strg</kbd>+<kbd>K</kbd> in Kokon packen</div>
     </div>`;
   $('btnGo').addEventListener('click', startPending);

@@ -7,6 +7,13 @@ const setTheme = (dark) => { themeDark = dark; if (document.documentElement) doc
 if (document.documentElement) setTheme(themeDark);
 else new MutationObserver((_m, obs) => { if (document.documentElement) { obs.disconnect(); setTheme(themeDark); } }).observe(document, { childList: true });
 ipcRenderer.on('theme-changed', (_e, dark) => setTheme(dark));
+// Schriftgröße (normal / groß / sehr groß): vergrößert die Fenster mit Text, nicht die Spinne
+const ZOOMABLE = /\/(popup|index|settings|welcome|privacy|licenses|camera)\.html|\/legal\//.test(location.pathname);
+let uiZoom = ipcRenderer.sendSync('ui-zoom');
+const setZoom = (z) => { uiZoom = z; if (ZOOMABLE && document.documentElement) document.documentElement.style.zoom = z === 1 ? '' : String(z); };
+if (document.documentElement) setZoom(uiZoom);
+else new MutationObserver((_m, obs) => { if (document.documentElement) { obs.disconnect(); setZoom(uiZoom); } }).observe(document, { childList: true });
+ipcRenderer.on('zoom-changed', (_e, z) => setZoom(z));
 
 contextBridge.exposeInMainWorld('spider', {
   uiLang: ipcRenderer.sendSync('ui-lang'),

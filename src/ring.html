@@ -30,6 +30,8 @@
   .slot.on .ic { stroke: var(--pink); transform: scale(1.1); }
   .slot .lb { fill: var(--text); font: 400 9.5px var(--font); text-anchor: middle; transition: fill var(--t-fast); }
   .slot.on .lb { fill: var(--strong); font-weight: 600; }
+  .lockb { fill: var(--pink); stroke: none; } .lockl { fill: none; stroke: var(--pink); stroke-width: 1.8; }
+  .slot[data-id="pro"] .ic { stroke: var(--pink); }
   .icons { opacity: 0; animation: fade .2s .12s forwards; } @keyframes fade { to { opacity: 1; } }
   /* Mitte: die kleine Spinne */
   #center .bd { fill: #2b2b2b; stroke: var(--pink); stroke-width: 1.2; }
@@ -47,12 +49,16 @@
   const $ = (id) => document.getElementById(id);
   const mk = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent?.appendChild(e); return e; };
 
+  // Seite 1: das Wichtigste (6 Felder), Seite 2: alles Weitere
   const PAGES = [
-    [['read', 'Lesen'], ['translate', 'Übersetzen'], ['simplify', 'Einfach'], ['reply', 'Antworten'],
-     ['region', 'Bereich'], ['pin', 'Ins Netz'], ['notebook', 'Notizbuch'], ['more', 'Mehr']],
-    [['file', 'Datei lesen'], ['clip', 'Zwischenabl.'], ['deadlines', 'Fristen'], ['reader', 'Lesemodus'], ['settings', 'Einstellungen'],
-     ['about', 'Über'], ['hide', 'Verstecken'], ['back', 'Zurück']],
+    [['read', 'Lesen'], ['translate', 'Übersetzen'], ['simplify', 'Einfach'], ['reply', 'Antworten'], ['notebook', 'Notizbuch'], ['more', 'Mehr']],
+    [['region', 'Bereich'], ['file', 'Datei lesen'], ['deadlines', 'Fristen'], ['reader', 'Großes Fenster'], ['pro', 'Silkreader Pro'],
+     ['settings', 'Einstellungen'], ['hide', 'Verstecken'], ['back', 'Zurück']],
   ];
+  // Pro-Funktionen bekommen ein kleines Schloss, solange Pro nicht aktiv ist
+  const PRO_IDS = new Set(['translate', 'simplify', 'reply']);
+  let proActive = true;
+  const LOCK = '<g transform="translate(9 -9) scale(.55)"><rect x="-5" y="-1" width="10" height="7.5" rx="1.6" class="lockb"/><path d="M-3 -1v-2a3 3 0 0 1 6 0v2" class="lockl"/></g>';
 
   let page = 0, slots = [], hovered = null;
 
@@ -96,7 +102,7 @@
       mk('path', { class: 'hit', d: wedge(INNER, R + 30) }, g);
       const ix = C + Math.cos(am) * (R * 0.62), iy = C + Math.sin(am) * (R * 0.62);
       const ic = mk('g', { class: 'ic', style: `transform-origin:${ix}px ${iy - 5}px` }, g);
-      ic.innerHTML = `<g transform="translate(${ix} ${iy - 5})">${SILK_ICONS[id] || ''}</g>`;
+      ic.innerHTML = `<g transform="translate(${ix} ${iy - 5})">${SILK_ICONS[id] || ''}${PRO_IDS.has(id) && !proActive ? LOCK : ''}</g>`;
       mk('text', { class: 'lb', x: ix, y: iy + 16 }, g).textContent = label;
       g.addEventListener('click', (e) => { e.stopPropagation(); choose(id); });
       return { id, label, a0, a1, g };
@@ -174,7 +180,11 @@
   window.addEventListener('click', (e) => { if (!slotAt(e.clientX, e.clientY)) window.spider.ringAction(null); });
   window.addEventListener('contextmenu', (e) => { e.preventDefault(); window.spider.ringAction(null); });
 
-  window.spider.onRingOpen(({ page: p = 0 } = {}) => { page = p; build(); });
+  window.spider.onRingOpen(async ({ page: p = 0 } = {}) => {
+    page = p;
+    try { proActive = (await window.spider.proState()).active; } catch { proActive = true; }
+    build();
+  });
   // Tastatur: im Uhrzeigersinn weiter (→ ↓ Tab), zurück (← ↑ Umschalt+Tab), Enter/Leertaste wählt
   window.spider.onRingKey((k) => {
     if (k === 'Return' || k === 'Space') { if (hovered) choose(hovered.id); return; }

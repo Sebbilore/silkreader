@@ -35,7 +35,7 @@ ok('Zurück zur Vertragskarte', await pop.evaluate(() => !!document.querySelecto
 // Rechnung: Vorlagen-Zeile mit Ratenzahlung
 const rechnung = 'Stadtwerke Musterstadt GmbH\nRechnungsnummer: RE-9\n\nSehr geehrte Frau Beispiel,\n\nRechnungsbetrag: 98,90 €\nBitte überweisen Sie den Betrag bis zum 15.11.2030.\nIBAN: DE89 3704 0044 0532 0130 00\n\nMit freundlichen Grüßen';
 await show(rechnung); await sleep(300); await pop.waitForSelector('#moreBtn', { timeout: 20000 }); await sleep(400);
-const tpl = await pop.evaluate(() => [...document.querySelectorAll('.tpl [data-tpl]')].map((b) => b.dataset.tpl));
+const tpl = await pop.evaluate(() => [...document.querySelectorAll('#lTplMenu [data-tpl]')].map((b) => b.dataset.tpl));
 ok('Rechnung: Vorlagen Ratenzahlung, Fristverlängerung, Rückfrage', ['installments', 'extension', 'question'].every((k) => tpl.includes(k)), tpl.join(','));
 // Mappen
 await app.evaluate(() => global.__silk.showPopupPayload({ kind: 'notebook' })); await sleep(900);

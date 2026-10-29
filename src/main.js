@@ -44,7 +44,7 @@ const pro = require('./pro');
 // selbst benutzen (z. B. Strg+Umschalt+Leertaste in Word, Strg+Umschalt+B in Chrome).
 const SHORTCUTS = [
   { id: 'take', keys: 'CommandOrControl+Alt+S', label: 'Strg+Alt+S', desc: 'Markierten Text an die Spinne geben (Vorschau)' },
-  { id: 'analyze', keys: 'CommandOrControl+Alt+A', label: 'Strg+Alt+A', desc: 'Markierten Text sofort analysieren' },
+  { id: 'analyze', keys: 'CommandOrControl+Alt+A', label: 'Strg+Alt+A', desc: 'Markierten Text sofort lesen' },
   { id: 'cocoon', keys: 'CommandOrControl+Alt+K', label: 'Strg+Alt+K', desc: 'Markierten Text oder Datei in einen Kokon packen' },
   { id: 'cocoons', keys: 'CommandOrControl+Alt+V', label: 'Strg+Alt+V', desc: 'Kokon-Ablage öffnen (Kopieren/Einfügen)' },
   { id: 'toggle', keys: 'CommandOrControl+Alt+H', label: 'Strg+Alt+H', desc: 'Spinne verstecken / zeigen' },
@@ -235,6 +235,7 @@ function createBubble() {
     if (!bubbleWin.isVisible()) { delay = 300; return; }
     const c = screen.getCursorScreenPoint();
     const still = lastRaw && lastRaw.x === c.x && lastRaw.y === c.y;
+    checkTouchTap(lastRaw, c);
     lastRaw = c;
     recordCursor(c);
     const [wx, wy] = bubbleWin.getPosition();
@@ -251,6 +252,34 @@ function createBubble() {
     bubbleWin.webContents.send('cursor', { x, y });
   };
   loop();
+}
+
+// Touch und Stift: Beim Tippen springt der Zeiger direkt auf die Spinne, ohne vorher darüber zu schweben.
+// Dann hat das Fenster den Tipp noch durchgelassen – wir erkennen ihn hier und führen ihn selbst aus:
+// kurz tippen = lesen, lange drücken = Spinnennetz.
+let touchWatch = null;
+function checkTouchTap(prev, c) {
+  if (touchWatch || drag || !prev || !bubbleWin?.isVisible()) return;
+  const jump = Math.hypot(c.x - prev.x, c.y - prev.y);
+  const sp = spiderScreenPos();
+  if (jump < 120 || Math.hypot(c.x - sp.x, c.y - sp.y) > 50) return;
+  isMouseDown().then((down) => {
+    if (!down || touchWatch || drag) return;
+    const start = Date.now(), at = { ...c };
+    touchWatch = setInterval(async () => {
+      const p = screen.getCursorScreenPoint();
+      if (drag) { clearInterval(touchWatch); touchWatch = null; return; } // das Fenster hat den Tipp doch selbst bekommen
+      const moved = Math.hypot(p.x - at.x, p.y - at.y) > 12;
+      const held = Date.now() - start;
+      if (moved || held > 2500) { clearInterval(touchWatch); touchWatch = null; return; }
+      if (held > 550) { clearInterval(touchWatch); touchWatch = null; openRing({ at: sp }); return; }
+      if (!(await isMouseDown())) {
+        clearInterval(touchWatch); touchWatch = null;
+        bubbleWin?.webContents.send('rig-trick', 'yoyo');
+        spiderTake();
+      }
+    }, 50);
+  });
 }
 
 // Zieht jemand mit gedrückter Maustaste etwas in die Nähe der Spinne, wird das ganze Netz
@@ -370,11 +399,17 @@ function showDocument(doc, { autoStart = false, result = null, focus = null } = 
 // ---------- Ergebnis-Sprechblase unter der Spinne ----------
 
 const POPUP = { width: 420, height: 560 };
+// Schriftgröße: die Fenster mit Text werden per CSS-Zoom größer, die Blase wächst mit
+const ZOOM = { normal: 1, large: 1.15, xlarge: 1.3 };
+const uiZoom = () => ZOOM[loadSettings().fontSize] || 1;
+const popupW = () => Math.round(POPUP.width * uiZoom());
+const popupH = () => Math.round(POPUP.height * uiZoom());
+ipcMain.on('ui-zoom', (e) => { e.returnValue = uiZoom(); });
 let popupWin = null;
 function createPopup() {
   if (popupWin && !popupWin.isDestroyed()) return popupWin;
   popupWin = new BrowserWindow({
-    width: POPUP.width, height: POPUP.height, show: false, frame: false, transparent: true, resizable: false,
+    width: popupW(), height: popupH(), show: false, frame: false, transparent: true, resizable: false,
     alwaysOnTop: true, skipTaskbar: true, hasShadow: false, maximizable: false, minimizable: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
   });
@@ -398,10 +433,11 @@ function showPopupPayload(payload) {
   // Unter der Spinne platzieren, die Spitze zeigt auf sie
   const sp = spiderScreenPos();
   const area = screen.getDisplayNearestPoint(sp).workArea;
-  const x = Math.round(Math.min(Math.max(sp.x - POPUP.width / 2, area.x + 6), area.x + area.width - POPUP.width - 6));
+  const W = popupW(), H = popupH(), z = uiZoom();
+  const x = Math.round(Math.min(Math.max(sp.x - W / 2, area.x + 6), area.x + area.width - W - 6));
   const y = Math.round(Math.min(sp.y + 24, area.y + area.height - 260));
-  win.setBounds({ x, y, width: POPUP.width, height: Math.min(POPUP.height, area.y + area.height - y) });
-  const arrow = Math.round(Math.min(Math.max(sp.x - x, 34), POPUP.width - 34));
+  win.setBounds({ x, y, width: W, height: Math.min(H, area.y + area.height - y) });
+  const arrow = Math.round(Math.min(Math.max(sp.x - x, 34 * z), W - 34 * z) / z);
   const send = () => {
     win.webContents.send('popup-doc', { ...payload, arrow });
     win.show();
@@ -416,8 +452,9 @@ ipcMain.on('popup-size', (_e, h) => {
   if (!popupWin || popupWin.isDestroyed()) return;
   const [x, y] = popupWin.getPosition();
   const area = screen.getDisplayNearestPoint({ x, y }).workArea;
-  const height = Math.round(Math.max(120, Math.min(Number(h) || POPUP.height, POPUP.height, area.y + area.height - y)));
-  if (popupWin.getSize()[1] !== height) popupWin.setBounds({ x, y, width: POPUP.width, height });
+  const H = popupH();
+  const height = Math.round(Math.max(120, Math.min((Number(h) || POPUP.height) * uiZoom(), H, area.y + area.height - y)));
+  if (popupWin.getSize()[1] !== height || popupWin.getSize()[0] !== popupW()) popupWin.setBounds({ x, y, width: popupW(), height });
 });
 
 // Mini-Blase statt App: Text einfügen, Zwischenablage, Datei, zuletzt Gelesenes
@@ -444,7 +481,8 @@ function showNotebook() {
 
 // Was ein einfacher Klick auf die Spinne tut (mit dem Mausrad auf der Spinne umschaltbar)
 const CLICK_MODES = ['read', 'translate', 'simplify', 'reply'];
-const clickMode = () => (CLICK_MODES.includes(loadSettings().clickMode) ? loadSettings().clickMode : 'read');
+// Ein Tipp auf die Spinne liest immer – Übersetzen, Einfach und Antworten gehen über den Ring
+const clickMode = () => 'read';
 ipcMain.handle('set-click-mode', (_e, mode) => {
   if (!CLICK_MODES.includes(mode)) return clickMode();
   const st = loadSettings();
@@ -543,6 +581,7 @@ async function runRingAction(id) {
     case 'settings': return showPopupPayload({ kind: 'settings' });
     case 'hide': return bubbleWin?.hide();
     case 'about': return showPopupPayload({ kind: 'about' });
+    case 'pro': return showPopupPayload({ kind: 'pro' });
   }
 }
 
@@ -1215,7 +1254,7 @@ function cocoonsMenuTemplate() {
 
 async function pickFile() {
   const r = await dialog.showOpenDialog({
-    title: T('Dokument analysieren'),
+    title: T('Dokument lesen'),
     properties: ['openFile'],
     filters: [{ name: T('Dokumente'), extensions: DOC_EXT }],
   });
@@ -1601,7 +1640,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
     // erscheinen sie als Kurzfassung, während die KI die Details weiterschreibt.
     if (chunks.length <= 1) {
       const docText = chunks[0]?.text || '';
-      onProgress({ stage: 'Analysiere …', step: 1, steps: 1 });
+      onProgress({ stage: 'Liest …', step: 1, steps: 1 });
       let streamed = '', quickSent = false;
       const r = await ask([
         `Analysiere das folgende Dokument („${doc.title}“).`,
@@ -1678,7 +1717,8 @@ async function analyzeBuiltin(doc, s, onProgress) {
 async function startModelDownload(sender, key) {
   if (modelDownload) return;
   const info = BUILTIN_MODELS[key] || BUILTIN_MODELS.fast;
-  const send = (ch, d) => { if (!sender.isDestroyed()) sender.send(ch, d); };
+  // An alle Fenster: Willkommen und Einstellungen zeigen denselben Fortschritt (auch nach einem Neuladen)
+  const send = (ch, d) => BrowserWindow.getAllWindows().forEach((w) => { if (!w.isDestroyed() && !w.webContents.isDestroyed()) w.webContents.send(ch, d); });
   try {
     const { createModelDownloader } = await import('node-llama-cpp');
     fs.mkdirSync(modelDir(), { recursive: true });
@@ -2473,6 +2513,8 @@ ipcMain.handle('get-settings', () => {
     hideInShare: s.hideInShare !== false,
     watchDownloads: s.watchDownloads === true,
     theme: ['light', 'dark'].includes(s.theme) ? s.theme : 'system',
+    fontSize: ZOOM[s.fontSize] ? s.fontSize : 'normal',
+    autostart: app.getLoginItemSettings().openAtLogin,
     clickMode: clickMode(),
     explainLang: s.explainLang || null,
     qualityReady: modelReady('quality'), qualityPossible: ramGB() >= BUILTIN_MODELS.quality.minRamGB,
@@ -2493,7 +2535,7 @@ ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await
 ipcMain.handle('ollama-models', async () => {
   try { return { ok: true, models: await ollamaModels() }; } catch { return { ok: false, models: [] }; }
 });
-ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied, copyHint, privateMode, hideFullscreen, hideInShare, watchDownloads, clickMode: cm, theme }) => {
+ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied, copyHint, privateMode, hideFullscreen, hideInShare, watchDownloads, clickMode: cm, theme, fontSize, autostart }) => {
   if (apiKey) setApiKey(apiKey.trim());
   const s = loadSettings();
   if (['builtin', 'claude', 'ollama'].includes(provider)) s.provider = provider;
@@ -2510,6 +2552,12 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   if (typeof hideInShare === 'boolean') { s.hideInShare = hideInShare; setImmediate(() => [bubbleWin, popupWin, ringWin].forEach(protectFromCapture)); }
   if (CLICK_MODES.includes(cm)) { s.clickMode = cm; bubbleWin?.webContents.send('click-mode', cm); }
   if (model && MODELS[model]) s.model = model;
+  if (typeof autostart === 'boolean') app.setLoginItemSettings({ openAtLogin: autostart });
+  if (ZOOM[fontSize] && fontSize !== s.fontSize) {
+    s.fontSize = fontSize;
+    const z = ZOOM[fontSize];
+    setImmediate(() => BrowserWindow.getAllWindows().forEach((w) => { if (!w.isDestroyed()) w.webContents.send('zoom-changed', z); }));
+  }
   if (language) { if (language !== s.language) s.languageSet = true; s.language = language; }
   saveSettings(s);
   preloadBuiltinModel();
@@ -2739,7 +2787,7 @@ if (!app.requestSingleInstanceLock()) {
 
 // Nur für automatische Tests: ein paar Funktionen erreichbar machen
 if (TESTING) global.__silk = { showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
-  get cocoons() { return cocoons; }, get lastScreenSel() { return lastScreenSel; }, set lastScreenSel(v) { lastScreenSel = v; },
+  get popupWin() { return popupWin; }, get cocoons() { return cocoons; }, get lastScreenSel() { return lastScreenSel; }, set lastScreenSel(v) { lastScreenSel = v; },
   set copiedOffer(v) { copiedOffer = v; },
   get downloadOffer() { return downloadOffer; }, spiderTake, runCrawlOverlay,
   // Für die Windows-Tests: Diagnose und direkte Aufrufe der Windows-Bausteine

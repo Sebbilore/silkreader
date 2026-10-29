@@ -53,196 +53,232 @@
   .keys kbd.rec { cursor: pointer; } .keys kbd.rec:hover { border-color: var(--faint); }
   .keys kbd.on { border-color: var(--pink); color: var(--pink-2); } .bad { color: var(--bad); }
   ol { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; } ol li { margin-bottom: 4px; }
+
+  /* 1.22: Zeilen-Gruppen wie in den Windows-Einstellungen, alles speichert sofort */
+  .grp { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+  .line { display: flex; align-items: center; gap: 12px; padding: 10px 16px; min-height: 28px; background: var(--card); }
+  .grp > .line:first-child { border-radius: var(--r-m) var(--r-m) 0 0; } .grp > .line:last-child { border-radius: 0 0 var(--r-m) var(--r-m); } .grp > .line:only-child { border-radius: var(--r-m); }
+  .line .grow { flex: 1; min-width: 0; } .line .sub { display: block; color: var(--muted); font-size: 12.5px; }
+  .line select { width: auto; min-width: 160px; }
+  .line label.check { padding: 0; background: none; }
+  .lead { color: var(--muted); font-size: 13px; margin: -4px 0 0; }
+  .pro { display: flex; gap: 14px; align-items: center; padding: 14px 16px; border-radius: var(--r-l); background: var(--card); border: 1px solid color-mix(in srgb, var(--pink) 40%, transparent); }
+  .pro svg { width: 34px; height: 34px; flex: none; } .pro b { font-weight: 600; } .pro .soon { font-weight: 400; font-size: 12px; color: var(--muted); margin-left: 4px; } .pro .on { color: var(--ok); font-weight: 400; font-size: 12px; margin-left: 4px; }
+  .state { font-size: 13px; color: var(--ok); white-space: nowrap; } .state.muted { color: var(--muted); }
+  .lockic { width: 12px; height: 12px; vertical-align: -1px; margin-left: 6px; }
+  details.adv { margin-top: 22px; } details.adv > summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: var(--r-m); background: var(--card); cursor: pointer; }
+  details.adv > summary::-webkit-details-marker { display: none; }
+  details.adv > summary::after { content: ''; width: 7px; height: 7px; border-right: 1.4px solid var(--muted); border-bottom: 1.4px solid var(--muted); transform: rotate(-45deg); transition: transform var(--t-fast); }
+  details.adv[open] > summary::after { transform: rotate(45deg); }
+  details.adv > summary .grow { flex: 1; } details.adv .sub { display: block; color: var(--muted); font-size: 12.5px; }
+  .pro button { white-space: nowrap; }
+  .foot { display: flex; gap: 18px; align-items: center; margin-top: 24px; font-size: 13px; } .foot .saved { margin-left: auto; color: var(--faint); }
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
 <h1><svg viewBox="-36 -30 72 60" aria-hidden="true"><g stroke="currentColor" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 -5L18 -15L24 -4M10 -1L21 -7L28 4M10 3L20 2L26 13M8 7L16 9L20 20M-8 -5L-18 -15L-24 -4M-10 -1L-21 -7L-28 4M-10 3L-20 2L-26 13M-8 7L-16 9L-20 20"/></g><circle r="11" fill="currentColor"/></svg>Einstellungen</h1>
-<h2 style="margin-top:0">KI</h2>
 
-<div class="choice">
-  <div class="opt" data-p="builtin"><b>Eingebaut</b><span>Kostenlos und offline, direkt in der App</span></div>
-  <div class="opt" data-p="claude"><b>Claude</b><span>Beste Qualität, braucht API-Schlüssel (ein paar Cent pro Analyse)</span></div>
-  <div class="opt" data-p="ollama"><b>Ollama</b><span>Für Profis: eigenes Modell über Ollama</span></div>
+<section class="pro" id="proCard"><svg viewBox="-40 -32 80 64" aria-hidden="true"><g stroke="var(--pink)" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 -5L18 -15L24 -4M10 -1L21 -7L28 4M10 3L20 2L26 13M8 7L16 9L20 20M-8 -5L-18 -15L-24 -4M-10 -1L-21 -7L-28 4M-10 3L-20 2L-26 13M-8 7L-16 9L-20 20"/></g><circle r="11" fill="#2b2b2b" stroke="var(--pink)" stroke-width="1.4"/><ellipse cx="-4.2" cy="-1.6" rx="3.6" ry="4.1" fill="#fff"/><ellipse cx="4.2" cy="-1.6" rx="3.6" ry="4.1" fill="#fff"/></svg>
+  <div class="grow"><b>Silkreader Pro</b><span class="soon" id="proSoon">kommt bald</span><span class="on hidden" id="proOn">✓ aktiv</span>
+    <div class="hint" style="margin:0">Brief-Hilfe, Antworten, Übersetzen, Vertrags-Check und mehr.</div></div>
+  <button class="primary" id="proBtn">Code einlösen</button>
+</section>
+
+<h2>KI auf diesem PC</h2>
+<p class="lead">Alles läuft offline. Deine Briefe verlassen den PC nicht.</p>
+<div class="grp" id="modelChoice"></div>
+<div class="progress" id="modelBar" style="display:none"><i></i></div>
+<div class="inline" style="align-items:center"><div class="hint" id="modelProgress" style="flex:1"></div><button id="modelCancel" style="display:none">Abbrechen</button></div>
+<div class="hint" id="modelInfo"></div>
+
+<h2>Allgemein</h2>
+<div class="grp">
+  <div class="line"><span class="grow"><label for="uiLang" style="margin:0;font-weight:400">Sprache der App</label></span><select id="uiLang" data-noi18n><option value="de">Deutsch</option><option value="en">English</option></select></div>
+  <div class="line"><span class="grow"><label for="lang" style="margin:0;font-weight:400">Ergebnisse auf</label></span><select id="lang">
+    <option value="Deutsch">Deutsch</option><option value="Englisch">Englisch</option><option value="Französisch">Französisch</option><option value="Spanisch">Spanisch</option><option value="Italienisch">Italienisch</option>
+    <option value="der Sprache des Dokuments">Wie das Dokument</option></select></div>
+  <div class="line"><span class="grow"><label for="theme" style="margin:0;font-weight:400">Darstellung</label></span><select id="theme"><option value="system">Wie Windows</option><option value="light">Hell</option><option value="dark">Dunkel</option></select></div>
+  <div class="line"><span class="grow"><label for="fontSize" style="margin:0;font-weight:400">Schriftgröße</label></span><select id="fontSize"><option value="normal">Normal</option><option value="large">Groß</option><option value="xlarge">Sehr groß</option></select></div>
+  <div class="line"><label class="check grow"><input type="checkbox" id="autostart"> Mit Windows starten</label></div>
 </div>
 
-<div class="box" id="boxBuiltin">
-  <label>Eingebautes KI-Modell</label>
-  <div class="choice two" id="modelChoice"></div>
-  <div id="modelInfo" class="hint" style="margin-top:8px"></div>
-  <div class="progress" id="modelBar" style="display:none"><i></i></div>
-  <div class="hint" id="modelProgress"></div>
-  <div class="inline" style="margin-top:10px">
-    <button class="primary" id="modelDl">Herunterladen</button>
-    <button id="modelCancel" style="display:none">Abbrechen</button>
+<h2>Spinne</h2>
+<div class="grp">
+  <div class="line"><label class="check grow"><input type="checkbox" id="hatch"> Große Spinne beim Lesen zeigen</label></div>
+  <div class="line"><label class="check grow"><input type="checkbox" id="copyHint"> Bei kopiertem Text fragen, ob ich lesen soll</label></div>
+  <div class="line"><label class="check grow"><input type="checkbox" id="hideFullscreen"> Bei Vollbild und Präsentationen verstecken</label></div>
+</div>
+
+<details class="adv" id="adv">
+  <summary><span class="grow">Erweitert<span class="sub">Tastenkürzel, Privatmodus, Downloads, Sparmodus, Bildschirmfreigabe</span></span></summary>
+  <h2>Tastenkürzel</h2>
+  <div class="hint" style="margin-top:-4px">Zum Ändern anklicken und neue Tasten drücken.</div>
+  <div id="shortcuts" class="keys"></div>
+  <h2>Verhalten</h2>
+  <div class="grp">
+    <div class="line"><label class="check grow"><input type="checkbox" id="privateMode"> Privatmodus: nichts im Notizbuch speichern</label></div>
+    <div class="line"><label class="check grow"><input type="checkbox" id="pinCopied"> Kopierte Dateien (Strg+C im Explorer) ins Spinnennetz hängen</label></div>
+    <div class="line"><label class="check grow"><input type="checkbox" id="watchDownloads"> Neue Downloads (PDF, Fotos) zum Lesen anbieten</label></div>
+    <div class="line"><label class="check grow"><input type="checkbox" id="hideInShare"> In Bildschirmfreigaben (Teams, Zoom …) unsichtbar</label></div>
+    <div class="line"><label class="check grow"><input type="checkbox" id="lowPower"> Sparmodus: braucht weniger Arbeitsspeicher (nach einem Neustart)</label></div>
   </div>
-  <div class="hint" style="margin-top:10px">Wird nur einmal geladen und dann auf diesem PC gespeichert. Läuft danach komplett offline; deine Texte verlassen den PC nicht. „Schnell“ antwortet meist in unter einer Minute, „Gründlich“ ist genauer, braucht aber länger und mehr Speicher (ab 8 GB RAM).</div>
-</div>
 
-<div class="box" id="boxOllama">
-  <label for="ollamaModel">Lokales Modell</label>
-  <div class="inline">
-    <select id="ollamaModel"></select>
-    <button id="refresh" title="Neu laden" aria-label="Neu laden">↻</button>
+  <!-- Andere KI: nur für alle, die schon Claude oder Ollama nutzen -->
+  <div id="otherAi" class="hidden">
+    <h2>Andere KI</h2>
+    <div class="grp"><div class="line"><span class="grow"><label for="provider" style="margin:0;font-weight:400">KI</label><span class="sub">Neu eingerichtet wird nur noch die eingebaute KI.</span></span>
+      <select id="provider"><option value="builtin">Eingebaut</option><option value="claude">Claude</option><option value="ollama">Ollama</option></select></div></div>
+    <div class="box" id="boxClaude">
+      <label for="key">Anthropic API-Schlüssel</label>
+      <input id="key" type="password" placeholder="sk-ant-…" autocomplete="off">
+      <div class="hint">Erstellen unter <a id="console">platform.claude.com</a> → API Keys. Wird verschlüsselt nur auf diesem PC gespeichert.</div>
+      <label for="model">Modell</label>
+      <select id="model"></select>
+    </div>
+    <div class="box" id="boxOllama">
+      <label for="ollamaModel">Lokales Modell</label>
+      <div class="inline"><select id="ollamaModel"></select><button id="refresh" title="Neu laden" aria-label="Neu laden">↻</button></div>
+      <div class="hint" id="ollamaStatus"></div>
+    </div>
   </div>
-  <div class="hint" id="ollamaStatus"></div>
-  <ol id="ollamaSteps">
-    <li>Ollama kostenlos installieren: <a id="ollamaLink">ollama.com/download</a></li>
-    <li>Eingabeaufforderung öffnen (Windows-Taste, „cmd“ eingeben) und ein Modell laden:<br>
-      <code>ollama pull gemma3:12b</code> (gut, ab 16 GB RAM) oder <code>ollama pull gemma3:4b</code> (für schwächere PCs)</li>
-    <li>Hier auf ↻ klicken.</li>
-  </ol>
-</div>
+  <div class="foot" style="margin-top:14px"><a id="lLog">Protokoll öffnen</a></div>
+</details>
 
-<div class="box" id="boxClaude">
-  <label for="key">Anthropic API-Schlüssel</label>
-  <input id="key" type="password" placeholder="sk-ant-…" autocomplete="off">
-  <div class="hint">Erstellen unter <a id="console">platform.claude.com</a> → API Keys. Wird verschlüsselt nur auf diesem PC gespeichert.</div>
-  <label for="model">Modell</label>
-  <select id="model"></select>
-</div>
-
-<h2>Sprache</h2>
-<label for="lang" style="margin-top:0">Sprache der Analyse</label>
-<select id="lang">
-  <option value="Deutsch">Deutsch</option><option value="Englisch">Englisch</option><option value="Französisch">Französisch</option><option value="Spanisch">Spanisch</option><option value="Italienisch">Italienisch</option>
-  <option value="der Sprache des Dokuments">Wie das Dokument</option>
-</select>
-<label for="uiLang">Sprache der App</label>
-<select id="uiLang" data-noi18n><option value="de">Deutsch</option><option value="en">English</option></select>
-<h2>Spinne und Verhalten</h2>
-<label for="theme" style="margin-top:0">Darstellung</label>
-<select id="theme"><option value="system">Wie Windows</option><option value="light">Hell</option><option value="dark">Dunkel</option></select>
-<div class="rows">
-<label class="check"><input type="checkbox" id="hatch"> Spinnen-Animation: Eine große Spinne kriecht herein und liest den markierten Text (die kleine versteckt sich so lange)</label>
-
-<label class="check"><input type="checkbox" id="pinCopied"> Kopierte Dateien (Strg+C im Explorer) automatisch ins Spinnennetz hängen</label>
-<label class="check"><input type="checkbox" id="copyHint"> Bei kopiertem Text (Strg+C) anbieten, ihn zu lesen</label>
-<label class="check"><input type="checkbox" id="privateMode"> Privatmodus: nichts im Notizbuch speichern</label>
-<label class="check"><input type="checkbox" id="hideFullscreen"> Bei Vollbild, Präsentationen und Spielen automatisch ausblenden</label>
-<label class="check"><input type="checkbox" id="hideInShare"> In Bildschirmfreigaben (Teams, Zoom …) und Bildschirmfotos unsichtbar</label>
-<label class="check"><input type="checkbox" id="lowPower"> Sparmodus: ohne Grafikbeschleunigung – braucht weniger Arbeitsspeicher (wirkt nach einem Neustart von Silkreader)</label>
-</div>
-
-<h2>Tastenkürzel</h2>
-<div class="hint" style="margin-top:-4px">Zum Ändern anklicken und neue Tasten drücken.</div>
-<div id="shortcuts" class="keys"></div>
-
-<div class="row">
-  <button class="primary" id="save">Speichern</button>
-  <button id="close">Schließen</button>
-  <span id="msg" class="ok"></span>
-</div>
-<div class="row" style="margin-top:6px;gap:18px">
-  <a id="lPriv">Datenschutz</a><a id="lLic">Lizenzen</a><a id="lLog">Protokoll öffnen</a>
-</div>
+<div class="foot"><a id="lPriv">Datenschutz</a><a id="lLic">Lizenzen</a><span class="saved" id="msg">Änderungen gelten sofort</span></div>
 
 <script>
   const $ = (id) => document.getElementById(id);
-  let provider = 'ollama', wantedOllama = 'gemma3:12b';
-
-  function setProvider(p) {
-    provider = p;
-    document.querySelectorAll('.opt[data-p]').forEach((o) => o.classList.toggle('on', o.dataset.p === p));
-    $('boxOllama').style.display = p === 'ollama' ? '' : 'none';
-    $('boxBuiltin').style.display = p === 'builtin' ? '' : 'none';
-    $('boxClaude').style.display = p === 'claude' ? '' : 'none';
+  const LOCK = '<svg class="lockic" viewBox="0 0 16 16" role="img" aria-label="Pro"><rect x="3" y="7" width="10" height="7" rx="1.5" fill="var(--pink)"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="var(--pink)" stroke-width="1.6"/></svg>';
+  // Jede Änderung wird sofort gespeichert
+  let savedT = null;
+  async function save(patch) {
+    await window.spider.saveSettings(patch);
+    $('msg').textContent = T('Gespeichert ✓'); $('msg').className = 'saved ok';
+    clearTimeout(savedT); savedT = setTimeout(() => { $('msg').textContent = T('Änderungen gelten sofort'); $('msg').className = 'saved'; }, 1600);
   }
-  document.querySelectorAll('.opt[data-p]').forEach((o) => o.addEventListener('click', () => setProvider(o.dataset.p)));
 
+  // ---- Pro ----
+  async function loadPro() {
+    const st = await window.spider.proState();
+    $('proOn').classList.toggle('hidden', !st.active);
+    $('proSoon').classList.toggle('hidden', st.active || !st.comingSoon);
+    $('proBtn').textContent = st.active ? T('Pro ansehen') : T('Code einlösen');
+    $('proBtn').className = st.active ? '' : 'primary';
+  }
+  $('proBtn').addEventListener('click', () => window.spider.showPro());
+  window.addEventListener('focus', loadPro);
+  loadPro();
+
+  // ---- Eingebaute KI ----
   const gb = (b) => (b / 1e9).toLocaleString(I18N.locale, { maximumFractionDigits: 2 });
-  let builtinModel = 'fast', modelState = null;
+  const DESC = { fast: 'Für die meisten Briefe, antwortet in Sekunden', quality: 'Genauer bei langen Texten, braucht 8 GB Arbeitsspeicher' };
+  let builtinModel = 'fast', modelState = null, wantAfterDl = null;
   function renderModels() {
     const m = modelState;
-    $('modelChoice').innerHTML = '';
-    for (const [key, info] of Object.entries(m.models)) {
-      const d = document.createElement('div');
-      d.className = 'opt' + (key === builtinModel ? ' on' : '');
-      d.innerHTML = `<b>${info.name.split(' (')[0]}</b><span>${info.name.split(' (')[1]?.replace(')', '') || ''} · ${info.size}${info.ready ? ' · ✓ geladen' : ''}</span>`
-        + (info.locked ? `<span class="bad">${T('Gehört zu Silkreader Pro')} – <a href="#" data-pro>${T('mehr')}</a></span>` : '')
-        + (info.tooBig ? `<span class="bad">${T('Für diesen PC zu groß ({ram} GB Arbeitsspeicher, empfohlen ab {min} GB)', { ram: m.ramGB, min: info.minRamGB })}</span>` : '');
-      d.addEventListener('click', (e) => { if (e.target.closest('[data-pro]')) { e.preventDefault(); window.spider.showPro('quality'); return; } builtinModel = key; renderModels(); });
-      $('modelChoice').appendChild(d);
-    }
-    const sel = m.models[builtinModel];
-    $('modelInfo').textContent = sel.ready ? `✓ ${sel.name} ist bereit.` : `${sel.name}: noch nicht heruntergeladen (einmalig ${sel.size}).`;
-    // Schwacher PC: lieber „Schnell“ oder Claude
-    if (m.ramGB < 4) $('modelInfo').textContent += ' ' + T('Dein PC hat wenig Arbeitsspeicher ({ram} GB) – Claude ist hier meist die bessere Wahl.', { ram: m.ramGB });
-    $('modelInfo').className = sel.ready ? 'hint ok' : 'hint';
-    $('modelDl').style.display = sel.ready || m.downloading ? 'none' : '';
+    $('modelChoice').innerHTML = Object.entries(m.models).map(([key, info]) => {
+      const name = info.name.split(' (')[0];
+      const right = info.locked ? `<button data-pro="1">${T('Pro ansehen')}</button>`
+        : key === builtinModel && info.ready ? `<span class="state">✓ ${T('Aktiv')}</span>`
+        : info.ready ? `<button data-use="${key}">${T('Verwenden')}</button>`
+        : m.downloading ? `<span class="state muted">${wantAfterDl === key ? T('Lädt …') : ''}</span>`
+        : `<button data-dl="${key}">${T('Laden ({s})', { s: info.size })}</button>`;
+      return `<div class="line" data-m="${key}"><span class="grow">${T(name)}${info.locked ? LOCK : ''}<span class="sub">${T(DESC[key] || '')}</span>`
+        + (info.tooBig && !info.locked ? `<span class="sub bad">${T('Für diesen PC zu groß ({ram} GB Arbeitsspeicher, empfohlen ab {min} GB)', { ram: m.ramGB, min: info.minRamGB })}</span>` : '')
+        + `</span>${right}</div>`;
+    }).join('');
     $('modelCancel').style.display = m.downloading ? '' : 'none';
     $('modelBar').style.display = m.downloading ? '' : 'none';
+    const sel = m.models[builtinModel];
+    $('modelInfo').textContent = sel && !sel.ready && !m.downloading ? T('{n} ist noch nicht geladen (einmalig {s}). Danach geht alles ohne Internet.', { n: T(sel.name.split(' (')[0]), s: sel.size }) : '';
   }
+  $('modelChoice').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.pro) return window.spider.showPro('quality');
+    if (b.dataset.use) { builtinModel = b.dataset.use; save({ builtinModel }); renderModels(); return; }
+    if (b.dataset.dl) {
+      wantAfterDl = b.dataset.dl;
+      modelState.downloading = true; renderModels();
+      $('modelProgress').className = 'hint'; $('modelProgress').textContent = T('Starte Download …');
+      window.spider.modelDownload(b.dataset.dl);
+    }
+  });
   async function loadModelStatus(initial = false) {
     modelState = await window.spider.modelStatus();
     if (initial) builtinModel = modelState.selected;
+    // Fertig geladen → gleich verwenden
+    if (wantAfterDl && !modelState.downloading && modelState.models[wantAfterDl]?.ready) { builtinModel = wantAfterDl; wantAfterDl = null; save({ builtinModel }); }
     renderModels();
   }
   window.spider.onModelProgress((p) => {
     if (p.finished) { $('modelProgress').textContent = ''; loadModelStatus(); return; }
-    if (p.error) { $('modelProgress').textContent = p.error; $('modelProgress').className = 'hint bad'; loadModelStatus(); return; }
+    if (p.error) { $('modelProgress').textContent = p.error; $('modelProgress').className = 'hint bad'; wantAfterDl = null; loadModelStatus(); return; }
     $('modelBar').style.display = '';
     $('modelBar').firstElementChild.style.width = `${p.total ? (p.done / p.total) * 100 : 0}%`;
     const mbs = p.speed ? ` · ${(p.speed / 1e6).toFixed(1)} MB/s` : '';
     $('modelProgress').className = 'hint';
     $('modelProgress').textContent = `${gb(p.done)} von ${gb(p.total)} GB${mbs}`;
   });
-  $('modelDl').addEventListener('click', () => {
-    $('modelDl').style.display = 'none';
-    $('modelCancel').style.display = '';
-    $('modelBar').style.display = '';
-    $('modelProgress').className = 'hint';
-    $('modelProgress').textContent = 'Starte Download …';
-    window.spider.modelDownload(builtinModel);
-  });
-  $('modelCancel').addEventListener('click', () => window.spider.modelCancel());
+  $('modelCancel').addEventListener('click', () => { wantAfterDl = null; window.spider.modelCancel(); });
 
+  // ---- Andere KI (nur für bisherige Claude- oder Ollama-Nutzer) ----
+  let wantedOllama = 'gemma3:12b';
+  function showProvider(p) {
+    $('boxClaude').style.display = p === 'claude' ? '' : 'none';
+    $('boxOllama').style.display = p === 'ollama' ? '' : 'none';
+  }
   async function loadOllama() {
-    $('ollamaStatus').textContent = 'Suche Ollama …';
-    $('ollamaStatus').className = 'hint';
+    $('ollamaStatus').textContent = T('Suche Ollama …'); $('ollamaStatus').className = 'hint';
     const r = await window.spider.ollamaModels();
-    const sel = $('ollamaModel');
-    sel.innerHTML = '';
-    if (!r.ok) {
-      $('ollamaStatus').textContent = 'Ollama wurde nicht gefunden. So geht’s:';
+    const sel = $('ollamaModel'); sel.innerHTML = '';
+    if (!r.ok || !r.models.length) {
+      $('ollamaStatus').textContent = !r.ok ? T('Ollama wurde nicht gefunden.') : T('Ollama läuft, aber es ist noch kein Modell geladen.');
       $('ollamaStatus').className = 'hint bad';
       sel.add(new Option(wantedOllama, wantedOllama));
-      $('ollamaSteps').style.display = '';
-      return;
-    }
-    if (!r.models.length) {
-      $('ollamaStatus').textContent = 'Ollama läuft, aber es ist noch kein Modell geladen:';
-      $('ollamaStatus').className = 'hint bad';
-      sel.add(new Option(wantedOllama, wantedOllama));
-      $('ollamaSteps').style.display = '';
       return;
     }
     for (const m of r.models) sel.add(new Option(m, m, false, m === wantedOllama));
-    $('ollamaStatus').textContent = `✓ Ollama läuft · ${r.models.length} Modell(e) installiert`;
-    $('ollamaStatus').className = 'hint ok';
-    $('ollamaSteps').style.display = 'none';
+    $('ollamaStatus').textContent = `✓ Ollama läuft · ${r.models.length} Modell(e) installiert`; $('ollamaStatus').className = 'hint ok';
   }
+  $('provider').addEventListener('change', (e) => { showProvider(e.target.value); save({ provider: e.target.value }); if (e.target.value === 'ollama') loadOllama(); });
+  $('key').addEventListener('change', (e) => { if (!e.target.value.trim()) return; save({ apiKey: e.target.value }); e.target.value = ''; e.target.placeholder = T('•••••••• (gespeichert – leer lassen, um ihn zu behalten)'); });
+  $('model').addEventListener('change', (e) => save({ model: e.target.value }));
+  $('ollamaModel').addEventListener('change', (e) => save({ ollamaModel: e.target.value }));
+  $('refresh').addEventListener('click', loadOllama);
+  $('console').addEventListener('click', () => window.spider.openExternal('https://platform.claude.com/settings/keys'));
 
+  // ---- Laden ----
+  const TOGGLES = { hatch: 'hatchAnimation', copyHint: 'copyHint', hideFullscreen: 'hideFullscreen', privateMode: 'privateMode', pinCopied: 'pinCopied',
+    watchDownloads: 'watchDownloads', hideInShare: 'hideInShare', lowPower: 'lowPower', autostart: 'autostart' };
   window.spider.getSettings().then((s) => {
     for (const [id, name] of Object.entries(s.models)) $('model').add(new Option(name, id, false, id === s.model));
     $('lang').value = s.language;
-    $('hatch').checked = s.hatchAnimation;
-    $('lowPower').checked = s.lowPower;
-    $('pinCopied').checked = s.pinCopied;
-    $('copyHint').checked = s.copyHint;
-    $('privateMode').checked = s.privateMode;
-    $('hideFullscreen').checked = s.hideFullscreen;
-    $('hideInShare').checked = s.hideInShare;
     $('uiLang').value = s.uiLang;
     $('theme').value = s.theme || 'system';
+    $('fontSize').value = s.fontSize || 'normal';
+    for (const [id, key] of Object.entries(TOGGLES)) $(id).checked = !!s[key];
     wantedOllama = s.ollamaModel;
-    if (s.hasKey) $('key').placeholder = '•••••••• (gespeichert – leer lassen, um ihn zu behalten)';
-    setProvider(s.provider);
-    loadOllama();
+    if (s.hasKey) $('key').placeholder = T('•••••••• (gespeichert – leer lassen, um ihn zu behalten)');
+    if (s.provider && s.provider !== 'builtin') {
+      $('otherAi').classList.remove('hidden'); $('provider').value = s.provider; showProvider(s.provider);
+      if (s.provider === 'ollama') loadOllama();
+    }
     loadModelStatus(true);
   });
-  $('refresh').addEventListener('click', loadOllama);
+  for (const [id, key] of Object.entries(TOGGLES)) $(id).addEventListener('change', (e) => save({ [key]: e.target.checked }));
+  $('lang').addEventListener('change', (e) => save({ language: e.target.value }));
+  $('theme').addEventListener('change', (e) => save({ theme: e.target.value }));
+  $('fontSize').addEventListener('change', (e) => save({ fontSize: e.target.value }));
+  // App-Sprache wirkt sofort (Fenster lädt in der neuen Sprache neu)
+  $('uiLang').addEventListener('change', (e) => window.spider.setUiLang(e.target.value));
+  $('lPriv').addEventListener('click', () => window.spider.openPrivacy());
+  $('lLic').addEventListener('click', () => window.spider.openLicenses());
+  $('lLog').addEventListener('click', () => window.spider.openLog());
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !recording) window.close(); });
+
+  // ---- Tastenkürzel ----
   function loadShortcuts() { return window.spider.shortcuts().then((list) => {
-    const extra = [['Enter', 'Im Fenster: Analyse starten'], ['Esc', 'Im Fenster: schließen'], ['Strg+O', 'Im Fenster: Datei öffnen'],
+    const extra = [['Enter', 'Im Fenster: Lesen starten'], ['Esc', 'Im Fenster: schließen'], ['Strg+O', 'Im Fenster: Datei öffnen'],
       ['Strg+H', 'Im Fenster: Notizbuch'], ['Strg+K', 'Im Fenster: Text in Kokon packen'], ['Strg+Umschalt+C', 'Im Fenster: Ergebnis kopieren']];
     $('shortcuts').innerHTML = list.map((k) => `<div><kbd class="rec" data-id="${k.id}" title="Klicken und neue Tasten drücken">${k.label}</kbd><span>${k.desc}${k.ok ? '' : ' <em>(von anderem Programm belegt – bitte ändern)</em>'}<b class="fired" data-for="${k.id}"></b></span></div>`).join('')
       + extra.map(([k, d]) => `<div><kbd>${k}</kbd><span>${d}</span></div>`).join('');
@@ -283,31 +319,6 @@
     recording = null;
     await window.spider.setShortcut(id, accel, label);
     loadShortcuts();
-  });
-  $('ollamaLink').addEventListener('click', () => window.spider.openExternal('https://ollama.com/download'));
-  $('console').addEventListener('click', () => window.spider.openExternal('https://platform.claude.com/settings/keys'));
-  $('save').addEventListener('click', async () => {
-    await window.spider.saveSettings({
-      provider, apiKey: $('key').value, model: $('model').value,
-      ollamaModel: $('ollamaModel').value, language: $('lang').value, builtinModel, hatchAnimation: $('hatch').checked, lowPower: $('lowPower').checked, pinCopied: $('pinCopied').checked,
-      copyHint: $('copyHint').checked,
-      privateMode: $('privateMode').checked, hideFullscreen: $('hideFullscreen').checked, hideInShare: $('hideInShare').checked, theme: $('theme').value,
-    });
-    $('key').value = '';
-    $('msg').textContent = 'Gespeichert ✓';
-    setTimeout(() => window.close(), 700);
-  });
-  $('close').addEventListener('click', () => window.close());
-  // Darstellung wirkt sofort
-  $('theme').addEventListener('change', (e) => window.spider.saveSettings({ theme: e.target.value }));
-  $('lPriv').addEventListener('click', () => window.spider.openPrivacy());
-  $('lLic').addEventListener('click', () => window.spider.openLicenses());
-  $('lLog').addEventListener('click', () => window.spider.openLog());
-  // App-Sprache wirkt sofort (Fenster lädt in der neuen Sprache neu)
-  $('uiLang').addEventListener('change', async (e) => {
-    await window.spider.saveSettings({ provider, model: $('model').value, ollamaModel: $('ollamaModel').value, builtinModel,
-      hatchAnimation: $('hatch').checked, lowPower: $('lowPower').checked, pinCopied: $('pinCopied').checked, copyHint: $('copyHint').checked });
-    await window.spider.setUiLang(e.target.value);
   });
 </script>
 </body>
