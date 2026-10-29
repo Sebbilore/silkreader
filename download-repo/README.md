@@ -10,6 +10,15 @@ erklärt Behördenbriefe, Rechnungen und Verträge und sagt dir, was zu tun ist.
 
 Windows 10 (ab 1809) und Windows 11, 64 Bit. Mindestens 4 GB Arbeitsspeicher, empfohlen 8 GB.
 
+### Mac (Testversion)
+
+Unter [Releases](https://github.com/Sebbilore/silkreader-download/releases) die neueste **Mac-Testversion** öffnen:
+`…-mac-arm64.dmg` für Macs mit Apple-Chip (M1–M4), `…-mac-x64.dmg` für ältere Intel-Macs. macOS 12 oder neuer.
+
+Die Mac-Version ist noch nicht von Apple beglaubigt. Beim ersten Start: Silkreader in den Programme-Ordner ziehen,
+dann **Rechtsklick → Öffnen → Öffnen**. Damit die Spinne markierten Text lesen kann, unter
+*Systemeinstellungen → Datenschutz & Sicherheit → Bedienungshilfen* erlauben.
+
 ## Hilfe & Fehler melden
 
 In der App: Rechtsklick auf die Spinne → *Über Silkreader* → *Problem melden*.

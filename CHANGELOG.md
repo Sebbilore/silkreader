@@ -3,7 +3,7 @@
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
 
-## 1.22.0 (in Vorbereitung)
+## 1.22.0
 - **The spider learns – locally:** “Was that right?” below every result; corrections (amount, deadline, sender, letter type, task, summary) become rules for the next letter from the same sender and hints for the AI. Sender profiles from all letters read (“3rd letter from … this year”, “instalment rises from 84 € to 92 € (+9.5 %)”). Settings → What I have learned: view, forget, back up. Nothing leaves the PC; off in private mode.
 - **Letters:** “What happens if I do nothing?” (reminders, notices, court payment orders), scam check (foreign IBAN, gift cards, pressure, links, PIN/TAN), “Signature needed” with page and return address, multi-page photos.
 - **Easier to use:** simpler settings (built-in AI only, applied instantly), text size, high contrast, setup in 3 steps, tips one at a time, read aloud with highlight and speed, speak a question (Windows voice typing), keyboard shortcuts with “?”, crash report on request. Pro page and Pro locks easier to find.
