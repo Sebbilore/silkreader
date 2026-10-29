@@ -1,11 +1,9 @@
 # Impressum / Legal notice
 
-**Angaben gemäß § 5 Digitale-Dienste-Gesetz (DDG)**
+**Anbieter**
 
 Lorelab
 Inhaber: Sebastian Lorenz
-Brüder-Grimm-Str. 9
-53773 Hennef (Sieg)
 Deutschland
 
 **Kontakt**
@@ -21,4 +19,4 @@ Fehler und Fragen gern auch unter [Issues](https://github.com/Sebbilore/silkread
 
 ---
 
-*Legal notice (English):* Lorelab, owner Sebastian Lorenz, Brüder-Grimm-Str. 9, 53773 Hennef (Sieg), Germany.
+*Legal notice (English):* Lorelab, owner Sebastian Lorenz, Germany.
