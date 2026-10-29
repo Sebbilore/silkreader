@@ -10,7 +10,7 @@ Deutschland
 
 **Kontakt**
 E-Mail: SeSeLo@outlook.de
-Telefon: +49 157 34411943
+Weitere Kontaktmöglichkeit: [GitHub-Issues](https://github.com/Sebbilore/silkreader-download/issues)
 
 Rechtsform: Einzelunternehmen (Kleingewerbe)
 
@@ -23,4 +23,4 @@ Fehler und Fragen gern auch unter [Issues](https://github.com/Sebbilore/silkread
 ---
 
 *Legal notice (English):* Lorelab, owner Sebastian Lorenz, Brüder-Grimm-Str. 9, 53773 Hennef (Sieg), Germany.
-E-mail: SeSeLo@outlook.de · Phone: +49 157 34411943.
+E-mail: SeSeLo@outlook.de.
