@@ -7,7 +7,7 @@ Kurz gesagt: Silkreader hat keine eigenen Server, kein Konto, keine Werbung und 
 ## Verantwortlich
 
 Lorelab, Inhaber Sebastian Lorenz, Brüder-Grimm-Str. 9, 53773 Hennef (Sieg), Deutschland ·
-E-Mail: SeSeLo@outlook.de · [Impressum](IMPRESSUM.md)
+[Impressum](IMPRESSUM.md)
 
 ## Was auf deinem PC bleibt
 
@@ -44,7 +44,7 @@ Zusammenfassungen, Übersetzungen und Antworten erstellt eine KI. Sie kann sich 
 
 In short: Silkreader has no servers of its own, no account, no ads and no tracking.
 
-Controller: Lorelab, owner Sebastian Lorenz, Brüder-Grimm-Str. 9, 53773 Hennef (Sieg), Germany · SeSeLo@outlook.de
+Controller: Lorelab, owner Sebastian Lorenz, Brüder-Grimm-Str. 9, 53773 Hennef (Sieg), Germany
 
 ## What stays on your PC
 
@@ -75,4 +75,4 @@ Notebook entries can be deleted one by one. Uninstalling keeps your data in `%AP
 
 Summaries, translations and answers are written by an AI. It can be wrong or leave things out. Always check important details – especially contracts, deadlines and figures – in the original.
 
-Kontakt / Contact: SeSeLo@outlook.de · https://github.com/Sebbilore/silkreader-download/issues · [Impressum / Legal notice](IMPRESSUM.md)
+Kontakt / Contact: https://github.com/Sebbilore/silkreader-download/issues · [Impressum / Legal notice](IMPRESSUM.md)

@@ -9,8 +9,7 @@ Brüder-Grimm-Str. 9
 Deutschland
 
 **Kontakt**
-E-Mail: SeSeLo@outlook.de
-Weitere Kontaktmöglichkeit: [GitHub-Issues](https://github.com/Sebbilore/silkreader-download/issues)
+[GitHub-Issues](https://github.com/Sebbilore/silkreader-download/issues)
 
 Rechtsform: Einzelunternehmen (Kleingewerbe)
 
@@ -23,4 +22,3 @@ Fehler und Fragen gern auch unter [Issues](https://github.com/Sebbilore/silkread
 ---
 
 *Legal notice (English):* Lorelab, owner Sebastian Lorenz, Brüder-Grimm-Str. 9, 53773 Hennef (Sieg), Germany.
-E-mail: SeSeLo@outlook.de.
