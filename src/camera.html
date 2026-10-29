@@ -47,7 +47,7 @@
       stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: 'environment' }, audio: false });
       $('v').srcObject = stream;
     } catch (e) {
-      $('err').textContent = T('Keine Kamera gefunden oder der Zugriff ist gesperrt (Windows-Einstellungen → Datenschutz → Kamera).');
+      $('err').textContent = window.spider.platform === 'darwin' ? T('Keine Kamera gefunden oder der Zugriff ist gesperrt (Systemeinstellungen → Datenschutz & Sicherheit → Kamera).') : T('Keine Kamera gefunden oder der Zugriff ist gesperrt (Windows-Einstellungen → Datenschutz → Kamera).');
       $('err').classList.remove('hidden'); $('v').classList.add('hidden'); $('frame').classList.add('hidden'); $('snap').classList.add('hidden');
     }
   }

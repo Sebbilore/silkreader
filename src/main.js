@@ -632,7 +632,7 @@ function buildTrayMenu() {
     ...(STORE ? [] : [{ label: T(`Nach Updates suchen (v${app.getVersion()})`), click: checkUpdatesNow }]),
     { label: T('Protokoll öffnen (für Fehlersuche)'), click: openLog },
     ...(STORE ? [{ label: T('Mit Windows starten …'), click: () => shell.openExternal('ms-settings:startupapps') }] : [{
-      label: T('Mit Windows starten'), type: 'checkbox',
+      label: T(process.platform === 'darwin' ? 'Beim Anmelden starten' : 'Mit Windows starten'), type: 'checkbox',
       checked: app.getLoginItemSettings().openAtLogin,
       click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }),
     }]),
@@ -2287,7 +2287,7 @@ const TIPS = [
 ipcMain.handle('next-tip', () => {
   const s = loadSettings();
   const seen = s.tipsSeen || [];
-  const tip = TIPS.find((t) => !seen.includes(t.id) && (s.uses || 0) >= t.after);
+  const tip = TIPS.find((t) => !seen.includes(t.id) && (s.uses || 0) >= t.after && !(t.id === 'explorer' && process.platform !== 'win32'));
   if (!tip) return null;
   // Höchstens ein Tipp pro Tag – sonst wird es lästig
   if (Date.now() - (s.tipAt || 0) < 20 * 3600e3 && !process.env.SPIDER_MOCK) return null;
@@ -2597,6 +2597,13 @@ ipcMain.handle('voice-typing', (e) => {
   return true;
 });
 ipcMain.on('voice-available', (e) => { e.returnValue = process.platform === 'win32' && !!winkeys.load(); });
+// Mac: Zum Lesen markierter Texte braucht Silkreader „Bedienungshilfen“ (Tastendruck ⌘C an andere Apps)
+ipcMain.handle('mac-access', () => (process.platform === 'darwin' ? { mac: true, trusted: require('electron').systemPreferences.isTrustedAccessibilityClient(false) } : { mac: false, trusted: true }));
+ipcMain.handle('mac-access-open', () => {
+  if (process.platform !== 'darwin') return;
+  require('electron').systemPreferences.isTrustedAccessibilityClient(true); // zeigt die Systemabfrage
+  shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
+});
 ipcMain.handle('learn-feedback', (_e, good) => { if (learnOn()) learner().feedback(!!good); });
 ipcMain.handle('learn-list', () => ({ ...learner().list(), enabled: loadSettings().learn !== false, privateMode: !!loadSettings().privateMode }));
 ipcMain.handle('learn-forget', (_e, what, id) => {
@@ -2739,7 +2746,9 @@ ipcMain.on('cocoon-drag', (e, id) => {
   if (!file || !fs.existsSync(file)) return;
   e.sender.startDrag({ file, icon: nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png')) });
 });
-ipcMain.handle('shortcuts', () => SHORTCUTS.map((s) => ({ id: s.id, label: s.label, desc: T(s.desc), ok: shortcutStatus[s.id] !== false })));
+// Mac: Strg → ⌘, Alt → ⌥, Umschalt → ⇧ (die Kürzel selbst sind CommandOrControl/Alt)
+const keyLabel = (l) => (process.platform === 'darwin' ? String(l).replace(/Strg\+?/g, '⌘').replace(/Alt\+?/g, '⌥').replace(/Umschalt\+?/g, '⇧').replace(/Leertaste/g, 'Space') : l);
+ipcMain.handle('shortcuts', () => SHORTCUTS.map((s) => ({ id: s.id, label: keyLabel(s.label), desc: T(s.desc), ok: shortcutStatus[s.id] !== false })));
 // Während in den Einstellungen ein neues Kürzel aufgenommen wird, dürfen die alten es nicht abfangen
 let recordingShortcut = false;
 ipcMain.on('shortcut-recording', (_e, on) => { recordingShortcut = on; if (on) globalShortcut.unregisterAll(); else registerShortcuts(); });
@@ -2921,8 +2930,22 @@ function verifyUpdateSignature(publisherNames, file) {
   });
 }
 
+// Mac-Testversion (nicht signiert): kein automatisches Einspielen – nur Bescheid geben und zur Download-Seite führen
+async function macUpdateCheck(manual = false) {
+  try {
+    const r = await require('electron').net.fetch('https://api.github.com/repos/Sebbilore/silkreader-download/releases?per_page=20', { headers: { Accept: 'application/vnd.github+json' } });
+    const list = await r.json();
+    const mac = list.find((x) => !x.draft && (x.assets || []).some((a) => /\.dmg$/i.test(a.name)));
+    const v = String(mac?.tag_name || '').replace(/^mac-?v?/i, '').replace(/^v/, '');
+    const newer = v && v.split('.').map(Number).some((n, i, a) => { const c = app.getVersion().split('.').map(Number); for (let k = 0; k < 3; k++) { if ((a[k] || 0) !== (c[k] || 0)) return (a[k] || 0) > (c[k] || 0); } return false; });
+    if (!newer) { if (manual) dialog.showMessageBox({ type: 'info', title: 'Silkreader', message: T('Silkreader ist auf dem neuesten Stand.') }); return; }
+    const { response } = await dialog.showMessageBox({ type: 'info', title: 'Silkreader', message: T('Silkreader {v} ist da.', { v }), detail: T('Lade die neue Mac-Version herunter und ersetze die alte im Programme-Ordner.'), buttons: [T('Herunterladen'), T('Später')], defaultId: 0, cancelId: 1 });
+    if (response === 0) shell.openExternal(mac.html_url);
+  } catch (e) { logLine(`Mac-Update-Prüfung: ${e.message}`); }
+}
 function setupUpdates() {
   if (!app.isPackaged || STORE) return; // nur in der installierten App; Store-Versionen aktualisiert der Store
+  if (process.platform === 'darwin') { setTimeout(() => macUpdateCheck(), 20000); setInterval(() => macUpdateCheck(), 12 * 60 * 60 * 1000); return; }
   if (process.platform === 'win32') {
     defaultVerify = updater().verifyUpdateCodeSignature;
     updater().verifyUpdateCodeSignature = verifyUpdateSignature;
@@ -2969,6 +2992,7 @@ function checkUpdatesNow() {
     dialog.showMessageBox({ type: 'info', title: 'Silkreader', message: T('Updates gibt es nur in der installierten App.') });
     return;
   }
+  if (process.platform === 'darwin') return macUpdateCheck(true);
   manualUpdateCheck = true;
   updater().checkForUpdates().catch(() => {});
 }
@@ -2998,6 +3022,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     applyTheme();
     I18N.setLang(uiLang());
+    if (process.platform === 'darwin') app.dock?.hide(); // Mac: die Spinne lebt in der Menüleiste, nicht im Dock
     // Webseiten-Berechtigungen: nur Schreiben in die Zwischenablage (Kopieren-Knöpfe), sonst nichts
     const { session: ses } = require('electron');
     const camOk = (wc, perm) => perm === 'media' && !!cameraWin && !cameraWin.isDestroyed() && wc === cameraWin.webContents;
@@ -3046,7 +3071,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 // Nur für automatische Tests: ein paar Funktionen erreichbar machen
-if (TESTING) global.__silk = { offerCrashReport, openBookmark, maybeMorning, remindBookmarks, loadBookmarks, saveBookmarks, remindAt, learner, letterExtras, deadlineAction, showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
+if (TESTING) global.__silk = { ocrText: (f) => recognizeText(f), offerCrashReport, openBookmark, maybeMorning, remindBookmarks, loadBookmarks, saveBookmarks, remindAt, learner, letterExtras, deadlineAction, showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
   get popupWin() { return popupWin; }, get cocoons() { return cocoons; }, get lastScreenSel() { return lastScreenSel; }, set lastScreenSel(v) { lastScreenSel = v; },
   set copiedOffer(v) { copiedOffer = v; },
   get downloadOffer() { return downloadOffer; }, spiderTake, runCrawlOverlay,

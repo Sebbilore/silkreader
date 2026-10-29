@@ -292,6 +292,9 @@
   loadLearn();
   window.addEventListener('focus', loadLearn);
 
+  // Mac: „Beim Anmelden starten“ statt „Mit Windows starten“
+  if (window.spider.platform === 'darwin') { const l = $('autostart').parentElement; l.lastChild.textContent = ' ' + T('Beim Anmelden starten'); }
+
   // ---- Laden ----
   const TOGGLES = { hatch: 'hatchAnimation', copyHint: 'copyHint', hideFullscreen: 'hideFullscreen', privateMode: 'privateMode', pinCopied: 'pinCopied',
     watchDownloads: 'watchDownloads', hideInShare: 'hideInShare', lowPower: 'lowPower', autostart: 'autostart', learn: 'learn', morning: 'morning' };

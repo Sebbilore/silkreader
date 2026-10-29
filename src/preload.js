@@ -18,6 +18,9 @@ ipcRenderer.on('zoom-changed', (_e, z) => setZoom(z));
 
 contextBridge.exposeInMainWorld('spider', {
   uiLang: ipcRenderer.sendSync('ui-lang'),
+  platform: process.platform,
+  macAccess: () => ipcRenderer.invoke('mac-access'),
+  macAccessOpen: () => ipcRenderer.invoke('mac-access-open'),
   analyze: (doc) => ipcRenderer.invoke('analyze', doc),
   openFile: (file) => ipcRenderer.invoke('open-file', webUtils.getPathForFile(file)),
   pickFile: () => ipcRenderer.invoke('pick-file'),

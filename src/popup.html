@@ -1134,7 +1134,7 @@
     $('title').textContent = 'Silkreader';
     $('main').innerHTML = `<div class="crash"><svg class="sp" viewBox="-36 -30 72 60" aria-hidden="true"><g stroke="var(--pink)" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 -5L18 -15L24 -4M10 -1L21 -7L28 4M10 3L20 2L26 13M8 7L16 9L20 20M-8 -5L-18 -15L-24 -4M-10 -1L-21 -7L-28 4M-10 3L-20 2L-26 13M-8 7L-16 9L-20 20"/></g><circle r="11" fill="#2b2b2b" stroke="var(--pink)" stroke-width="1.2"/><ellipse cx="-4.2" cy="-1.6" rx="3.6" ry="4.1" fill="#fff"/><ellipse cx="4.2" cy="-1.6" rx="3.6" ry="4.1" fill="#fff"/><circle cx="-3.8" cy="-1" r="1.8" fill="#111"/><circle cx="4.6" cy="-1" r="1.8" fill="#111"/></svg>
       <p><b>${T('Da ist leider etwas schiefgelaufen.')}</b> ${T('Ich habe mich neu gestartet.')}</p></div>
-      <p>${T('Darf ich das Problem melden? Gesendet wird nur das Protokoll (Fehlermeldung, Windows-Version) – kein Brief und kein Text.')}</p>
+      <p>${T('Darf ich das Problem melden? Gesendet wird nur das Protokoll (Fehlermeldung, Systemversion) – kein Brief und kein Text.')}</p>
       <details class="sec"><summary class="muted">${T('Was genau gesendet wird')}</summary><pre class="crashpre" data-noi18n>${esc(P.detail || '')}</pre></details>
       <p class="muted">${T('Beim Melden öffnet sich GitHub im Browser – dort siehst du alles, bevor es abgeschickt wird.')}</p>`;
     footer({ visible: 2, actions: [['Problem melden', async () => { await window.spider.crashReport(); close(); }], ['Nein danke', close], ['Nie mehr fragen', async () => { await window.spider.crashNever(); close(); }]] });

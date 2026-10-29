@@ -128,6 +128,7 @@
       <li><b>Datei draufziehen</b><span>PDF oder Word-Datei lesen</span></li>
     </ul>
     <div class="prohint" id="proHint"><span id="iLock"></span><span id="proText"><b>Silkreader Pro kommt bald:</b> Brief-Hilfe, Antworten, Übersetzen und mehr. Du findest es im Spinnennetz unter Mehr.</span></div>
+    <div class="prohint hidden" id="macAccess"><span id="iMac"></span><span><b>Auf dem Mac:</b> Damit ich markierten Text lesen kann, erlaube mir „Bedienungshilfen“. <button class="link" id="macOpen">Systemeinstellungen öffnen</button></span></div>
     <p class="small" style="margin-top:14px">Alles bleibt auf deinem PC. KI kann sich irren – wichtige Angaben bitte im Original prüfen. <button class="link" id="privacy">Datenschutz</button></p>
   </section>
 
@@ -206,6 +207,13 @@
     if (st.active) $('proText').innerHTML = `<b>${T('Silkreader Pro ist aktiv.')}</b> ${T('Du findest es im Spinnennetz unter Mehr.')}`;
   });
   $('privacy').addEventListener('click', () => window.spider.openPrivacy());
+  // Mac: Bedienungshilfen erlauben (sonst kommt beim Klick auf die Spinne kein markierter Text an)
+  window.spider.macAccess?.().then((a) => {
+    if (!a.mac || a.trusted) return;
+    $('macAccess').classList.remove('hidden'); $('iMac').outerHTML = silkIcon('settings');
+    $('macOpen').addEventListener('click', () => window.spider.macAccessOpen());
+  });
+  if (window.spider.platform === 'darwin') document.querySelectorAll('.tips b').forEach((b) => { if (/Rechtsklick/.test(b.textContent)) b.textContent = T('Rechtsklick oder lange drücken'); });
 
   $('back').addEventListener('click', () => { step = Math.max(1, step - 1); show(); });
   $('next').addEventListener('click', () => {

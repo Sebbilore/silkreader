@@ -22,8 +22,32 @@ $result = Await ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult]
 $result.Lines | ForEach-Object { $_.Text }
 `;
 
-/** Liefert den erkannten Text oder '' (z. B. nicht Windows / keine Texterkennung verfügbar). */
+// macOS: Apples eingebaute Texterkennung (Vision), offline – über JavaScript for Automation, ohne Zusatzprogramm
+const MAC_OCR = `
+ObjC.import('Vision'); ObjC.import('AppKit');
+function run(argv) {
+  const url = $.NSURL.fileURLWithPath(argv[0]);
+  const handler = $.VNImageRequestHandler.alloc.initWithURLOptions(url, $.NSDictionary.dictionary);
+  const req = $.VNRecognizeTextRequest.alloc.init;
+  req.recognitionLevel = 0; // genau
+  req.usesLanguageCorrection = true;
+  try { req.recognitionLanguages = $(['de-DE', 'en-US']); } catch (e) {}
+  if (!handler.performRequestsError($([req]), null)) return '';
+  const out = [];
+  const res = req.results;
+  for (let i = 0; i < res.count; i++) { const c = res.objectAtIndex(i).topCandidates(1); if (c.count) out.push(c.objectAtIndex(0).string.js); }
+  return out.join('\\n');
+}`;
+function recognizeTextMac(file) {
+  return new Promise((resolve) => {
+    execFile('osascript', ['-l', 'JavaScript', '-e', MAC_OCR, file], { timeout: 30000, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 },
+      (err, stdout) => resolve(err ? '' : String(stdout).replace(/\\n/g, '\n').trim()));
+  });
+}
+
+/** Liefert den erkannten Text oder '' (z. B. keine Texterkennung verfügbar). */
 function recognizeText(file) {
+  if (process.platform === 'darwin') return recognizeTextMac(file);
   if (process.platform !== 'win32') return Promise.resolve('');
   const encoded = Buffer.from(OCR_SCRIPT(file), 'utf16le').toString('base64');
   return new Promise((resolve) => {

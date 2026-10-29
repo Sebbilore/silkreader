@@ -22,7 +22,7 @@
       "src/**/*",
       "package.json",
       "!node_modules/@node-llama-cpp/*-cuda*/**",
-      "!node_modules/@node-llama-cpp/*arm*/**",
+      "!node_modules/@node-llama-cpp/{linux,win}-arm*/**",
       "!node_modules/node-llama-cpp/llama/**/*.{h,c,cpp,hpp,cu,cuh,txt,md}",
       "!node_modules/koffi/build/koffi/{darwin,freebsd,linux,musl,openbsd}_*/**",
       "!node_modules/koffi/src/**",
@@ -72,7 +72,32 @@
       "node_modules/node-llama-cpp/**",
       "node_modules/@node-llama-cpp/**",
       "node_modules/koffi/**"
-    ]
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg"
+        },
+        {
+          "target": "zip"
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "artifactName": "Silkreader-${version}-mac-${arch}.${ext}",
+      "darkModeSupport": true,
+      "extendInfo": {
+        "LSUIElement": true,
+        "NSCameraUsageDescription": "Silkreader fotografiert Briefe mit der Kamera, um sie zu lesen. Die Bilder bleiben auf deinem Mac.",
+        "NSAppleEventsUsageDescription": "Silkreader kopiert markierten Text (⌘C), um ihn zu lesen."
+      }
+    },
+    "dmg": {
+      "title": "Silkreader ${version}"
+    }
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.1.0",
