@@ -26,7 +26,7 @@ Oder hier unter [Issues](https://github.com/Sebbilore/silkreader-download/issues
 
 ## Datenschutz
 
-[Datenschutzerklärung](PRIVACY.md) · [Änderungen](CHANGELOG.md)
+[Datenschutzerklärung](PRIVACY.md) · [Impressum](IMPRESSUM.md) · [Änderungen](CHANGELOG.md)
 
 ---
 

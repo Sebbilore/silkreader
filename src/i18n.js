@@ -264,6 +264,7 @@
     'Gründliches KI-Modell und Mappen': 'Thorough AI model and folders', 'Genauer bei langen Texten, Ordnung im Notizbuch.': 'More accurate with long texts, order in the notebook.',
     'Immer kostenlos: Zusammenfassen, Fragen an den Text, Fristen, In meiner Sprache und das Notizbuch.': 'Always free: summaries, questions about the text, deadlines, in my language and the notebook.',
     'Vorlesen: Was du tun musst': 'Read aloud: what you need to do',
+    'Impressum': 'Legal notice',
     'Darf ich das Problem melden? Gesendet wird nur das Protokoll (Fehlermeldung, Systemversion) – kein Brief und kein Text.': 'May I report the problem? Only the log is sent (error message, system version) – no letter and no text.',
     'Beim Anmelden starten': 'Start at login', 'Silkreader ist auf dem neuesten Stand.': 'Silkreader is up to date.', 'Silkreader {v} ist da.': 'Silkreader {v} is available.',
     'Lade die neue Mac-Version herunter und ersetze die alte im Programme-Ordner.': 'Download the new Mac version and replace the old one in the Applications folder.',

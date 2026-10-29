@@ -4,12 +4,19 @@ _English below._
 
 Kurz gesagt: Silkreader hat keine eigenen Server, kein Konto, keine Werbung und kein Tracking.
 
+## Verantwortlich
+
+Lorelab, Inhaber Sebastian Lorenz, Brüder-Grimm-Str. 9, 53773 Hennef (Sieg), Deutschland ·
+E-Mail: SeSeLo@outlook.de · [Impressum](IMPRESSUM.md)
+
 ## Was auf deinem PC bleibt
 
 - Texte und Ergebnisse beim eingebauten Modell: Die KI läuft vollständig auf deinem PC.
 - Notizbuch: die letzten 20 gelesenen Texte samt Ergebnis, gespeichert in `%APPDATA%\Silkreader\history.json`.
 - Spinnennetz: angeheftete Dateien (nur der Pfad) und Texte in `cocoons.json`.
 - Einstellungen in `settings.json`; ein Claude-API-Schlüssel wird mit Windows verschlüsselt gespeichert.
+- Gelerntes (ab 1.22) in `learn.json`: erkannte Absender, Beträge und deine Korrekturen. Daraus entstehen Hinweise wie „3. Brief von …“. Einsehen, einzeln löschen oder ganz abschalten unter *Einstellungen → Was ich gelernt habe*; im Privatmodus wird nichts gelernt.
+- „Später lesen“ (ab 1.22) in `bookmarks.json`: der vorgemerkte Text bis zur Erinnerung.
 - Protokoll (silkreader-errors.log): technische Abläufe und Fehler, keine gelesenen Texte.
 - Bildschirmfotos: Um die markierten Wörter zu finden, wertet Silkreader kurz ein Bildschirmfoto im Arbeitsspeicher aus. Es wird nie gespeichert oder verschickt. Abschaltbar („Große Spinne liest mit“).
 - Zwischenablage: Nur wenn du es einschaltest, schaut Silkreader nach, ob du Dateien oder längere Texte kopiert hast. Beim Lesen markierter Texte wird die Zwischenablage kurz benutzt und danach wiederhergestellt.
@@ -37,12 +44,16 @@ Zusammenfassungen, Übersetzungen und Antworten erstellt eine KI. Sie kann sich 
 
 In short: Silkreader has no servers of its own, no account, no ads and no tracking.
 
+Controller: Lorelab, owner Sebastian Lorenz, Brüder-Grimm-Str. 9, 53773 Hennef (Sieg), Germany · SeSeLo@outlook.de
+
 ## What stays on your PC
 
 - Texts and results with the built-in model: the AI runs entirely on your PC.
 - Notebook: your last 20 texts with their results, stored in `%APPDATA%\Silkreader\history.json`.
 - Spider web: pinned files (path only) and texts in `cocoons.json`.
 - Settings in `settings.json`; a Claude API key is stored encrypted by Windows.
+- What the spider learned (from 1.22) in `learn.json`: recognised senders, amounts and your corrections. View, delete or turn off under *Settings → What I have learned*; nothing is learned in private mode.
+- “Read later” (from 1.22) in `bookmarks.json`: the saved text until the reminder.
 - Log (silkreader-errors.log): technical steps and errors, never the texts you read.
 - Screenshots: to find the selected words, Silkreader briefly analyzes a screenshot in memory. It is never saved or sent. Can be turned off (“Big spider reads along”).
 - Clipboard: only if you turn it on, Silkreader checks whether you copied files or longer texts. When reading a selection, the clipboard is used briefly and restored afterwards.
@@ -64,4 +75,4 @@ Notebook entries can be deleted one by one. Uninstalling keeps your data in `%AP
 
 Summaries, translations and answers are written by an AI. It can be wrong or leave things out. Always check important details – especially contracts, deadlines and figures – in the original.
 
-Kontakt / Contact: https://github.com/Sebbilore/silkreader-download/issues
+Kontakt / Contact: SeSeLo@outlook.de · https://github.com/Sebbilore/silkreader-download/issues · [Impressum / Legal notice](IMPRESSUM.md)

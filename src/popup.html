@@ -1088,13 +1088,15 @@
       <div class="linklist">
         <button class="link" id="aPriv">${silkIcon('info')}<span>Datenschutz</span></button>
         <button class="link" id="aLic">${silkIcon('file')}<span>Lizenzen</span></button>
+        <button class="link" id="aImp">${silkIcon('info')}<span>Impressum</span></button>
         <button class="link" id="aNew">${silkIcon('notebook')}<span>Was ist neu?</span></button>
         <button class="link" id="aRep">${silkIcon('bug')}<span>Problem melden</span></button>
         <button class="link" id="aPro">${silkIcon('keep')}<span>Silkreader Pro</span></button>
       </div>
-      <div class="v" style="margin-top:12px">© 2026 Sebbilore · ${T('Alle Rechte vorbehalten')}</div></div>`;
+      <div class="v" style="margin-top:12px">© 2026 Lorelab · Sebastian Lorenz · ${T('Alle Rechte vorbehalten')}</div></div>`;
     $('aPriv').addEventListener('click', () => window.spider.openPrivacy());
     $('aLic').addEventListener('click', () => window.spider.openLicenses());
+    $('aImp').addEventListener('click', () => window.spider.openExternal('https://github.com/Sebbilore/silkreader-download/blob/main/IMPRESSUM.md'));
     $('aNew').addEventListener('click', () => window.spider.openExternal(`${info.downloadRepo}/releases`));
     $('aRep').addEventListener('click', () => { setBack(about); report(); });
     $('aPro').addEventListener('click', () => { setBack(about); proView(); });
