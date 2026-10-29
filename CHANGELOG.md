@@ -3,6 +3,16 @@
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
 
+## 1.22.0 (in Vorbereitung)
+- **The spider learns – locally:** “Was that right?” below every result; corrections (amount, deadline, sender, letter type, task, summary) become rules for the next letter from the same sender and hints for the AI. Sender profiles from all letters read (“3rd letter from … this year”, “instalment rises from 84 € to 92 € (+9.5 %)”). Settings → What I have learned: view, forget, back up. Nothing leaves the PC; off in private mode.
+- **Letters:** “What happens if I do nothing?” (reminders, notices, court payment orders), scam check (foreign IBAN, gift cards, pressure, links, PIN/TAN), “Signature needed” with page and return address, multi-page photos.
+- **Easier to use:** simpler settings (built-in AI only, applied instantly), text size, high contrast, setup in 3 steps, tips one at a time, read aloud with highlight and speed, speak a question (Windows voice typing), keyboard shortcuts with “?”, crash report on request. Pro page and Pro locks easier to find.
+- **Spider:** good-morning overview, confetti when all deadlines are done, “Read later” note on the thread with reminder, growing web; bigger and smarter tap zone, long press opens the web.
+- Deadline notifications with “Done” and “Open letter”.
+- **Code protection** in the packaged app (obfuscated scripts, main process as V8 bytecode).
+- **Mac test version** (Apple silicon and Intel) in the download repository.
+- More test letters (job centre, tax office, health insurance, debt collection, broadcasting fee, fine).
+
 ## 1.21.0
 - **New design:** calm, Windows 11 style; light and dark follow Windows or Settings → Appearance; pink only as a subtle brand colour. Results start with the task (“Pay 98.90 € by Sunday, 15 November”, days left, IBAN to copy, add to calendar). Footer with the main actions and a “…” menu; settings as Windows-style toggle rows; main window with sidebar, upcoming deadlines and recently read.
 - **Calmer spider** (flat, single-colour legs) in the app, the app icon and the tiles; new animations.

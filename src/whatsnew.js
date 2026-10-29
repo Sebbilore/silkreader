@@ -1,5 +1,19 @@
 // „Was ist neu?“ – erscheint nach einem Update einmal als Sprechblase an der Spinne.
 module.exports = {
+  '1.22.0': {
+    de: [
+      'Die Spinne lernt mit: Unter jedem Ergebnis fragst du „War das richtig?“ – korrigierst du Betrag, Frist oder Briefart, wendet sie das beim nächsten Brief vom selben Absender an. Alles bleibt auf deinem PC (Einstellungen → Was ich gelernt habe).',
+      'Mehr Hilfe bei Briefen: „Was passiert, wenn ich nichts tue?“ bei Mahnungen und Bescheiden, Warnung bei Betrugs-Briefen, „Unterschrift nötig“ mit Seite und Rücksendeadresse, Vergleich mit früheren Briefen („Abschlag steigt um 9,5 %“) und Briefe mit mehreren Seiten fotografieren.',
+      'Einfacher bedienen: Einstellungen gelten sofort, Schriftgröße und hoher Kontrast, Vorlesen mit mitlaufender Markierung, Tastenkürzel mit „?“, Fristen-Erinnerung mit „Erledigt“ und „Brief öffnen“.',
+      'Die Spinne sagt morgens kurz, welche Fristen anstehen, hält Briefe zum „Später lesen“ als Zettel am Faden fest – und ihr Netz wächst mit jedem gelesenen Brief.',
+    ],
+    en: [
+      'The spider learns: below every result you can say “Was that right?” – if you correct the amount, deadline or letter type, it applies that to the next letter from the same sender. Everything stays on your PC (Settings → What I have learned).',
+      'More help with letters: “What happens if I do nothing?” for reminders and notices, a warning for scam letters, “Signature needed” with page and return address, comparison with earlier letters (“instalment rises by 9.5 %”) and photographing letters with several pages.',
+      'Easier to use: settings apply right away, text size and high contrast, read aloud with a moving highlight, keyboard shortcuts with “?”, deadline reminders with “Done” and “Open letter”.',
+      'In the morning the spider briefly shows upcoming deadlines, keeps letters to “Read later” as a note on its thread – and its web grows with every letter you read.',
+    ],
+  },
   '1.21.0': {
     de: [
       'Neues Aussehen: ruhig wie Windows 11, hell oder dunkel ganz nach Windows (oder Einstellungen → Darstellung). Oben im Ergebnis steht jetzt groß, was du tun musst – mit Betrag, Frist und IBAN zum Kopieren.',
