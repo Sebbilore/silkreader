@@ -256,7 +256,97 @@
     };
   }
 
-  const api = { contractFacts, numbersIn, unknownNumbers, verifyResult, findDeadlines, letterDate, letterFacts, ibanValid };
+  // ---------- 1.22: Absender, wiederkehrende Beträge, Betrug, Unterschrift, Folgen ----------
+  const ORG = /\b(gmbh|ag|kg|e\.\s?v\.|se|ug|ohg|mbh|amt|finanzamt|jobcenter|agentur für arbeit|stadtwerke|krankenkasse|aok|barmer|tk|dak|ikk|versicherung|bank|sparkasse|volksbank|kasse|verwaltung|gericht|behörde|stadt|gemeinde|landkreis|rentenversicherung|familienkasse|inkasso|hausverwaltung|vermieter|post|telekom|vodafone|o2|1&1|ewe|eon|e\.on|vattenfall|rundfunk|beitragsservice)\b/i;
+  /** Absender eines Briefs (für „3. Brief von …“ und das Lernen): { key, name } oder null */
+  function senderOf(text) {
+    text = String(text || '');
+    const head = text.split(/\b(sehr geehrte|liebe[rs]?\s|guten tag|hallo)\b/i)[0].slice(0, 1200);
+    const lines = head.split(/\n+/).map((l) => l.trim().replace(/\s{2,}/g, ' ')).filter((l) => l.length >= 3 && l.length <= 70);
+    let name = lines.find((l) => ORG.test(l) && !/^(an|herrn?|frau|z\.\s?hd|empfänger)\b/i.test(l) && !/\d{5}\s/.test(l));
+    // Brieffuß / Grußformel: „Ihre Stadtwerke“, „Ihr Finanzamt Musterstadt“
+    if (!name) {
+      const m = text.match(/(?:mit freundlichen grüßen|freundliche grüße|hochachtungsvoll)[,\s]*\n?\s*(?:ihr[e]?\s+)?([^\n]{3,60})/i);
+      if (m && ORG.test(m[1])) name = m[1].trim();
+    }
+    if (!name) {
+      const m = text.match(/(?:kontoinhaber|zahlungsempfänger|empfänger)\s*:?\s*([^\n]{3,60})/i);
+      if (m) name = m[1].trim();
+    }
+    if (!name) return null;
+    name = name.replace(/^(ihre?|absender|von)\s*:?\s+/i, '').replace(/[,;|·].*$/, '').replace(/\s*[-–]\s*.*$/, (x) => (ORG.test(x) ? x : '')).trim();
+    const key = name.toLowerCase().replace(/\b(gmbh|ag|kg|e\.\s?v\.|se|ug|mbh|co\.?|&)\b/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    return key.length >= 3 ? { key, name } : null;
+  }
+  /** Wiederkehrender Betrag (Abschlag, Beitrag, Miete, Rate): der neue/aktuelle Wert, z. B. 92 */
+  function recurringAmount(text) {
+    const t = String(text || '');
+    const re = /(abschlag|abschlagszahlung|monatsbeitrag|beitrag|miete|monatliche rate|rate|vorauszahlung|grundgebühr)[^.\n€]{0,60}?(\d{1,4}(?:\.\d{3})*(?:,\d{1,2})?)\s?(?:€|eur\b|euro)/gi;
+    let m, last = null;
+    while ((m = re.exec(t))) last = { label: m[1].toLowerCase(), value: Number(m[2].replace(/\./g, '').replace(',', '.')) };
+    return last && last.value > 0 && last.value < 100000 ? last : null;
+  }
+  const COUNTRIES = { DE: 'Deutschland', AT: 'Österreich', CH: 'Schweiz', NL: 'den Niederlanden', LT: 'Litauen', LV: 'Lettland', EE: 'Estland', GB: 'Großbritannien', IE: 'Irland', CY: 'Zypern', MT: 'Malta', BG: 'Bulgarien', RO: 'Rumänien', PL: 'Polen', CZ: 'Tschechien', HU: 'Ungarn', ES: 'Spanien', PT: 'Portugal', FR: 'Frankreich', IT: 'Italien', BE: 'Belgien', LU: 'Luxemburg', GR: 'Griechenland', TR: 'der Türkei', UA: 'der Ukraine', HR: 'Kroatien', SK: 'der Slowakei', SI: 'Slowenien', FI: 'Finnland', SE: 'Schweden', DK: 'Dänemark', NO: 'Norwegen' };
+  /** Echtheits-Check: typische Betrugsmerkmale. Liefert { reasons: [...] } ab zwei Merkmalen (oder einem sehr starken), sonst null */
+  function scamCheck(text) {
+    const t = String(text || '');
+    const reasons = [];
+    let strong = false;
+    const german = /\b(sehr geehrte|bitte|ihr|ihre|zahlung|betrag)\b/i.test(t);
+    const ibans = [...t.matchAll(/\b([A-Z]{2})\d{2}(?:\s?[A-Z0-9]{4}){3,7}(?:\s?[A-Z0-9]{1,3})?\b/g)].map((m) => m[1]).filter((c) => COUNTRIES[c]);
+    const foreign = ibans.find((c) => !['DE', 'AT', 'CH'].includes(c));
+    if (german && foreign) reasons.push({ id: 'iban', country: foreign, text: `Die IBAN ist aus ${COUNTRIES[foreign]} (${foreign}…), obwohl der Brief auf Deutsch ist.` });
+    if (/\b(innerhalb|binnen)\s+(?:von\s+)?(24|48|12|2|3)\s*(stunden|std\.?)\b|\b(sofort|unverzüglich|umgehend)\b[^.]{0,60}\b(sonst|andernfalls|ansonsten)\b|\bheute noch\b/i.test(t))
+      reasons.push({ id: 'urgent', text: 'Du sollst sehr schnell zahlen oder handeln – Druck ist ein typisches Merkmal.' });
+    if (/\b(gutschein|gutscheinkarte|paysafe(?:card)?|google[\s-]?play[\s-]?karte|itunes|apple[\s-]?karte|steam[\s-]?karte|amazon[\s-]?gutschein|guthabenkarte|prepaid[\s-]?karte)\b/i.test(t) && /\b(zahl|bezahl|begleich|code|kaufen)/i.test(t)) { strong = true; reasons.push({ id: 'gift', text: 'Bezahlt werden soll mit Gutschein- oder Guthabenkarten – das macht keine echte Firma oder Behörde.' }); }
+    if (/\b(bitcoin|btc|krypto|kryptowährung|wallet|ethereum|usdt)\b/i.test(t) && /\b(zahl|überweis|send)/i.test(t)) { strong = true; reasons.push({ id: 'crypto', text: 'Bezahlt werden soll mit Kryptowährung.' }); }
+    if (/\b(pin|tan|passwort|kennwort|zugangsdaten|kreditkartennummer|cvv|prüfnummer)\b/i.test(t) && /\b(bestätigen|eingeben|angeben|mitteilen|senden|aktualisieren|verifizieren)\b/i.test(t)
+      && !/\b(niemals|nie|keinesfalls)\b[^.]{0,80}\b(pin|tan|passwort|kennwort|zugangsdaten)\b/i.test(t)) { strong = true; reasons.push({ id: 'secret', text: 'Du sollst PIN, TAN, Passwort oder Kartendaten angeben – das fragt niemand Seriöses so ab.' }); }
+    if (/(klicken sie|tippen sie|folgen sie)[^.]{0,40}\b(link|hier)\b|\bbit\.ly\b|\btinyurl\b|https?:\/\/\S*(?:\.xyz|\.top|\.click|\.info|-paket|-zoll|-verif)/i.test(t)) reasons.push({ id: 'link', text: 'Du sollst auf einen Link klicken.' });
+    if (/\b(zollgebühr|zoll[\s-]?gebühren|paket (?:wartet|zurückgehalten|konnte nicht zugestellt))\b/i.test(t) && /\b(zahl|link|klick)/i.test(t)) reasons.push({ id: 'parcel', text: 'Ein Paket soll erst nach einer kleinen Gebühr zugestellt werden – eine bekannte Masche.' });
+    if (/\b(gewonnen|gewinner|gewinnspiel|erbschaft)\b/i.test(t) && /\b(gebühr|bearbeitungsgebühr|vorab|zahl)/i.test(t)) { strong = true; reasons.push({ id: 'prize', text: 'Für einen Gewinn oder eine Erbschaft soll vorher gezahlt werden.' }); }
+    return reasons.length >= 2 || (strong && reasons.length) ? { reasons } : null;
+  }
+  /** Unterschrift nötig? { page, where, returnTo } oder null */
+  function signatureNeeded(pages) {
+    pages = (Array.isArray(pages) ? pages : [String(pages || '')]).map(String);
+    const all = pages.join('\n');
+    if (!/(unterschreiben|unterzeichnen|unterschrift|eigenhändig|ort,?\s*datum)/i.test(all)) return null;
+    if (!/(zurück(?:senden|schicken|geben)|zurück an|einreichen|unterschrieben (?:an|zurück)|senden sie[^.]{0,40}(?:an|zurück)|reichen sie[^.]{0,40}ein|unterschreiben sie|bitte unterschreiben|ort,?\s*datum,?\s*unterschrift)/i.test(all)) return null;
+    let page = 0;
+    pages.forEach((p, i) => { if (/(ort,?\s*datum|unterschrift|unterschreiben)/i.test(p)) page = i + 1; });
+    const where = /ort,?\s*datum,?\s*unterschrift/i.test(all) ? 'Ort, Datum, Unterschrift' : '';
+    const m = all.match(/(?:zurück an|senden sie (?:es|ihn|sie|das formular|den antrag|die unterlagen)?\s*(?:bitte\s*)?(?:unterschrieben\s*)?(?:zurück\s*)?an)\s*:?\s*([^\n.]{4,80})/i);
+    return { page: pages.length > 1 ? page : 0, where, returnTo: m ? m[1].trim() : '' };
+  }
+  /** Was passiert, wenn ich nichts tue? Ruhige, allgemeine Hinweise nach Art des Briefs (keine Rechtsberatung) */
+  function consequences(kind, text) {
+    const t = String(text || '');
+    const steps = [];
+    let tip = '';
+    if (kind === 'mahnung' || kind === 'rechnung') {
+      const fee = (t.match(/mahngebühr[^\d]{0,30}(\d+,\d{2})\s?(?:€|eur|euro)/i) || [])[1];
+      if (kind === 'rechnung') steps.push('Erst kommt meist eine Zahlungserinnerung oder Mahnung.');
+      steps.push(fee ? `Es kommen weitere Mahngebühren dazu (hier schon ${fee} €), dazu Verzugszinsen.` : 'Es können Mahngebühren und Verzugszinsen dazukommen.');
+      steps.push('Danach kann die Forderung an ein Inkasso-Büro gehen – das wird deutlich teurer.');
+      if (/\b(strom|gas|energie|wasser|stadtwerke)\b/i.test(t)) steps.push('Bei Strom, Gas oder Wasser kann nach mehreren Mahnungen eine Sperre angedroht werden – sie muss vorher angekündigt werden.');
+      else if (/\b(miete|vermieter|hausverwaltung)\b/i.test(t)) steps.push('Bei Mietschulden kann der Vermieter nach zwei offenen Monatsmieten kündigen.');
+      else steps.push('Zuletzt ist ein gerichtlicher Mahnbescheid möglich.');
+      tip = 'Kannst du nicht alles zahlen? Unter „Antworten“ gibt es die Vorlage Ratenzahlung. Ist die Forderung falsch, widersprich schriftlich.';
+    } else if (kind === 'bescheid') {
+      steps.push('Nach Ablauf der Frist wird der Bescheid bestandskräftig – dann kannst du ihn meist nicht mehr anfechten.');
+      if (/(nachzahlung|zu zahlen|erstatten|rückforderung)/i.test(t)) steps.push('Eine geforderte Zahlung wird fällig; danach kommen Säumniszuschläge dazu.');
+      if (/(mitwirkung|unterlagen|nachweise|vorlegen|einreichen)/i.test(t)) steps.push('Fehlen angeforderte Unterlagen, können Leistungen gekürzt oder gestoppt werden.');
+      tip = 'Ist etwas unklar, ruf die Stelle an oder schreib eine Rückfrage – Beratungsstellen helfen oft kostenlos.';
+    } else if (/mahnbescheid/i.test(t)) {
+      steps.push('Gegen einen gerichtlichen Mahnbescheid kannst du innerhalb von 2 Wochen Widerspruch einlegen.');
+      steps.push('Sonst folgt ein Vollstreckungsbescheid – dann kann gepfändet werden.');
+    }
+    if (/mahnbescheid/i.test(t) && kind !== 'bescheid' && !steps.some((s) => /2 Wochen/.test(s))) steps.unshift('Wichtig: Gegen einen gerichtlichen Mahnbescheid hast du nur 2 Wochen für einen Widerspruch.');
+    return steps.length ? { steps, tip } : null;
+  }
+
+  const api = { COUNTRIES, senderOf, recurringAmount, scamCheck, signatureNeeded, consequences, parseDate, contractFacts, numbersIn, unknownNumbers, verifyResult, findDeadlines, letterDate, letterFacts, ibanValid };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SilkFacts = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -33,6 +33,15 @@
     cloud: '<path d="M-5.5 5.5h11a4 4 0 0 0 .5 -8a5.5 5.5 0 0 0 -10.6 1.3a3.4 3.4 0 0 0 -.9 6.7z"/>',
     lock: '<rect x="-6" y="-1.5" width="12" height="9" rx="2"/><path d="M-3.5 -1.5v-2.5a3.5 3.5 0 0 1 7 0v2.5"/>',
     pause: '<path d="M-3 -6v12M3 -6v12"/>',
+    warn: '<path d="M0 -8l8.5 15h-17z"/><path d="M0 -2.5v4M0 4.3v.01" stroke-width="2"/>',
+    trend: '<path d="M-8 5l5 -5 3.5 3.5 7.5 -7.5"/><path d="M3 -4h5v5"/>',
+    trenddown: '<path d="M-8 -5l5 5 3.5 -3.5 7.5 7.5"/><path d="M3 4h5v-5"/>',
+    pen: '<path d="M4 -7.5l3.5 3.5 -10 10h-3.5v-3.5z"/><path d="M1.5 -5l3.5 3.5"/>',
+    mic: '<rect x="-3" y="-8" width="6" height="10" rx="3"/><path d="M-6.5 -1a6.5 6.5 0 0 0 13 0M0 5.5v2.5"/>',
+    thumbup: '<path d="M-7 -1h3v8h-3z"/><path d="M-4 -1l3.5 -6.5c1.5 0 2.5 1 2 3l-.7 2.5h4.7a1.6 1.6 0 0 1 1.5 2l-1.6 6a1.6 1.6 0 0 1 -1.5 1h-7.9"/>',
+    thumbdown: '<path d="M-7 1h3v-8h-3z"/><path d="M-4 1l3.5 6.5c1.5 0 2.5 -1 2 -3l-.7 -2.5h4.7a1.6 1.6 0 0 0 1.5 -2l-1.6 -6a1.6 1.6 0 0 0 -1.5 -1h-7.9"/>',
+    bookmark: '<path d="M-5 -8h10v16l-5 -4 -5 4z"/>',
+    keyboard: '<rect x="-8.5" y="-5" width="17" height="10" rx="1.5"/><path d="M-5.5 -2h.01M-2 -2h.01M1.5 -2h.01M5 -2h.01M-4 2h8"/>',
     trash: '<path d="M-6 -5h12M-4 -5l1 12h6l1 -12M-2 -5v-2h4v2"/>',
   };
   P.deadlines = P.calendar;

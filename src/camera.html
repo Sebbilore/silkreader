@@ -18,6 +18,10 @@
   button { font: inherit; font-size: 14px; border-radius: var(--r-s); height: 34px; padding: 0 18px; border: 1px solid var(--control-line); background: var(--raised); color: var(--text); cursor: pointer; }
   button.go { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 600; }
   .hidden { display: none !important; }
+  #pages { display: flex; gap: 10px; padding: 10px 14px 0; background: var(--glass); overflow-x: auto; }
+  #pages figure { position: relative; margin: 0; flex: none; } #pages img { height: 84px; border-radius: 4px; border: 1px solid var(--line-2); display: block; }
+  #pages figcaption { position: absolute; left: 4px; bottom: 4px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,.9); color: #1b1b1b; border-radius: 3px; padding: 0 5px; }
+  #pages .del { position: absolute; top: 3px; right: 3px; height: 22px; width: 22px; padding: 0; font-size: 11px; border-radius: 11px; }
   #err { padding: 30px; text-align: center; color: var(--muted); }
 </style>
 </head>
@@ -25,9 +29,11 @@
 <div id="wrap">
   <div id="stage"><video id="v" autoplay playsinline muted></video><img id="shot" class="hidden" alt=""><div id="frame"></div>
     <div id="hint">Brief gerade in den Rahmen halten. Leertaste macht das Foto.</div><div id="err" class="hidden"></div></div>
+  <div id="pages" class="hidden" aria-label="Aufgenommene Seiten"></div>
   <div id="bar">
     <button class="go" id="snap">Foto aufnehmen</button>
     <button class="hidden" id="again">Nochmal</button>
+    <button class="hidden" id="more">+ Weitere Seite</button>
     <button class="go hidden" id="read">Lesen</button>
     <button id="cancel">Abbrechen</button>
   </div>
@@ -35,6 +41,7 @@
 <script>
   const $ = (id) => document.getElementById(id);
   let stream = null, data = null;
+  const pages = []; // mehrseitige Briefe: Seite für Seite aufnehmen, dann alles zusammen lesen
   async function start() {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: 'environment' }, audio: false });
@@ -43,6 +50,12 @@
       $('err').textContent = T('Keine Kamera gefunden oder der Zugriff ist gesperrt (Windows-Einstellungen → Datenschutz → Kamera).');
       $('err').classList.remove('hidden'); $('v').classList.add('hidden'); $('frame').classList.add('hidden'); $('snap').classList.add('hidden');
     }
+  }
+  const readLabel = () => (pages.length + (data ? 1 : 0) > 1 ? T('Fertig – {n} Seiten lesen', { n: pages.length + (data ? 1 : 0) }) : T('Lesen'));
+  function renderPages() {
+    $('pages').classList.toggle('hidden', !pages.length);
+    $('pages').innerHTML = pages.map((p, i) => `<figure><img src="${p}" alt=""><figcaption>${T('Seite {n}', { n: i + 1 })}</figcaption><button class="del" data-i="${i}" title="${T('Seite löschen')}" aria-label="${T('Seite {n} löschen', { n: i + 1 })}">✕</button></figure>`).join('');
+    $('read').textContent = readLabel();
   }
   function snap() {
     const v = $('v'); if (!v.videoWidth) return;
@@ -54,20 +67,32 @@
     g.putImageData(img, 0, 0);
     data = c.toDataURL('image/png');
     $('shot').src = data; $('shot').classList.remove('hidden'); $('v').classList.add('hidden'); $('frame').classList.add('hidden');
-    $('snap').classList.add('hidden'); $('again').classList.remove('hidden'); $('read').classList.remove('hidden');
-    $('hint').textContent = T('Ist der Text gut lesbar?');
+    $('snap').classList.add('hidden'); $('again').classList.remove('hidden'); $('more').classList.remove('hidden'); $('read').classList.remove('hidden');
+    $('hint').textContent = T('Ist der Text gut lesbar? Hat der Brief mehr Seiten, nimm die nächste auf.');
+    $('read').textContent = readLabel();
   }
-  function again() {
-    data = null; $('shot').classList.add('hidden'); $('v').classList.remove('hidden'); $('frame').classList.remove('hidden');
-    $('snap').classList.remove('hidden'); $('again').classList.add('hidden'); $('read').classList.add('hidden');
-    $('hint').textContent = T('Brief gerade in den Rahmen halten. Leertaste macht das Foto.');
+  function live() {
+    $('shot').classList.add('hidden'); $('v').classList.remove('hidden'); $('frame').classList.remove('hidden');
+    $('snap').classList.remove('hidden'); $('again').classList.add('hidden'); $('more').classList.add('hidden');
+    $('read').classList.toggle('hidden', !pages.length);
+    $('hint').textContent = pages.length ? T('Seite {n}: Brief gerade in den Rahmen halten.', { n: pages.length + 1 }) : T('Brief gerade in den Rahmen halten. Leertaste macht das Foto.');
+    renderPages();
   }
-  const done = (png) => { stream?.getTracks().forEach((t) => t.stop()); window.spider.cameraDone(png); };
+  function again() { data = null; live(); }
+  function more() { if (data) pages.push(data); data = null; live(); }
+  const all = () => [...pages, ...(data ? [data] : [])];
+  const done = (pngs) => { stream?.getTracks().forEach((t) => t.stop()); window.spider.cameraDone(pngs); };
   $('snap').addEventListener('click', snap);
   $('again').addEventListener('click', again);
-  $('read').addEventListener('click', () => { $('read').textContent = T('Lese …'); $('read').disabled = true; done(data); });
+  $('more').addEventListener('click', more);
+  $('pages').addEventListener('click', (e) => { const b = e.target.closest('.del'); if (!b) return; pages.splice(Number(b.dataset.i), 1); renderPages(); if (!pages.length && !data) live(); });
+  $('read').addEventListener('click', () => { $('read').textContent = T('Lese …'); $('read').disabled = true; done(all()); });
   $('cancel').addEventListener('click', () => done(null));
-  window.addEventListener('keydown', (e) => { if (e.key === ' ' && !data) { e.preventDefault(); snap(); } if (e.key === 'Escape') done(null); if (e.key === 'Enter' && data) done(data); });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === ' ' && !data) { e.preventDefault(); snap(); }
+    if (e.key === 'Escape') done(null);
+    if (e.key === 'Enter' && all().length) done(all());
+  });
   start();
 </script>
 </body>

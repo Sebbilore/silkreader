@@ -12,6 +12,9 @@
   #webSvg { position: absolute; inset: 0; pointer-events: none; will-change: transform; }
   #svg { position: absolute; inset: 0; }
   #thread { stroke: var(--silk); stroke-width: 1; }
+  #growWeb line, #growWeb path { stroke: var(--silk); stroke-width: .7; fill: none; opacity: .55; }
+  #note .paper { fill: #f4f1ea; stroke: #bdb7aa; stroke-width: .6; } #note .fold { fill: #dcd5c6; stroke: #bdb7aa; stroke-width: .5; } #note .lines { stroke: #bdb7aa; stroke-width: .8; }
+  #note .clip { fill: var(--pink); } #note text { font: 700 8px var(--font); fill: var(--pink); }
   #threadShadow { stroke: rgba(10,10,18,.5); stroke-width: 2.4; }
   #web { transition: opacity 4s; }
   #web line, #web polyline { fill: none; stroke: rgba(245,245,250,.9); stroke-width: .9; stroke-linecap: round; stroke-linejoin: round;
@@ -114,7 +117,7 @@
 </style>
 </head>
 <body>
-<svg id="webSvg"><g id="holdWeb" opacity="0"></g></svg>
+<svg id="webSvg"><g id="growWeb"></g><g id="holdWeb" opacity="0"></g></svg>
 <svg id="svg">
   <defs>
     <radialGradient id="gBody" cx="35%" cy="28%" r="80%">
@@ -126,6 +129,7 @@
   <g id="web" opacity="0"></g>
   <line id="threadShadow" x1="0" y1="0" x2="0" y2="0"/>
   <line id="thread" x1="0" y1="0" x2="0" y2="0"/>
+  <g id="note" style="display:none"><title>Später lesen</title><path class="paper" d="M-6 0h12v13l-3 3h-9z"/><path class="fold" d="M6 13h-3v3"/><path class="lines" d="M-3.5 5h7M-3.5 8h7M-3.5 11h4"/><circle class="clip" cx="0" cy="0" r="1.8"/><text id="noteN" x="8" y="-2"></text></g>
   <g id="fly" style="display:none">
     <ellipse class="wing" id="wingL" cx="-2.6" cy="-2" rx="2.6" ry="1.6"/>
     <ellipse class="wing" id="wingR" cx="2.6" cy="-2" rx="2.6" ry="1.6"/>
@@ -415,6 +419,7 @@
     el.thread.setAttribute('x1', AX); el.thread.setAttribute('y1', 0);
     el.thread.setAttribute('x2', sx); el.thread.setAttribute('y2', sy - 11);
     el.shadow.setAttribute('x1', AX); el.shadow.setAttribute('x2', sx); el.shadow.setAttribute('y2', sy - 11);
+    if (bookmarks) { const k = Math.min(0.45, 26 / Math.max(sy, 1)); $('note').setAttribute('transform', `translate(${(AX + (sx - AX) * k).toFixed(1)} ${((sy - 11) * k).toFixed(1)}) rotate(${(-theta * 20).toFixed(1)})`); }
     el.spider.setAttribute('transform', `translate(${sx.toFixed(1)} ${sy.toFixed(1)}) rotate(${rot.toFixed(1)})`);
     el.svg.classList.toggle('catch', catching);
 
@@ -944,6 +949,28 @@
   el.svg.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
   window.spider.onClickMode((m) => setClickMode(m, false));
 
+  // Das Netz am Aufhängepunkt wächst mit jedem gelesenen Brief; ein Zettel am Faden = „Später lesen“
+  let bookmarks = 0, growLevel = -1;
+  function drawGrowWeb(read) {
+    const level = [1, 5, 15, 40, 100, 250].filter((n) => read >= n).length;
+    if (level === growLevel) return;
+    growLevel = level;
+    const g = $('growWeb'); g.innerHTML = '';
+    if (!level) return;
+    const R = 10 + level * 6, N = 7;
+    const dirs = Array.from({ length: N }, (_, i) => Math.PI * (0.06 + 0.88 * i / (N - 1)));
+    const pt = (a, r) => [AX + Math.cos(a) * r * 1.25, Math.sin(a) * r];
+    for (const a of dirs) { const [x, y] = pt(a, R); g.insertAdjacentHTML('beforeend', `<line x1="${AX}" y1="0" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>`); }
+    for (let k = 1; k <= level; k++) {
+      const r = (R * k) / (level + 0.4);
+      const d = dirs.map((a, i) => { const [x, y] = pt(a, r); if (!i) return `M${x.toFixed(1)},${y.toFixed(1)}`; const [cx, cy] = pt((a + dirs[i - 1]) / 2, r * 0.88); return `Q${cx.toFixed(1)},${cy.toFixed(1)} ${x.toFixed(1)},${y.toFixed(1)}`; }).join(' ');
+      g.insertAdjacentHTML('beforeend', `<path d="${d}"/>`);
+    }
+  }
+  window.spider.onRigState?.((d) => {
+    if (typeof d.read === 'number') drawGrowWeb(d.read);
+    if (typeof d.bookmarks === 'number') { bookmarks = d.bookmarks; $('note').style.display = bookmarks ? '' : 'none'; $('noteN').textContent = bookmarks > 1 ? bookmarks : ''; }
+  });
   window.spider.onRigInit((d) => { minLen = d.minLen; maxLen = d.maxLen; baseLen = d.length; setClickMode(d.clickMode, false); });
   window.spider.onCursor((p) => {
     cursor = p;

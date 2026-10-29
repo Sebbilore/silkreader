@@ -73,6 +73,8 @@
   details.adv > summary .grow { flex: 1; } details.adv .sub { display: block; color: var(--muted); font-size: 12.5px; }
   .pro button { white-space: nowrap; }
   .foot { display: flex; gap: 18px; align-items: center; margin-top: 24px; font-size: 13px; } .foot .saved { margin-left: auto; color: var(--faint); }
+  .stats { display: flex; gap: 10px; margin: 10px 0 0; } .stats div { flex: 1; background: var(--card); border-radius: var(--r-m); padding: 10px 14px; } .stats b { display: block; font-size: 22px; font-weight: 600; } .stats span { font-size: 12px; color: var(--muted); }
+  details.lrn { margin-top: 10px; } .line .empty { color: var(--muted); font-size: 13px; }
   .hidden { display: none !important; }
 </style>
 </head>
@@ -108,7 +110,21 @@
   <div class="line"><label class="check grow"><input type="checkbox" id="hatch"> Große Spinne beim Lesen zeigen</label></div>
   <div class="line"><label class="check grow"><input type="checkbox" id="copyHint"> Bei kopiertem Text fragen, ob ich lesen soll</label></div>
   <div class="line"><label class="check grow"><input type="checkbox" id="hideFullscreen"> Bei Vollbild und Präsentationen verstecken</label></div>
+  <div class="line"><label class="check grow"><input type="checkbox" id="morning"> Morgens kurz die Fristen der Woche zeigen</label></div>
 </div>
+
+<h2>Was ich gelernt habe</h2>
+<p class="lead">Ich lerne aus deinen Korrekturen und den Briefen im Notizbuch. Alles bleibt auf diesem PC.</p>
+<div class="grp">
+  <div class="line"><label class="check grow"><input type="checkbox" id="learn"> Aus meinen Briefen und Korrekturen lernen</label></div>
+</div>
+<div class="stats" id="lStats"></div>
+<details class="adv lrn" id="lDetails">
+  <summary><span class="grow">Absender und Korrekturen ansehen<span class="sub" id="lSub"></span></span></summary>
+  <h2>Absender</h2><div class="grp" id="lSenders"></div>
+  <h2>Korrekturen</h2><div class="grp" id="lCorr"></div>
+  <div class="inline" style="margin-top:14px;flex-wrap:wrap"><button id="lAll">Alles vergessen</button><button id="lExp">Gelerntes sichern …</button><button id="lImp">Gelerntes laden …</button><span class="hint" id="lMsg" style="align-self:center"></span></div>
+</details>
 
 <details class="adv" id="adv">
   <summary><span class="grow">Erweitert<span class="sub">Tastenkürzel, Privatmodus, Downloads, Sparmodus, Bildschirmfreigabe</span></span></summary>
@@ -247,9 +263,38 @@
   $('refresh').addEventListener('click', loadOllama);
   $('console').addEventListener('click', () => window.spider.openExternal('https://platform.claude.com/settings/keys'));
 
+  // ---- Was ich gelernt habe ----
+  const escH = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const FIELD = { amount: 'Betrag', deadline: 'Frist', sender: 'Absender', kind: 'Briefart', task: 'Aufgabe', summary: 'Zusammenfassung' };
+  async function loadLearn() {
+    const d = await window.spider.learnList();
+    $('lStats').innerHTML = [[d.stats.letters, 'Briefe gelesen'], [d.stats.senders, 'Absender erkannt'], [d.stats.corrections, d.stats.corrections === 1 ? 'Korrektur' : 'Korrekturen']].map(([n, l]) => `<div><b>${n}</b><span>${T(l)}</span></div>`).join('');
+    $('lSub').textContent = d.privateMode ? T('Im Privatmodus lerne ich nichts dazu.') : '';
+    const forget = `<button data-forget>${T('Vergessen')}</button>`;
+    $('lSenders').innerHTML = d.senders.length ? d.senders.map((x) => `<div class="line" data-sender="${escH(x.key)}"><span class="grow"><span data-noi18n>${escH(x.name)}</span><span class="sub">${[(x.count === 1 ? T('1 Brief') : T('{n} Briefe', { n: x.count })), x.kinds.map((k) => T(k)).join(', '), x.recurring, x.corrections ? (x.corrections === 1 ? T('1 Korrektur') : T('{n} Korrekturen', { n: x.corrections })) : ''].filter(Boolean).join(' · ')}</span></span>${forget}</div>`).join('')
+      : `<div class="line"><span class="empty">${T('Noch keine Absender – lies ein paar Briefe.')}</span></div>`;
+    $('lCorr').innerHTML = d.corrections.length ? d.corrections.map((c) => `<div class="line" data-corr="${escH(c.id)}"><span class="grow">${T(FIELD[c.field])}: <span data-noi18n>${escH(c.right)}</span><span class="sub"><span data-noi18n>${escH(c.name || '')}</span>${c.name ? ' · ' : ''}${new Date(c.date).toLocaleDateString(I18N.locale)}</span></span>${forget}</div>`).join('')
+      : `<div class="line"><span class="empty">${T('Noch keine Korrekturen. Unter jedem Ergebnis kannst du sagen, ob es richtig war.')}</span></div>`;
+  }
+  $('lDetails').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-forget]'); if (!b) return;
+    const row = b.closest('.line');
+    if (row.dataset.sender) await window.spider.learnForget('sender', row.dataset.sender);
+    else await window.spider.learnForget('correction', row.dataset.corr);
+    loadLearn();
+  });
+  $('lAll').addEventListener('click', async () => {
+    if (!confirm(T('Wirklich alles Gelernte vergessen? Das Notizbuch bleibt erhalten.'))) return;
+    await window.spider.learnForget('all'); loadLearn();
+  });
+  $('lExp').addEventListener('click', async () => { if (await window.spider.learnExport()) { $('lMsg').textContent = T('Gesichert ✓'); } });
+  $('lImp').addEventListener('click', async () => { const r = await window.spider.learnImport(); $('lMsg').textContent = r.ok ? T('Geladen ✓') : (r.error || ''); loadLearn(); });
+  loadLearn();
+  window.addEventListener('focus', loadLearn);
+
   // ---- Laden ----
   const TOGGLES = { hatch: 'hatchAnimation', copyHint: 'copyHint', hideFullscreen: 'hideFullscreen', privateMode: 'privateMode', pinCopied: 'pinCopied',
-    watchDownloads: 'watchDownloads', hideInShare: 'hideInShare', lowPower: 'lowPower', autostart: 'autostart' };
+    watchDownloads: 'watchDownloads', hideInShare: 'hideInShare', lowPower: 'lowPower', autostart: 'autostart', learn: 'learn', morning: 'morning' };
   window.spider.getSettings().then((s) => {
     for (const [id, name] of Object.entries(s.models)) $('model').add(new Option(name, id, false, id === s.model));
     $('lang').value = s.language;

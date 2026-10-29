@@ -39,6 +39,7 @@ const { recognizeText, recognizePdf } = require('./ocr');
 const WHATS_NEW = require('./whatsnew');
 const facts = require('./facts');
 const pro = require('./pro');
+const { createLearner } = require('./learn');
 
 // Globale Tastenkürzel. Strg+Alt statt Strg+Umschalt, weil viele Programme Strg+Umschalt
 // selbst benutzen (z. B. Strg+Umschalt+Leertaste in Word, Strg+Umschalt+B in Chrome).
@@ -174,6 +175,12 @@ function saveSettings(s) {
   fs.writeFileSync(settingsFile(), JSON.stringify(s, null, 2));
 }
 
+// Lokales Lernen (nur auf diesem PC): Absender, Beträge, Korrekturen – aus im Privatmodus oder wenn abgeschaltet
+let learnerInst = null;
+const learner = () => learnerInst || (learnerInst = createLearner(path.join(app.getPath('userData'), 'learn.json')));
+const learnOn = (s = loadSettings()) => s.learn !== false && !s.privateMode;
+const learnHints = (doc) => { try { return learnOn() ? learner().hints(doc.pages.join('\n')) : ''; } catch { return ''; } };
+
 function getApiKey() {
   const s = loadSettings();
   if (!s.apiKeyEnc) return process.env.ANTHROPIC_API_KEY || null;
@@ -220,6 +227,7 @@ function createBubble() {
   bubbleWin.webContents.on('did-finish-load', () => {
     bubbleWin.webContents.send('rig-init', { length: loadSettings().rig?.length ?? 90, minLen: RIG.minLen, maxLen: RIG.maxLen, clickMode: clickMode() });
     sendCocoons();
+    sendRigState();
   });
 
   // Mausposition regelmäßig an die Spinne schicken (Augen folgen dem Zeiger, Treffer-Test).
@@ -1115,10 +1123,24 @@ function openCamera() {
 ipcMain.on('camera-done', async (e, dataUrl) => {
   if (!cameraWin || e.sender !== cameraWin.webContents) return;
   cameraWin.close();
-  if (!dataUrl || !String(dataUrl).startsWith('data:image/png;base64,')) return;
-  const file = path.join(app.getPath('temp'), `silkreader-foto-${Date.now()}.png`);
-  fs.writeFileSync(file, Buffer.from(dataUrl.split(',')[1], 'base64'));
-  try { await readFileToBubble(file); } finally { setTimeout(() => fs.unlink(file, () => {}), 60000); }
+  // eine oder mehrere Seiten (mehrseitiger Brief)
+  const shots = (Array.isArray(dataUrl) ? dataUrl : [dataUrl]).filter((d) => String(d || '').startsWith('data:image/png;base64,')).slice(0, 12);
+  if (!shots.length) return;
+  const files = shots.map((d, i) => {
+    const file = path.join(app.getPath('temp'), `silkreader-foto-${Date.now()}-${i + 1}.png`);
+    fs.writeFileSync(file, Buffer.from(d.split(',')[1], 'base64'));
+    return file;
+  });
+  try {
+    if (files.length === 1) return await readFileToBubble(files[0]);
+    logLine(`Foto mit ${files.length} Seiten`);
+    bubbleWin?.showInactive();
+    const docs = [];
+    for (const f of files) docs.push(await readFileDoc(f));
+    showPopup({ title: T('Brief ({n} Seiten)', { n: files.length }), source: 'camera', pages: docs.flatMap((d) => d.pages) }, { autoStart: true });
+  } catch (err) {
+    showPopupPayload(err.code === 'PRO' ? { kind: 'pro', feature: err.feature } : { kind: 'message', title: 'Datei konnte nicht gelesen werden', text: String(err.message || err) });
+  } finally { setTimeout(() => files.forEach((f) => fs.unlink(f, () => {})), 60000); }
 });
 ipcMain.handle('open-camera', () => openCamera());
 
@@ -1375,6 +1397,7 @@ function buildPrompt(doc, language, compact = false) {
     ]),
     'Schreib in einfacher, verständlicher Sprache: kurze Sätze, Fachbegriffe kurz erklären.',
     'Erfinde nichts, was nicht im Text steht oder sich daraus ableiten lässt.',
+    ...(learnHints(doc) ? ['', learnHints(doc)] : []),
     '',
     '<document>',
     body,
@@ -1646,6 +1669,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
         `Analysiere das folgende Dokument („${doc.title}“).`,
         'Liefere Titel, Art, als "summary" das Wichtigste in 3 bis 5 kurzen Stichpunkten, bis zu 6 weitere Kernaussagen, bis zu 8 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "value" genau so wie im Text, z. B. „412 Millionen Euro“; "quote" = wörtliche Stelle aus dem Text) und bis zu 5 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
         'Ist es ein Brief, eine Rechnung oder ein Bescheid: Was muss der Empfänger tun? Das gehört als Erkenntnis der Art „Handlung“ dazu (als konkreter Satz).',
+        ...(learnHints(doc) ? [learnHints(doc)] : []),
         '', '<document>', docText, '</document>',
       ].join('\n'), /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(docText) ? SHORT_SCHEMA_NUMBERS : BUILTIN_SHORT_SCHEMA, 2200, (c) => {
         onProgress(c);
@@ -2188,6 +2212,7 @@ function countSuccess() {
   const s = loadSettings();
   s.uses = (s.uses || 0) + 1;
   saveSettings(s);
+  sendRigState();
 }
 ipcMain.handle('review-state', () => {
   const s = loadSettings();
@@ -2256,11 +2281,22 @@ function collectDeadlines({ withDone = false } = {}) {
 ipcMain.handle('deadlines-list', () => collectDeadlines({ withDone: true }));
 ipcMain.handle('show-deadlines', () => showPopupPayload({ kind: 'deadlines' }));
 ipcMain.handle('deadline-done', (_e, key, done = true) => {
+  const before = collectDeadlines().length;
   const st = loadDeadlineState();
   if (done) st.done[key] = Date.now(); else delete st.done[key];
   saveDeadlineState(st);
   updateDeadlineBadge();
+  celebrateIfAllDone(before);
 });
+// Kleiner Erfolg: die letzte offene Frist ist erledigt → Konfetti
+function celebrateIfAllDone(before) {
+  if (before > 0 && collectDeadlines().length === 0) {
+    logLine('Alle Fristen erledigt');
+    if (bubbleWin?.isVisible()) bubbleWin.webContents.send('rig-trick', 'party');
+    return true;
+  }
+  return false;
+}
 // Erinnerung als Windows-Benachrichtigung: 3 Tage vorher und am Tag davor (je einmal)
 function remindDeadlines() {
   const { Notification } = require('electron');
@@ -2284,10 +2320,11 @@ function remindDeadlines() {
 }
 function deadlineAction(d, i) {
   if (i === 0) {
+    const before = collectDeadlines().length;
     const st = loadDeadlineState(); st.done[d.key] = Date.now(); saveDeadlineState(st);
     updateDeadlineBadge();
     logLine('Frist per Benachrichtigung erledigt');
-    if (bubbleWin?.isVisible()) bubbleWin.webContents.send('rig-trick', 'heart');
+    if (!celebrateIfAllDone(before) && bubbleWin?.isVisible()) bubbleWin.webContents.send('rig-trick', 'heart');
     return;
   }
   const h = loadHistory().find((x) => x.id === d.histId);
@@ -2301,8 +2338,87 @@ function updateDeadlineBadge() {
   const n = collectDeadlines().filter((d) => d.days <= 7).length;
   if (n !== deadlinesSoon) { deadlinesSoon = n; buildTrayMenu(); }
 }
+// ---------- Guten Morgen: einmal am Morgen ein kurzer Überblick über die Fristen dieser Woche ----------
+const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+function maybeMorning({ force = false } = {}) {
+  const s = loadSettings();
+  if (s.morning === false || !s.onboarded) return false;
+  const h = new Date().getHours();
+  if (!force && (h < 5 || h >= 11 || s.lastMorning === todayIso())) return false;
+  const week = collectDeadlines().filter((d) => d.days <= 7);
+  if (!week.length && !force) return false; // ohne Fristen nicht stören
+  s.lastMorning = todayIso(); saveSettings(s);
+  logLine('Guten Morgen');
+  bubbleWin?.showInactive();
+  bubbleWin?.webContents.send('rig-trick', 'hello');
+  showPopupPayload({ kind: 'morning', items: week.slice(0, 5) });
+  return true;
+}
+
+// ---------- Später lesen: die Spinne hält einen Brief als Zettel am Faden und erinnert dich ----------
+const bookmarksFile = () => path.join(app.getPath('userData'), 'bookmarks.json');
+function loadBookmarks() { try { return JSON.parse(fs.readFileSync(bookmarksFile(), 'utf8')); } catch { return []; } }
+function saveBookmarks(list) { fs.writeFileSync(bookmarksFile(), JSON.stringify(list)); sendRigState(); }
+function sendRigState() {
+  if (!bubbleWin || bubbleWin.isDestroyed()) return;
+  try { bubbleWin.webContents.send('rig-state', { read: loadSettings().uses || 0, bookmarks: loadBookmarks().length }); } catch {}
+}
+function remindAt(when, now = new Date()) {
+  const d = new Date(now);
+  if (when === 'evening') { d.setHours(19, 0, 0, 0); if (d <= now) d.setDate(d.getDate() + 1); }
+  else if (when === 'morning') { d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); }
+  else if (when === 'weekend') { const add = (6 - d.getDay() + 7) % 7; d.setDate(d.getDate() + add); d.setHours(10, 0, 0, 0); if (d <= now) d.setDate(d.getDate() + 7); }
+  else d.setTime(now.getTime() + 60 * 60 * 1000); // in einer Stunde
+  return d.getTime();
+}
+ipcMain.handle('bookmark-add', (_e, doc, result, when) => {
+  const list = loadBookmarks().filter((b) => b.text !== doc.pages.join('\n').slice(0, 2000));
+  const at = remindAt(when);
+  list.push({ id: `${Date.now()}`, at, title: result?.title || doc.title, text: doc.pages.join('\n').slice(0, 2000), doc: { title: doc.title, source: doc.source, pages: doc.pages.map((p) => p.slice(0, 100000)) }, result: result || null });
+  saveBookmarks(list.slice(-20));
+  logLine('Später lesen gemerkt');
+  return { ok: true, at };
+});
+ipcMain.handle('bookmark-list', () => loadBookmarks().map((b) => ({ id: b.id, at: b.at, title: b.title })));
+ipcMain.handle('bookmark-open', (_e, id) => openBookmark(id));
+ipcMain.handle('bookmark-remove', (_e, id) => saveBookmarks(loadBookmarks().filter((b) => b.id !== id)));
+function openBookmark(id) {
+  const list = loadBookmarks();
+  const b = list.find((x) => x.id === id);
+  if (!b) return;
+  saveBookmarks(list.filter((x) => x.id !== id));
+  bubbleWin?.showInactive();
+  showPopupPayload(b.result ? { kind: 'analyze', doc: b.doc, result: b.result } : { kind: 'analyze', doc: b.doc, autoStart: true });
+}
+function remindBookmarks() {
+  const due = loadBookmarks().filter((b) => b.at <= Date.now() && !b.told);
+  if (!due.length) return;
+  const list = loadBookmarks();
+  for (const b of due) {
+    list.find((x) => x.id === b.id).told = true;
+    logLine('Erinnerung: später lesen');
+    if (bubbleWin?.isVisible()) bubbleWin.webContents.send('rig-trick', 'hello');
+    const { Notification } = require('electron');
+    if (Notification.isSupported()) {
+      const n = new Notification({ title: T('Später lesen: {t}', { t: b.title }), body: T('Du wolltest diesen Brief jetzt lesen.'), actions: [{ type: 'button', text: T('Jetzt lesen') }, { type: 'button', text: T('Morgen') }] });
+      n.on('click', () => openBookmark(b.id));
+      n.on('action', (details, idx) => {
+        if ((details?.actionIndex ?? idx) === 0) return openBookmark(b.id);
+        const l2 = loadBookmarks(); const x = l2.find((y) => y.id === b.id); if (x) { x.at = remindAt('morning'); x.told = false; saveBookmarks(l2); }
+      });
+      n.show();
+    } else openBookmark(b.id);
+  }
+  fs.writeFileSync(bookmarksFile(), JSON.stringify(list));
+}
 function watchDeadlines() {
-  const tick = () => { try { remindDeadlines(); updateDeadlineBadge(); } catch (e) { logLine(`Fristen: ${e.message}`); } };
+  const tick = () => { try { remindDeadlines(); updateDeadlineBadge(); maybeMorning(); } catch (e) { logLine(`Fristen: ${e.message}`); } };
+  setTimeout(() => { try { maybeMorning(); } catch {} }, 20 * 1000);
+  setInterval(() => { try { remindBookmarks(); } catch (e) { logLine(`Später lesen: ${e.message}`); } }, 60 * 1000);
+  try {
+    const { powerMonitor } = require('electron');
+    for (const ev of ['resume', 'unlock-screen']) powerMonitor.on(ev, () => setTimeout(() => { try { maybeMorning(); } catch {} }, 5000));
+  } catch {}
   setTimeout(tick, 60 * 1000);
   setInterval(tick, 60 * 60 * 1000);
 }
@@ -2397,6 +2513,57 @@ ipcMain.handle('history-delete', (_e, id) => { fs.writeFileSync(historyFile(), J
 
 // ---------- IPC ----------
 
+// Brief-Hilfe und alles drumherum: Gelerntes anwenden, Absender und Vergleich, Betrug, Unterschrift, Folgen
+function letterExtras(doc, letter) {
+  const text = doc.pages.join('\n');
+  const out = { learned: [], sender: null, scam: null, signature: null };
+  try { out.scam = facts.scamCheck(text); } catch {}
+  try { out.signature = facts.signatureNeeded(doc.pages); } catch {}
+  if (learnOn()) {
+    try { out.sender = learner().context(text); } catch (e) { logLine(`Lernen: ${e.message}`); }
+    if (letter) try { const a = learner().apply(text, letter); letter = a.letter; out.learned = a.learned; } catch (e) { logLine(`Lernen: ${e.message}`); }
+  }
+  if (letter) { try { letter.consequences = facts.consequences(letter.kind, text); } catch {} }
+  out.letter = pro.allowed('letter') ? letter : null;
+  out.letterLocked = !!letter && !pro.allowed('letter') ? letter.label : null;
+  return out;
+}
+// Korrektur aus der Blase: merken, für diesen Brief neu berechnen und im Notizbuch nachtragen
+ipcMain.handle('learn-correct', (_e, doc, field, wrong, right) => {
+  if (!learnOn()) return { ok: false, error: T('Lernen ist ausgeschaltet (Einstellungen → Was ich gelernt habe).') };
+  const text = doc.pages.join('\n');
+  const r = learner().correct({ text, field, wrong, right });
+  if (!r.ok) return { ok: false, error: T(r.error) };
+  let letter = facts.letterFacts(text);
+  if (letter && facts.contractFacts(text) && ['vertrag', 'kuendigung'].includes(letter.kind)) letter = null;
+  const extras = letterExtras(doc, letter);
+  try {
+    const list = loadHistory(); const h = list.find((x) => x.text === doc.pages.join('\n\n').slice(0, 200000));
+    if (h) { Object.assign(h.result, extras); fs.writeFileSync(historyFile(), JSON.stringify(list)); updateDeadlineBadge(); }
+  } catch {}
+  logLine(`Gelernt (${field})`);
+  return { ok: true, explain: r.explain, extras };
+});
+ipcMain.handle('learn-feedback', (_e, good) => { if (learnOn()) learner().feedback(!!good); });
+ipcMain.handle('learn-list', () => ({ ...learner().list(), enabled: loadSettings().learn !== false, privateMode: !!loadSettings().privateMode }));
+ipcMain.handle('learn-forget', (_e, what, id) => {
+  if (what === 'sender') learner().forgetSender(id);
+  else if (what === 'correction') learner().forgetCorrection(id);
+  else if (what === 'all') learner().forgetAll();
+  logLine(`Gelerntes vergessen (${what})`);
+});
+ipcMain.handle('learn-export', async (e) => {
+  const r = await dialog.showSaveDialog(BrowserWindow.fromWebContents(e.sender), { title: T('Gelerntes sichern'), defaultPath: 'Silkreader-Gelerntes.json', filters: [{ name: 'JSON', extensions: ['json'] }] });
+  if (r.canceled || !r.filePath) return false;
+  fs.writeFileSync(r.filePath, learner().exportData());
+  return true;
+});
+ipcMain.handle('learn-import', async (e) => {
+  const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), { title: T('Gelerntes laden'), filters: [{ name: 'JSON', extensions: ['json'] }], properties: ['openFile'] });
+  if (r.canceled || !r.filePaths[0]) return { ok: false };
+  try { learner().importData(fs.readFileSync(r.filePaths[0], 'utf8')); return { ok: true }; } catch (err) { return { ok: false, error: T('Das ist keine Silkreader-Lerndatei.') }; }
+});
+
 ipcMain.handle('analyze', async (event, doc) => {
   try {
     bubbleWin?.webContents.send('rig-task', 'read');
@@ -2426,16 +2593,14 @@ ipcMain.handle('analyze', async (event, doc) => {
       const contract = facts.contractFacts(text);
       let letter = facts.letterFacts(text);
       if (contract && letter && ['vertrag', 'kuendigung'].includes(letter.kind)) letter = null; // Verträge bekommen die Vertragskarte
-      result = {
-        ...facts.verifyResult(result, text),
-        letter: pro.allowed('letter') ? letter : null, letterLocked: !!letter && !pro.allowed('letter') ? letter.label : null,
-        contract: pro.allowed('contract') ? contract : null, contractLocked: !!contract && !pro.allowed('contract'),
-      };
+      result = { ...facts.verifyResult(result, text), ...letterExtras(doc, letter) };
+      result.contract = pro.allowed('contract') ? contract : null; result.contractLocked = !!contract && !pro.allowed('contract');
     } catch (e) { logLine(`Prüfung fehlgeschlagen: ${e.message}`); }
     // Wie viel ging dabei ins Internet? Eingebautes Modell und Ollama (lokal): nichts. Claude: der Text selbst.
     const prov = loadSettings().provider;
     result.sentBytes = prov === 'claude' && !process.env.SPIDER_MOCK ? Buffer.byteLength(doc.pages.join('\n'), 'utf8') : 0;
     try { addHistory(doc, result); updateDeadlineBadge(); } catch (e) { console.error('Notizbuch:', e); }
+    try { if (learnOn()) learner().observe(doc.pages.join('\n'), facts.letterFacts(doc.pages.join('\n'))); } catch (e) { logLine(`Lernen: ${e.message}`); }
     countSuccess();
     return { ok: true, result };
   } catch (e) {
@@ -2551,6 +2716,8 @@ ipcMain.handle('get-settings', () => {
     watchDownloads: s.watchDownloads === true,
     theme: ['light', 'dark'].includes(s.theme) ? s.theme : 'system',
     fontSize: ZOOM[s.fontSize] ? s.fontSize : 'normal',
+    learn: s.learn !== false,
+    morning: s.morning !== false,
     autostart: app.getLoginItemSettings().openAtLogin,
     clickMode: clickMode(),
     explainLang: s.explainLang || null,
@@ -2572,7 +2739,7 @@ ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await
 ipcMain.handle('ollama-models', async () => {
   try { return { ok: true, models: await ollamaModels() }; } catch { return { ok: false, models: [] }; }
 });
-ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied, copyHint, privateMode, hideFullscreen, hideInShare, watchDownloads, clickMode: cm, theme, fontSize, autostart }) => {
+ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied, copyHint, privateMode, hideFullscreen, hideInShare, watchDownloads, clickMode: cm, theme, fontSize, autostart, learn, morning }) => {
   if (apiKey) setApiKey(apiKey.trim());
   const s = loadSettings();
   if (['builtin', 'claude', 'ollama'].includes(provider)) s.provider = provider;
@@ -2590,6 +2757,8 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   if (CLICK_MODES.includes(cm)) { s.clickMode = cm; bubbleWin?.webContents.send('click-mode', cm); }
   if (model && MODELS[model]) s.model = model;
   if (typeof autostart === 'boolean') app.setLoginItemSettings({ openAtLogin: autostart });
+  if (typeof learn === 'boolean') s.learn = learn;
+  if (typeof morning === 'boolean') s.morning = morning;
   if (ZOOM[fontSize] && fontSize !== s.fontSize) {
     s.fontSize = fontSize;
     const z = ZOOM[fontSize];
@@ -2823,7 +2992,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 // Nur für automatische Tests: ein paar Funktionen erreichbar machen
-if (TESTING) global.__silk = { deadlineAction, showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
+if (TESTING) global.__silk = { openBookmark, maybeMorning, remindBookmarks, loadBookmarks, saveBookmarks, remindAt, learner, letterExtras, deadlineAction, showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
   get popupWin() { return popupWin; }, get cocoons() { return cocoons; }, get lastScreenSel() { return lastScreenSel; }, set lastScreenSel(v) { lastScreenSel = v; },
   set copiedOffer(v) { copiedOffer = v; },
   get downloadOffer() { return downloadOffer; }, spiderTake, runCrawlOverlay,
