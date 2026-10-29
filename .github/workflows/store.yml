@@ -32,6 +32,9 @@ jobs:
           cache: npm
       - run: npm ci
 
+      - name: Codeschutz (verschleiern + Bytecode)
+        run: node build/protect.js
+
       - name: Paket bauen
         shell: pwsh
         env:

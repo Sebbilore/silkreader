@@ -50,6 +50,10 @@ jobs:
       - if: steps.check.outputs.skip == 'false'
         run: npm ci
 
+      - name: Codeschutz (verschleiern + Bytecode)
+        if: steps.check.outputs.skip == 'false'
+        run: node build/protect.js
+
       - name: Signatur-Zertifikat bereitstellen
         if: steps.check.outputs.skip == 'false'
         shell: pwsh

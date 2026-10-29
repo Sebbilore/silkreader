@@ -84,6 +84,10 @@ jobs:
           path: silk-models
           key: silk-models-qwen2.5-1.5b-qwen3-4b-v1
 
+      # Getestet wird genau das, was ausgeliefert wird: verschleiert und mit Bytecode
+      - name: Codeschutz anwenden (wie beim Bauen)
+        run: node build/protect.js
+
       - name: Echte KI auf Windows testen
         shell: pwsh
         run: node test/windows-ai.mjs win-ai

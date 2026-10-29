@@ -40,6 +40,7 @@ const WHATS_NEW = require('./whatsnew');
 const facts = require('./facts');
 const pro = require('./pro');
 const { createLearner } = require('./learn');
+const esmImport = require('./esm');
 
 // Globale Tastenkürzel. Strg+Alt statt Strg+Umschalt, weil viele Programme Strg+Umschalt
 // selbst benutzen (z. B. Strg+Umschalt+Leertaste in Word, Strg+Umschalt+B in Chrome).
@@ -1344,7 +1345,7 @@ async function readDocument(filePath) {
   const buf = fs.readFileSync(filePath);
 
   if (ext === '.pdf') {
-    const { extractText, getDocumentProxy } = await import('unpdf');
+    const { extractText, getDocumentProxy } = await esmImport('unpdf');
     const pdf = await getDocumentProxy(new Uint8Array(buf));
     const { text } = await extractText(pdf, { mergePages: false });
     const pages = text.map((t) => t.trim());
@@ -1512,7 +1513,7 @@ async function loadBuiltinModel(key = builtinKey()) {
   if (llamaLoading?.key === key) return llamaLoading.promise;
   const promise = (async () => {
     await unloadBuiltinModel();
-    const { getLlama } = await import('node-llama-cpp');
+    const { getLlama } = await esmImport('node-llama-cpp');
     const llama = await getLlama({ gpu: 'auto' }); // nutzt die Grafikkarte, falls möglich, sonst den Prozessor
     const model = await llama.loadModel({ modelPath: modelPathFor(key) });
     logLine(`KI-Modell ${key} geladen (Grafikkarte: ${llama.gpu || 'keine, Prozessor'})`);
@@ -1675,7 +1676,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
   if (!modelReady(key)) {
     throw Object.assign(new Error(`Das eingebaute KI-Modell ist noch nicht heruntergeladen (einmalig ${info.sizeLabel}). Bitte in den Einstellungen auf „Herunterladen“ klicken.`), { code: 'NO_MODEL' });
   }
-  const { LlamaChatSession } = await import('node-llama-cpp');
+  const { LlamaChatSession } = await esmImport('node-llama-cpp');
   lastModelUse = Date.now();
   onProgress({ stage: 'Modell wird geladen …' });
   const { llama, model } = await loadBuiltinModel(key);
@@ -1787,7 +1788,7 @@ async function startModelDownload(sender, key) {
   // An alle Fenster: Willkommen und Einstellungen zeigen denselben Fortschritt (auch nach einem Neuladen)
   const send = (ch, d) => BrowserWindow.getAllWindows().forEach((w) => { if (!w.isDestroyed() && !w.webContents.isDestroyed()) w.webContents.send(ch, d); });
   try {
-    const { createModelDownloader } = await import('node-llama-cpp');
+    const { createModelDownloader } = await esmImport('node-llama-cpp');
     fs.mkdirSync(modelDir(), { recursive: true });
     let lastProgress = Date.now();
     let stalled = false;
@@ -1956,7 +1957,7 @@ async function llmGenerate({ instruction, material = '', schema = null, maxToken
   if (s.provider === 'builtin') {
     const key = modelKey && modelReady(modelKey) ? modelKey : builtinKey(s);
     if (!modelReady(key)) throw Object.assign(new Error('Das eingebaute KI-Modell ist noch nicht heruntergeladen (Einstellungen → Herunterladen).'), { code: 'NO_MODEL' });
-    const { LlamaChatSession } = await import('node-llama-cpp');
+    const { LlamaChatSession } = await esmImport('node-llama-cpp');
     lastModelUse = Date.now();
     const { llama, model } = await loadBuiltinModel(key);
     const limit = budget || Math.round((BUILTIN_MODELS[key].genTokens || BUILTIN_MODELS[key].chunkTokens) * 1.4);
