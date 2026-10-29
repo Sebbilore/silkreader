@@ -865,7 +865,7 @@ async function regionCapture() {
     // Ohne Texterkennung: Claude kann das Bild direkt ansehen
     showPopup({ title: 'Bildschirmausschnitt', source: 'region', pages: ['(Bild)'], image: crop.toPNG().toString('base64') }, { autoStart: true });
   } else {
-    showPopupPayload({ kind: 'message', title: 'Kein Text erkannt', text: 'In diesem Bereich hat die Windows-Texterkennung keinen Text gefunden. Tipp: einen größeren Bereich wählen oder in den Einstellungen Claude nutzen – Claude kann auch Bilder lesen.' });
+    showPopupPayload({ kind: 'message', title: 'Kein Text erkannt', text: 'In diesem Bereich hat die Windows-Texterkennung keinen Text gefunden. Tipp: einen größeren Bereich wählen oder näher heranzoomen.' });
   }
   fs.unlink(file, () => {});
 }
@@ -2206,6 +2206,27 @@ ipcMain.handle('review-answer', (_e, answer) => {
   if (answer === 'yes') shell.openExternal(`ms-windows-store://review/?ProductId=${STORE_PRODUCT_ID}`).catch(() => {});
 });
 
+// ---------- Tipps nach und nach: je einer, wenn er gerade passt, und jeder nur einmal ----------
+const TIPS = [
+  { id: 'ring', after: 1, text: 'Rechtsklick auf die Spinne (oder lange drücken) öffnet das Spinnennetz mit allen Funktionen.' },
+  { id: 'drop', after: 2, text: 'Zieh eine PDF- oder Word-Datei auf die Spinne, dann lese ich sie.' },
+  { id: 'more', after: 4, text: 'Unter „…“ kann ich dir alles vorlesen oder in deiner Sprache zeigen.' },
+  { id: 'deadlines', after: 6, text: 'Fristen aus deinen Briefen sammle ich im Spinnennetz unter Mehr → Fristen.' },
+  { id: 'explorer', after: 8, text: 'Im Explorer geht es auch: Rechtsklick auf eine Datei → „Mit Silkreader lesen“.' },
+  { id: 'font', after: 10, text: 'Schrift zu klein? In den Einstellungen gibt es „Schriftgröße“.' },
+];
+ipcMain.handle('next-tip', () => {
+  const s = loadSettings();
+  const seen = s.tipsSeen || [];
+  const tip = TIPS.find((t) => !seen.includes(t.id) && (s.uses || 0) >= t.after);
+  if (!tip) return null;
+  // Höchstens ein Tipp pro Tag – sonst wird es lästig
+  if (Date.now() - (s.tipAt || 0) < 20 * 3600e3 && !process.env.SPIDER_MOCK) return null;
+  s.tipsSeen = [...seen, tip.id]; s.tipAt = Date.now();
+  saveSettings(s);
+  return { id: tip.id, text: tip.id === 'explorer' && STORE ? 'Im Explorer geht es auch: Rechtsklick auf eine Datei → „Öffnen mit“ → Silkreader.' : tip.text };
+});
+
 // ---------- Fristen-Netz: alle Fristen aus dem Notizbuch, mit Erinnerung ----------
 // Fristen kommen aus den gelesenen Briefen (feste Regeln, keine KI). Erledigte und bereits gemeldete
 // Fristen stehen in deadlines.json – die Texte selbst bleiben im Notizbuch.
@@ -2251,12 +2272,28 @@ function remindDeadlines() {
     if (!stage || (st.told[d.key] || 0) >= stage) continue;
     st.told[d.key] = stage; changed = true;
     const when = d.days === 0 ? T('heute') : d.days === 1 ? T('morgen') : T('in {n} Tagen', { n: d.days });
-    const n = new Notification({ title: T('Frist {w}: {t}', { w: when, t: d.title }), body: d.sentence.slice(0, 180), silent: false });
+    // Mit Knöpfen: gleich abhaken oder den Brief öffnen (Windows-Benachrichtigung)
+    const n = new Notification({ title: T('Frist {w}: {t}', { w: when, t: d.title }), body: d.sentence.slice(0, 180), silent: false,
+      actions: [{ type: 'button', text: T('Erledigt') }, { type: 'button', text: T('Brief öffnen') }] });
     n.on('click', () => showPopupPayload({ kind: 'deadlines' }));
+    n.on('action', (details, idx) => deadlineAction(d, details?.actionIndex ?? idx));
     n.show();
     logLine(`Frist-Erinnerung (${when})`);
   }
   if (changed) saveDeadlineState(st);
+}
+function deadlineAction(d, i) {
+  if (i === 0) {
+    const st = loadDeadlineState(); st.done[d.key] = Date.now(); saveDeadlineState(st);
+    updateDeadlineBadge();
+    logLine('Frist per Benachrichtigung erledigt');
+    if (bubbleWin?.isVisible()) bubbleWin.webContents.send('rig-trick', 'heart');
+    return;
+  }
+  const h = loadHistory().find((x) => x.id === d.histId);
+  if (!h) return showPopupPayload({ kind: 'deadlines' });
+  bubbleWin?.showInactive();
+  showPopupPayload({ kind: 'analyze', doc: { title: h.docTitle, source: 'history', pages: h.pages, path: h.path, mtime: h.mtime }, result: h.result });
 }
 // Zahl der offenen Fristen der nächsten 7 Tage für das Tray-Menü
 let deadlinesSoon = 0;
@@ -2786,7 +2823,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 // Nur für automatische Tests: ein paar Funktionen erreichbar machen
-if (TESTING) global.__silk = { showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
+if (TESTING) global.__silk = { deadlineAction, showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
   get popupWin() { return popupWin; }, get cocoons() { return cocoons; }, get lastScreenSel() { return lastScreenSel; }, set lastScreenSel(v) { lastScreenSel = v; },
   set copiedOffer(v) { copiedOffer = v; },
   get downloadOffer() { return downloadOffer; }, spiderTake, runCrawlOverlay,

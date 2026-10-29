@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('spider', {
   compare: (a, b) => ipcRenderer.invoke('compare', a, b),
   addCalendar: (ev) => ipcRenderer.invoke('add-calendar', ev),
   reviewState: () => ipcRenderer.invoke('review-state'),
+  nextTip: () => ipcRenderer.invoke('next-tip'),
   exportResult: (doc, result, how) => ipcRenderer.invoke('export-result', doc, result, how),
   proState: () => ipcRenderer.invoke('pro-state'),
   proRedeem: (code) => ipcRenderer.invoke('pro-redeem', code),

@@ -49,6 +49,16 @@ await pop.click('.fr [data-act="open"]'); await sleep(600);
 ok('Brief aus Fristen geöffnet', await pop.evaluate(() => !!document.querySelector('.letter')), await pop.evaluate(() => document.getElementById('title').textContent + ' | ' + document.body.innerText.slice(0, 200)));
 await pop.click('#back'); await sleep(500);
 ok('Zurück zur Fristen-Liste', (await pop.textContent('#title')) === 'Fristen');
+// Knöpfe in der Benachrichtigung: „Brief öffnen“ und „Erledigt“
+await app.evaluate(() => { const d = global.__silk.collectDeadlines()[0]; global.__silk.deadlineAction(d, 1); }); await sleep(900);
+ok('Benachrichtigung → Brief öffnen', await pop.evaluate(() => !!document.querySelector('.letter')));
+const openNow = async () => (await app.evaluate(() => global.__silk.collectDeadlines())).filter((d) => !d.done).length;
+const before = await openNow();
+await app.evaluate(() => { const d = global.__silk.collectDeadlines().find((x) => !x.done); global.__silk.deadlineAction(d, 0); }); await sleep(300);
+const after2 = await openNow();
+ok('Benachrichtigung → Erledigt', after2 === before - 1, `${before} → ${after2}`);
+const doneKey = await app.evaluate(() => global.__silk.collectDeadlines({ withDone: true }).find((x) => x.done)?.key);
+if (doneKey) await pop.evaluate((k) => window.spider.deadlineDone(k, false), doneKey); // wieder offen für die weiteren Schritte
 
 // 2) In meiner Sprache
 await show(brief(later, 3), 'Rechnung C'); await sleep(300);

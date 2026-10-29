@@ -105,6 +105,8 @@
   .btn:hover { border-color: var(--faint); } .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 600; } .btn.primary:hover { filter: brightness(1.08); }
   .kv > span:nth-child(3n+1) { color: var(--muted); } .kv code { font: inherit; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .letter .row { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; }
+  .tipline { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 2px; padding: 9px 10px 9px 12px; border-radius: var(--r-m); background: var(--pink-soft); font-size: 12.5px; color: var(--text); }
+  .tipline .icon { width: 16px; height: 16px; color: var(--pink); flex: none; margin-top: 1px; } .tipline span { flex: 1; } .tipline b { font-weight: 600; } .tipline .x { flex: none; width: 22px; height: 22px; }
   .review { margin: 12px 0 2px; padding: 10px 12px; border-radius: var(--r-l); background: var(--card); border: 1px solid var(--line); font-size: 13px; }
   .review .row { display: flex; gap: 14px; margin-top: 6px; } .review .link.dim { color: var(--muted); }
   .fr { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); } .fr:first-child { border-top: none; }
@@ -432,13 +434,25 @@
     $('exPdf')?.addEventListener('click', async (e) => { const ok = await window.spider.exportResult(P.doc, result, 'pdf'); if (ok) e.target.closest('button').lastChild.textContent = T('Gespeichert'); });
     $('exPrint')?.addEventListener('click', () => window.spider.exportResult(P.doc, result, 'print'));
     $('lPro')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); proView('letter'); });
-    maybeAskReview();
+    maybeAskReview().then((asked) => { if (!asked) maybeTip(); });
+  }
+
+  // ---------- Tipps nach und nach (je einer, jeder nur einmal) ----------
+  async function maybeTip() {
+    const at = run;
+    const tip = await window.spider.nextTip();
+    if (!tip || state !== 'done' || at !== run || document.querySelector('.review, .tipline')) return;
+    const box = document.createElement('div');
+    box.className = 'tipline rise';
+    box.innerHTML = `${silkIcon('info')}<span><b>${T('Tipp:')}</b> ${T(tip.text)}</span><button class="x" aria-label="${T('Schließen')}" title="${T('Schließen')}">${silkIcon('close')}</button>`;
+    box.querySelector('.x').addEventListener('click', () => box.remove());
+    $('main').appendChild(box);
   }
 
   // ---------- Bewertung: nach ein paar erfolgreichen Nutzungen einmal fragen ----------
   async function maybeAskReview() {
     const at = run;
-    if (!(await window.spider.reviewState()) || state !== 'done' || at !== run || document.querySelector('.review')) return;
+    if (!(await window.spider.reviewState()) || state !== 'done' || at !== run || document.querySelector('.review')) return false;
     const box = document.createElement('div');
     box.className = 'review rise';
     box.innerHTML = `<div>${T('Hilft dir die Spinne? Eine kurze Bewertung im Store hilft ihr sehr.')}</div>
@@ -451,6 +465,7 @@
       else if (a === 'meh') { box.innerHTML = `${T('Schade – was können wir besser machen?')} <button class="link" id="revRep">${T('Problem melden')}</button>`; $('revRep').addEventListener('click', () => { setBack(null); report(); }); }
       else box.remove();
     });
+    return true;
   }
 
   // ---------- Vorlesen (Windows-Stimmen, offline) – die Spinne bewegt dabei den Mund ----------
