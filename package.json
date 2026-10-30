@@ -102,7 +102,8 @@
       }
     },
     "dmg": {
-      "title": "Silkreader ${version}"
+      "title": "Silkreader ${version}",
+      "format": "ULMO"
     },
     "electronLanguages": [
       "de",
