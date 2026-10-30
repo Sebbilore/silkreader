@@ -12,7 +12,7 @@ on:
         description: 'Kandidaten: Name=hf:…:Q4_K_M|Datei.gguf; …'
         default: ''
       speed:
-        description: 'Tempo-Schalter vergleichen: alles,aus,ohne-lookup,ohne-keep,ohne-lean,eine-stufe,entwurf'
+        description: 'Tempo-Schalter vergleichen: alles,aus,ohne-lookup,ohne-keep,ohne-lean,eine-stufe,entwurf,jetzt,v1.23,kerne,kurz'
         default: 'alles'
 
 permissions:

@@ -32,7 +32,12 @@ for (const m of extra) await silk((_e, mm) => global.__silk.addModel(mm.key, { u
 const SPEEDS = { alles: { lookup: true, keep: true, lean: true, twoStage: true, draft: false }, aus: { lookup: false, keep: false, lean: false, twoStage: false, draft: false },
   'ohne-lookup': { lookup: false, keep: true, lean: true, twoStage: true, draft: false }, 'ohne-keep': { lookup: true, keep: false, lean: true, twoStage: true, draft: false }, 'ohne-lean': { lookup: true, keep: true, lean: false, twoStage: true, draft: false },
   'eine-stufe': { lookup: true, keep: true, lean: true, twoStage: false, draft: false },
-  entwurf: { lookup: false, keep: true, lean: true, twoStage: true, draft: true } };
+  entwurf: { lookup: false, keep: true, lean: true, twoStage: true, draft: true },
+  // Runde 2: Standard ist jetzt kompaktes JSON; Vergleich mit dem bisherigen Stand und weiteren Schaltern
+  jetzt: { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: 0, short: false },
+  'v1.23': { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: false, threads: 0, short: false },
+  kerne: { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: -1, short: false },
+  kurz: { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: 0, short: true } };
 const variants = (process.env.BENCH_SPEED || 'alles').split(',').map((x) => x.trim()).filter((x) => SPEEDS[x]);
 const keys = [...(process.env.BENCH_MODELS || 'fast,quality').split(',').map((x) => x.trim()).filter(Boolean), ...extra.map((m) => m.key)];
 const rows = [];

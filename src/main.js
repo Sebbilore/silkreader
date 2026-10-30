@@ -1551,9 +1551,32 @@ let llamaRuntime = null; // { key, llama, model, ctx, seq } – bleibt geladen, 
 // keep   = Kontext behalten: kein neuer Speicher pro Analyse, gleiche Anweisungen werden nicht neu eingelesen
 // lean   = schlankere Antwort (weniger Angaben, keine wörtlichen Zitate)
 // twoStage = erst nur Stichpunkte und Aufgabe, die Details schreibt die KI, wenn jemand „Mehr“ öffnet
-const SPEED = { lookup: false, keep: true, lean: true, twoStage: true, draft: false }; // lookup + draft: im KI-Test auf dem Prozessor langsamer – aus
+// compact = JSON ohne Zeilenumbrüche/Einrückung (weniger Token zu schreiben); threads = Zahl der Rechen-Threads (0 = Standard)
+// short = genau 3 Stichpunkte (oben stehen ohnehin 3)
+const SPEED = { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: 0, short: false }; // lookup + draft: im KI-Test auf dem Prozessor langsamer – aus
 let lastGen = null; // Messwerte der letzten Antwort (für den KI-Test)
 const grammarCache = new WeakMap(); // je KI-Laufzeit und Schema einmal bauen (nach einem Modellwechsel neu)
+// JSON-Grammatik: node-llama-cpp erlaubt nach jedem Element Zeilenumbruch + Einrückung – das Modell schreibt dann
+// „hübsches“ JSON und jede Einrückung kostet Zeit. Kompakt: höchstens ein Leerzeichen. Prüfen (parse) wie gehabt.
+async function jsonGrammar(llama, schema) {
+  if (!grammarCache.has(llama)) grammarCache.set(llama, new Map());
+  const key = `${SPEED.compact}`;
+  const cache = grammarCache.get(llama);
+  if (!cache.has(schema)) cache.set(schema, {});
+  const slot = cache.get(schema);
+  if (slot[key]) return slot[key];
+  const tg = Date.now();
+  const full = await llama.createGrammarForJsonSchema(schema);
+  let grammar = full;
+  if (SPEED.compact) {
+    const { LlamaText } = await esmImport('node-llama-cpp');
+    const text = full.grammar.replace(/^((comma-)?whitespace-[\w-]*rule) ::= .*$/gm, (_m, name, comma) => `${name} ::= ${comma ? '"," [ ]?' : '[ ]?'}`);
+    grammar = await llama.createGrammar({ grammar: text, stopGenerationTriggers: [LlamaText(['\n'.repeat(4)])], trimWhitespaceSuffix: true });
+  }
+  slot[key] = { grammar, parse: (t) => full.parse(t) };
+  logLine(`Zeit KI-Grammatik bauen: ${Date.now() - tg} ms`);
+  return slot[key];
+}
 let llamaLoading = null;
 let modelDownload = null;
 let modelDownloadCanceled = false;
@@ -1697,6 +1720,7 @@ const TWO_STAGE_TASKS = [
 // Reihenfolge = Reihenfolge der Antwort: die Stichpunkte zuerst, damit die Blase sie früh zeigen kann
 const QUICK_SCHEMA = { type: 'object', additionalProperties: false, required: ['summary', 'actions', 'title', 'doc_type'],
   properties: { summary: BULLETS, actions: { type: 'array', items: str(140), maxItems: 2 }, title: str(80), doc_type: str(40) } };
+const QUICK_SCHEMA_SHORT = { ...QUICK_SCHEMA, properties: { ...QUICK_SCHEMA.properties, summary: { ...BULLETS, minItems: 3, maxItems: 3 } } };
 const DETAIL_SCHEMA = { type: 'object', additionalProperties: false, required: ['key_points', 'figures', 'findings'],
   properties: { key_points: { type: 'array', items: str(130), maxItems: 3 }, figures: { type: 'array', items: LEAN_FIGURE, maxItems: 4 },
     findings: { type: 'array', items: FINDING_SCHEMA, maxItems: 3 } } };
@@ -1790,7 +1814,7 @@ async function makeSequence(model, llama, key, contextSize) {
 }
 async function makeSequenceInner(model, llama, key, contextSize) {
   const draftFile = path.join(modelDir(), DRAFT_MODELS[`draft-${key}`]?.file || '-');
-  const ctx = await model.createContext({ contextSize, flashAttention: 'auto' });
+  const ctx = await model.createContext({ contextSize, flashAttention: 'auto', ...(SPEED.threads ? { threads: SPEED.threads < 0 ? require('os').cpus().length : SPEED.threads } : {}) });
   const { InputLookupTokenPredictor, DraftSequenceTokenPredictor } = await esmImport('node-llama-cpp');
   if (SPEED.draft && fs.existsSync(draftFile)) {
     // Hilfsmodell schlägt vor, das große Modell prüft mehrere Token auf einmal
@@ -1807,7 +1831,7 @@ async function makeSequenceInner(model, llama, key, contextSize) {
 function warmContext(rt) {
   if (!SPEED.keep || !rt || rt.seq || rt.busy || rt.warming) return;
   rt.warming = makeSequence(rt.model, rt.llama, rt.key, baseContextSize(rt.key))
-    .then((x) => { if (llamaRuntime === rt && !rt.seq) Object.assign(rt, x, { seqKey: `${SPEED.lookup}|${SPEED.draft}` }); else { x.ctx.dispose(); x.dctx?.dispose(); } })
+    .then((x) => { if (llamaRuntime === rt && !rt.seq) Object.assign(rt, x, { seqKey: `${SPEED.lookup}|${SPEED.draft}|${SPEED.threads}` }); else { x.ctx.dispose(); x.dctx?.dispose(); } })
     .catch((e) => logLine(`Kontext vorbereiten: ${e.message}`))
     .finally(() => { rt.warming = null; });
 }
@@ -1831,7 +1855,7 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
   const rt = llamaRuntime;
   let own = null; // eigener (größerer oder nicht behaltener) Kontext dieser Analyse
   const shared = SPEED.keep && rt && !rt.busy; // läuft schon eine Analyse, bekommt diese einen eigenen Kontext
-  const seqKey = `${SPEED.lookup}|${SPEED.draft}`; // andere Vorhersage eingestellt → Kontext neu anlegen
+  const seqKey = `${SPEED.lookup}|${SPEED.draft}|${SPEED.threads}`; // andere Vorhersage eingestellt → Kontext neu anlegen
   if (shared && rt.seq && rt.seqKey !== seqKey) { await rt.ctx.dispose().catch(() => {}); await rt.dctx?.dispose().catch(() => {}); rt.ctx = rt.seq = rt.dctx = null; }
   if (shared) { rt.busy = true; rt.seqKey = seqKey; if (rt.warming) await rt.warming.catch(() => {}); if (!rt.seq) { try { Object.assign(rt, await newSequence(baseSize)); } catch (e) { rt.busy = false; throw e; } } }
   let cur = shared ? rt : (own = await newSequence(baseSize));
@@ -1844,15 +1868,13 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
         cur = own = await newSequence(Math.min(need, model.trainContextSize || need));
       }
       const session = new LlamaChatSession({ contextSequence: cur.seq, systemPrompt });
-      if (!grammarCache.has(llama)) grammarCache.set(llama, new Map());
-      let grammar = grammarCache.get(llama).get(schema);
-      if (!grammar) { const tg = Date.now(); grammar = await llama.createGrammarForJsonSchema(schema); grammarCache.get(llama).set(schema, grammar); logLine(`Zeit KI-Grammatik bauen: ${Date.now() - tg} ms`); }
+      const grammar = await jsonGrammar(llama, schema);
       const t0 = Date.now();
       let firstAt = 0;
       const tap = typeof stream === 'function' ? stream : stream ? (c) => onProgress(c) : null;
       try {
         const text = await session.prompt(prompt, {
-          grammar, maxTokens, temperature: 0.2,
+          grammar: grammar.grammar, maxTokens, temperature: 0.2,
           onTextChunk: (c) => { if (!firstAt) firstAt = Date.now(); tap?.(c); },
         });
         lastGen = { promptTokens: model.tokenize(prompt).length, outTokens: model.tokenize(text).length, firstMs: firstAt - t0, genMs: Date.now() - firstAt, totalMs: Date.now() - t0 };
@@ -1879,7 +1901,7 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
       const docText = chunks[0]?.text || '';
       onProgress({ stage: 'Liest …', step: 1, steps: 1 });
       let streamed = '', quickSent = false;
-      const r = await ask(docFirst(docText, 'Erledige jetzt Aufgabe 1.'), QUICK_SCHEMA, 600, (c) => {
+      const r = await ask(docFirst(docText, 'Erledige jetzt Aufgabe 1.'), SPEED.short ? QUICK_SCHEMA_SHORT : QUICK_SCHEMA, 600, (c) => {
         onProgress(c);
         if (quickSent) return;
         streamed += c;
@@ -2166,8 +2188,8 @@ async function llmGenerate({ instruction, material = '', schema = null, maxToken
     const ctx = await model.createContext({ contextSize: model.tokenize(prompt).length + maxTokens + 300, flashAttention: 'auto' });
     try {
       const session = new LlamaChatSession({ contextSequence: ctx.getSequence(), systemPrompt: 'Du bist ein hilfreicher, präziser Assistent.' });
-      const grammar = schema ? await llama.createGrammarForJsonSchema(schema) : undefined;
-      const out = await session.prompt(prompt, { grammar, maxTokens, temperature: 0.3, onTextChunk: onChunk });
+      const grammar = schema ? await jsonGrammar(llama, schema) : undefined;
+      const out = await session.prompt(prompt, { grammar: grammar?.grammar, maxTokens, temperature: 0.3, onTextChunk: onChunk });
       return { value: schema ? grammar.parse(out) : out.trim(), truncated };
     } finally {
       await ctx.dispose();
