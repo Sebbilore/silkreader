@@ -1,5 +1,19 @@
 // „Was ist neu?“ – erscheint nach einem Update einmal als Sprechblase an der Spinne.
 module.exports = {
+  '1.23.0': {
+    de: [
+      'Deutlich schneller: Die eingebaute KI liest einen Brief jetzt in etwa der Hälfte der Zeit. Betrag, Frist und IBAN stehen sofort oben, die Stichpunkte folgen – die Details schreibt die Spinne erst, wenn du „Mehr aus dem Brief“ öffnest.',
+      'Aufgeräumt: Oben stehen nur noch die Aufgabe und die 3 wichtigsten Punkte, alles Weitere unter „Mehr aus dem Brief“. „Meine Briefe“ zeigt Notizbuch, Fristen und „Später lesen“ zusammen, das Spinnennetz hat vorne die 6 wichtigsten Aktionen.',
+      'Sparsamer: Silkreader startet schneller, braucht im Leerlauf weniger Leistung und schaltet auf PCs mit wenig Arbeitsspeicher den Sparmodus von selbst ein.',
+      'Unter jedem Ergebnis steht klein, wie lange das Lesen gedauert hat.',
+    ],
+    en: [
+      'Much faster: the built-in AI now reads a letter in about half the time. Amount, deadline and IBAN appear right away, the key points follow – the spider only writes the details when you open “More from the letter”.',
+      'Tidier: the top shows just the task and the 3 most important points, everything else is under “More from the letter”. “My letters” combines notebook, deadlines and “Read later”, and the web menu shows the 6 most important actions up front.',
+      'Lighter: Silkreader starts faster, uses less power when idle and turns on power-saving mode by itself on PCs with little memory.',
+      'Below every result you can see how long reading took.',
+    ],
+  },
   '1.22.0': {
     de: [
       'Die Spinne lernt mit: Unter jedem Ergebnis fragst du „War das richtig?“ – korrigierst du Betrag, Frist oder Briefart, wendet sie das beim nächsten Brief vom selben Absender an. Alles bleibt auf deinem PC (Einstellungen → Was ich gelernt habe).',

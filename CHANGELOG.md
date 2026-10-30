@@ -3,6 +3,14 @@
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
 
+## 1.23.0
+- **About twice as fast:** the built-in AI writes the key points and the task first; the details (key points, figures, insights) only when you open “More from the letter”. Measured on the test letters: fast model 30 s → 18.5 s per letter, thorough model 133 s → 90 s – with the same or better accuracy.
+- **Instant letter card:** amount, deadline, IBAN and scam warnings appear after 0.2 s, while the AI is still reading.
+- **Back to the core:** the result shows the task and 3 key points, everything else is under “More from the letter”. “My letters” combines notebook, deadlines and “Read later”. The spider-web menu shows Read, In my language, Reply, My letters, Photo, More. The spider only asks what matters (reminder, objection, cancellation, already paid?).
+- **Lighter:** faster start (update check and Store licence check after startup), calmer idle animation, power-saving mode turns on by itself on PCs with less than 6 GB of memory; GPU or CPU – whichever is faster on this PC – is measured once.
+- Reading time shown below every result; timings of every step in the log.
+- Removed: downloads watcher and cocoon comparison; folders only by hand; good-morning overview off by default.
+
 ## 1.22.0
 - **The spider learns – locally:** “Was that right?” below every result; corrections (amount, deadline, sender, letter type, task, summary) become rules for the next letter from the same sender and hints for the AI. Sender profiles from all letters read (“3rd letter from … this year”, “instalment rises from 84 € to 92 € (+9.5 %)”). Settings → What I have learned: view, forget, back up. Nothing leaves the PC; off in private mode.
 - **Letters:** “What happens if I do nothing?” (reminders, notices, court payment orders), scam check (foreign IBAN, gift cards, pressure, links, PIN/TAN), “Signature needed” with page and return address, multi-page photos.

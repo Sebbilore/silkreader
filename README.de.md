@@ -4,131 +4,57 @@
 
 [English](README.md) · **Deutsch**
 
-Eine kleine Spinne hängt oben an deinem Bildschirm. Markiere einen Text, klick sie an, und sie liest ihn für dich – wahlweise kostenlos und offline auf deinem PC oder mit Claude. Eine große Spinne krabbelt dabei über die markierten Wörter, danach erscheint das Ergebnis in einer Sprechblase:
-
-- **Das Wichtigste** in einfachen Stichpunkten, auf Wunsch **Kernaussagen**, **Erkenntnisse** und **Zahlen** mit Fundstelle
-- **Fragen an den Text**, **Übersetzen**, **einfache Sprache**, **Antwort-Entwürfe**, **Vorlesen**
-- Dateien im **Spinnennetz** festhalten, **Notizbuch** der letzten 20 Texte, **Fristen** in den Kalender
+**Eine kleine Spinne, die deine Briefe liest.** Sie hängt oben an deinem Bildschirm. Markiere einen Text, tipp sie an – und sie sagt dir, was zu tun ist: was du bezahlen musst, bis wann, und ob du widersprechen kannst. Für Rechnungen, Mahnungen, Bescheide, Verträge und jeden anderen Text. Die KI läuft auf deinem PC, nichts geht ins Internet.
 
 <p align="center"><img src="docs/images/spider-moods.png" width="640" alt="Die Spinne in verschiedenen Stimmungen und mit Accessoires"></p>
 
-## Installation (Windows)
+## Was die Spinne kann
 
-1. Die neueste `Silkreader-Setup-….exe` unter [Releases](https://github.com/Sebbilore/silkreader/releases/latest) herunterladen.
-2. Setup starten. Zeigt Windows „Der Computer wurde durch Windows geschützt“, auf **Weitere Informationen → Trotzdem ausführen** klicken (die App ist noch nicht mit einem gekauften Zertifikat signiert).
-3. Die Spinne erscheint oben am Bildschirmrand, und die **Ersteinrichtung** erklärt alles: Bedienung, Wahl der KI und was mit deinen Daten passiert.
-4. Optional: Rechtsklick auf das Spinnen-Symbol im Infobereich der Taskleiste → **Mit Windows starten**.
+- **Was du tun musst – sofort oben:** Betrag, Frist mit „noch 12 Tage“, IBAN zum Kopieren, „In den Kalender“. Diese Karte kommt aus festen Regeln und steht nach einem Augenblick da, während die KI noch liest.
+- **Das Wichtigste in 3 Stichpunkten.** Alles Weitere unter **„Mehr aus dem Brief“**: Was passiert, wenn ich nichts tue? Zahlungsdaten, Vergleich mit früheren Briefen („Abschlag steigt um 9,5 %“), Kernaussagen, Angaben und Erkenntnisse mit Fundstelle. Die Details schreibt die KI erst, wenn man sie öffnet – deshalb ist das Ergebnis schnell da.
+- **Warnt vor Betrug** (fremde IBAN, Gutscheinkarten, Zeitdruck, Links, PIN/TAN) und erkennt, wenn eine **Unterschrift** nötig ist (mit Seite und Rücksendeadresse).
+- **Fragen an den Text** (mit Beleg aus dem Text), **In meiner Sprache** (Türkisch, Arabisch, Ukrainisch, Russisch, Polnisch, Rumänisch, Englisch), **Vorlesen** mit mitlaufender Markierung.
+- **Meine Briefe:** alle gelesenen Briefe mit Suche, offene Fristen mit Erinnerung, „Später lesen“.
+- **Brief fotografieren** (auch mehrere Seiten), Datei, Bildschirmbereich oder Zwischenablage lesen.
+- **Lernt mit – nur auf deinem PC:** „War das richtig?“ unter jedem Ergebnis. Korrigierst du Betrag, Frist oder Briefart, macht sie es beim nächsten Brief vom selben Absender richtig.
+- **Fragt nur, wenn es passt:** „Soll ich dich 3 Tage vorher erinnern?“, „Willst du widersprechen?“, „Schon bezahlt?“.
 
-Deinstallieren geht wie bei jedem Programm über **Einstellungen → Apps**. Deine Daten liegen in `%APPDATA%\Silkreader` – den Ordner löschen, um alles zu entfernen.
+**Silkreader Pro** (kommt bald): Übersetzen, Einfach erklären, Antworten und Vorlagen, Brief-Hilfe, Vertrags-Check, gescannte PDFs, Mappen und das gründliche KI-Modell.
 
-## Updates
+## Installation
 
-Silkreader sucht beim Start und danach alle 4 Stunden nach neuen Versionen auf GitHub. Gibt es eine, wird sie im Hintergrund geladen. Danach fragt die App, ob sie gleich neu starten soll; sonst wird das Update beim nächsten Beenden installiert. Von Hand geht das per Rechtsklick auf das Spinnen-Symbol in der Taskleiste → **Nach Updates suchen**.
+- **Microsoft Store (empfohlen):** https://apps.microsoft.com/detail/9PHKJW54RGDS
+- **Installer:** [Silkreader-download → Releases](https://github.com/Sebbilore/silkreader-download/releases/latest) → `Silkreader-Setup-….exe`. Zeigt Windows „Der Computer wurde durch Windows geschützt“: **Weitere Informationen → Trotzdem ausführen**.
+- **Mac (Testversion):** ebenfalls dort, `…-mac-arm64.dmg` (Apple-Chip) oder `…-mac-x64.dmg` (Intel).
 
-Updates werden nur installiert, wenn sie mit dem Silkreader-Zertifikat signiert sind (die App prüft den hinterlegten Fingerabdruck selbst).
-
-## Kostenlos oder Claude?
-
-| | **Eingebaut** (Standard) | **Claude** |
-|---|---|---|
-| Kosten | 0 € | ein paar Cent pro Analyse (API-Schlüssel) |
-| Internet | nur einmal zum Herunterladen des Modells | nötig |
-| Qualität | gut; liest lange Dokumente abschnittsweise komplett bis zum Ende | deutlich gründlicher |
-| Tempo | „Schnell“: meist unter 1 Minute, „Gründlich“: länger (mit Grafikkarte deutlich schneller) | schnell |
-
-**Eingebautes Modell einrichten (einmalig):** In den Einstellungen „Eingebaut“ wählen, dann **Schnell** (1 GB) oder **Gründlich** (2,5 GB) auswählen und auf **Herunterladen** klicken. Danach läuft alles offline auf deinem PC.
-
-**Für Claude:** einen API-Schlüssel unter https://platform.claude.com/settings/keys erstellen und in den Einstellungen eintragen.
-
-**Für Profis:** Unter „Ollama“ lässt sich auch ein eigenes Modell über [Ollama](https://ollama.com) nutzen.
+Windows 10 (ab 1809) und 11, 64 Bit, mindestens 4 GB Arbeitsspeicher (empfohlen 8 GB). Die Ersteinrichtung (3 Schritte) lädt einmalig das KI-Modell (1 GB). Updates kommen automatisch und werden nur installiert, wenn sie mit dem Silkreader-Zertifikat signiert sind.
 
 ## Bedienung
 
-Ist das große Fenster offen, tollt die kleine Spinne darin herum (hüpft, schlägt Saltos, seilt sich ab, lugt hinter dem Rand hervor, schläft ein). Sonst hängt sie an einem Faden vom oberen Bildschirmrand, schaukelt, schaut mit ihren Kulleraugen deinem Mauszeiger hinterher und macht ab und zu Kunststücke: Sie baut Spinnennetze, fängt Fliegen, springt Bungee, schlägt Saltos, tanzt und winkt dir zu, wenn du mit der Maus vorbeikommst. Lässt du sie lange in Ruhe, schläft sie ein (z z Z) und schreckt hoch, sobald die Maus kommt.
-
-| Aktion | Ergebnis |
+| | |
 |---|---|
-| **Text markieren, dann auf die Spinne klicken** | Die kleine Spinne erschrickt und versteckt sich, eine große Spinne kriecht vom Bildschirmrand herein und liest Wort für Wort über den markierten Text (die genauen Wortpositionen erkennt die App an der Markierungsfarbe auf dem Bildschirm – das Bildschirmfoto bleibt nur kurz im Speicher; ersatzweise über Windows UI Automation). Danach erscheint unter der Spinne eine kleine Sprechblase, die Analyse startet sofort, und das Ergebnis erscheint direkt dort – das Wichtigste in einfachen Stichpunkten („Details“ öffnet das große Fenster mit markierten Fundstellen). Strg+C ist nicht nötig, deine Zwischenablage bleibt erhalten. Ist nichts markiert, erscheint eine kleine Blase: Text einfügen, Zwischenablage oder Datei lesen, zuletzt Gelesenes. |
-| **Auf eine Info im Ergebnis klicken** | Eine Lupe klappt auf und zeigt die Originalstelle. „Auf dem Bildschirm zeigen“: Die große Spinne läuft im Originalprogramm zu der Stelle |
-| **Mausrad auf der Spinne** (kurz auf ihr ruhen, dann drehen) | Klick-Modus wechseln: Lesen, Übersetzen, Einfach oder Antworten. Beim Scrollen über die Spinne hinweg ändert sich nichts |
-| **Längeren Text kopieren** (Strg+C) | Die Spinne winkt: „Kopiert – Klick zum Lesen“. Ein Klick auf sie liest den kopierten Text |
-| **„Vorlesen“ in der Sprechblase** | Die Spinne liest das Ergebnis mit der Windows-Stimme vor und bewegt dabei den Mund |
-| **„Kürzer“, „Förmlicher“, „Lockerer“** | Übersetzungen und Antwort-Entwürfe mit einem Klick nachschärfen |
-| **Datei oder Text zur Spinne ziehen** | Sobald man mit gedrückter Maustaste in die Nähe kommt, spannt sie ihr Netz auf („Hier ablegen“) – man muss die Spinne nicht treffen. Das Dokument klebt danach mit Vorschaubild im Netz. |
-| **Dateien oder Ordner im Explorer markieren, dann auf die Spinne oder das Netz klicken** | Werden im Netz festgehalten (mit dem echten Datei- bzw. Ordnersymbol) |
-| **Dokument im Netz anklicken** | In der Sprechblase lesen (schon gelesen und unverändert: sofort aus dem Notizbuch) |
-| **Dokument aus dem Netz ziehen** | Datei direkt auf den Desktop, in einen Ordner oder in eine Mail ziehen |
-| **Rechtsklick auf ein Dokument im Netz** | Kopieren (dann im Explorer mit Strg+V einfügen), Lesen, Im Lesemodus öffnen, Im Ordner zeigen, Vergleichen, Entfernen |
-| **Spinne seitwärts ziehen** | Sie wandert am oberen Rand entlang (und schaukelt dabei ordentlich) |
-| **Spinne hoch/runter ziehen** | Faden kürzer oder länger machen |
-| **Rechtsklick** auf die Spinne | Spinnennetz-Ring mit allen Aktionen (siehe unten) |
-| **Datei im Explorer mit Strg+C kopieren** | Landet automatisch im Netz (abschaltbar in den Einstellungen) |
-| **„Mehr ▾“ in der Sprechblase** | Kernaussagen, Erkenntnisse und Zahlen – die Sprechblase zeigt sonst nur das Wichtigste |
-| **„Frag den Text …“ in der Sprechblase** | Frage eintippen, Enter – die Spinne antwortet und zeigt auf Wunsch die Stelle im Text |
-| **📅 Frist in der Sprechblase** | Erkannte Termine mit einem Klick als Kalendereintrag (mit Erinnerung einen Tag vorher) |
-| **Rechtsklick auf ein Dokument im Netz → Vergleichen mit …** | Zwei Dokumente vergleichen: Unterschiede und Gemeinsamkeiten |
+| **Text markieren, Spinne antippen** | Eine große Spinne krabbelt über den Text, oben in der Sprechblase steht sofort, was zu tun ist |
+| **Spinne antippen, ohne Markierung** | Mini-Blase: Text einfügen, Datei lesen, Brief fotografieren, zuletzt Gelesenes |
+| **Rechtsklick, lange drücken oder Strg+Alt+Leertaste** | Spinnennetz-Menü: Lesen, In meiner Sprache, Antworten, Meine Briefe, Foto, Mehr (Bereich, Datei, Großes Fenster, Pro, Einstellungen, Verstecken) |
+| **Datei auf die Spinne ziehen** | Sie hält sie als Kokon im Netz fest – antippen zum Lesen |
+| **Auf eine Angabe im Ergebnis klicken** | Eine Lupe zeigt die Originalstelle |
+| **?** in der Sprechblase | Alle Tastenkürzel |
 
-Die kleine Spinne zeigt, was sie tut: konzentriert beim Lesen, stolz wenn sie fertig ist, verschlafen nach einer Weile, erschrocken wenn die große Spinne kommt. Ihr Accessoire zeigt, was sie gerade tut: Lesebrille beim Lesen, Weltkugel-Mütze beim Übersetzen, Glühbirne bei „Einfach“, Brief beim Antworten. In Ruhe trägt sie das Accessoire ihres Klick-Modus. Die große Spinne kommt bei jeder Aufgabe und bleibt auf dem Text, auch wenn man die Seite scrollt (Windows).
+Tastenkürzel (einstellbar): **Strg+Alt+A** lesen · **S** an die Spinne geben · **T** übersetzen · **L** einfache Sprache · **R** antworten · **B** Bildschirmbereich · **N** Meine Briefe · **K** im Netz festhalten · **H** Spinne verstecken · **Leertaste** Spinnennetz.
 
-Die Spinne wird nach 30 Sekunden halb durchsichtig und kommt zurück, sobald die Maus in die Nähe kommt. Das Netz ist zusammengeklappt (nur ein kleiner Zähler) und öffnet sich, wenn die Maus darüber fährt.
+## Tempo und Sparsamkeit
 
-### Spinnennetz-Ring
-
-Alles, was die Spinne kann, liegt in einem runden Netz – wie ein Aktionsring: **Strg+Alt+Leertaste** öffnet es direkt am Mauszeiger, ein Rechtsklick auf die Spinne um die Spinne herum.
-
-- **Kurz tippen:** Das Netz bleibt offen, Aktion anklicken.
-- **Gedrückt halten:** Maus in Richtung der Aktion bewegen und loslassen (Windows).
-- Erste Seite: Lesen, Übersetzen, Einfach, Antworten, Bereich, Ins Netz, Notizbuch, Mehr. Unter „Mehr“: Datei lesen, Zwischenablage, Lesemodus, Einstellungen, Verstecken.
-- Esc, Klick in die Mitte oder Wegfahren schließt das Netz.
-
-**Tipp für Logitech-Mäuse (z. B. MX Master):** In Logi Options+ eine Taste – oder einen Platz im Aktionsring – auf den Tastendruck *Strg+Alt+Leertaste* legen. Dann öffnet diese Maustaste das Spinnennetz.
-
-Das große Fenster ist nur noch ein optionaler **Lesemodus** für lange Dokumente (über den Ring unter „Mehr“ oder „Lesemodus“ in der Sprechblase).
-
-### Tastenkürzel
-
-Alle globalen Kürzel lassen sich in den Einstellungen ändern (anklicken, neue Tasten drücken).
-
-| Überall | |
-|---|---|
-| **Strg+Alt+S** | Markierten Text an die Spinne geben (Vorschau) |
-| **Strg+Alt+A** | Markierten Text sofort analysieren |
-| **Strg+Alt+K** | Markierten Text oder markierte Datei (z. B. im Explorer) in einen Kokon packen |
-| **Strg+Alt+V** | Kokon-Ablage öffnen |
-| **Strg+Alt+H** | Spinne verstecken / zeigen |
-| **Strg+Alt+T** | Markierten Text übersetzen |
-| **Strg+Alt+L** | Markierten Text in einfache Sprache umschreiben |
-| **Strg+Alt+R** | Antwort-Entwurf auf eine markierte E-Mail |
-| **Strg+Alt+B** | Bildschirmbereich aufziehen und lesen lassen (Windows-Texterkennung) |
-| **Strg+Alt+N** | Notizbuch: die letzten 20 Analysen mit Suche (als Sprechblase) |
-| **Strg+Alt+Leertaste** | Spinnennetz-Ring am Mauszeiger |
-
-Zum Ausprobieren: Einstellungen öffnen und ein Kürzel drücken – dahinter erscheint „✓ erkannt“, und die Spinne hüpft kurz. Klappt etwas nicht, steht im Protokoll (Rechtsklick aufs Tray-Symbol → „Protokoll öffnen“), ob das Kürzel ankam und ob markierter Text gefunden wurde.
-
-Hinweis: Kürzel mit Strg+Umschalt werden oft schon von Word oder Chrome belegt, und auf deutschen Tastaturen ist Strg+Alt gleich AltGr – deshalb meiden die Standardkürzel Buchstaben wie E, Q, M und Ziffern.
-
-| Im Analysefenster | |
-|---|---|
-| **Enter** | Analyse starten (nur im großen Fenster nötig) |
-| **Esc** | Fenster schließen |
-| **Rechtsklick** | Menü (das Fenster hat keine Kopfleiste mehr) |
-| **Strg+O** | Datei öffnen |
-| **Strg+H** | Notizbuch |
-| **Strg+N** | Neuer Text |
-| **Strg+K** | Aktuellen Text in einen Kokon packen |
-| **Strg+Umschalt+C** | Ergebnis kopieren |
-| **Strg+,** | Einstellungen |
-
-Der durchsichtige Bereich um die Spinne herum lässt Klicks durch, du kannst also ganz normal weiterarbeiten.
-
-Im Analysefenster springt die Spinne beim Klick auf eine Angabe zur Fundstelle im Text. Über **Ergebnis kopieren** landet die Analyse als Markdown in der Zwischenablage.
+- Die eingebaute KI arbeitet in zwei Stufen: erst Stichpunkte und Aufgabe, die Details erst bei „Mehr“. Im KI-Test mit den Testbriefen: schnelles Modell ~18 s statt ~30 s pro Brief, gründliches ~90 s statt ~130 s.
+- Das Modell wird erst geladen, wenn sich ein Lesen anbahnt (Maus über der Spinne), und nach 3 Minuten Ruhe wieder freigegeben. Grafikkarte oder Prozessor – die App misst einmal, was auf diesem PC schneller ist.
+- Im Leerlauf: rund 70 MB Arbeitsspeicher und unter 1 % Prozessor (Windows-Task-Manager). Auf PCs mit weniger als 6 GB Arbeitsspeicher schaltet sich der Sparmodus von selbst ein.
+- Unter jedem Ergebnis steht klein, wie lange das Lesen gedauert hat.
 
 ## Sprache, Datenschutz, Lizenzen
 
 - **Deutsch und Englisch:** Die Oberfläche richtet sich nach der Windows-Sprache und lässt sich in der Ersteinrichtung oder den Einstellungen umschalten (`src/i18n.js`).
 - **Ersteinrichtung:** Beim ersten Start erklärt die Spinne die Bedienung, man wählt die KI und stimmt bewusst zu, ob die Zwischenablage mitgelesen werden darf (standardmäßig aus).
 - **Datenschutz:** `src/privacy.html` (auch über „Über Silkreader“ erreichbar). Keine eigenen Server, kein Tracking.
-- **Lizenz:** MIT (`LICENSE`). Fremdlizenzen in `src/legal/THIRD_PARTY_NOTICES.txt` – nach dem Ändern von Abhängigkeiten neu erzeugen mit `npm run notices`.
+- **Lizenz:** proprietär ab 1.21 (`LICENSE`; bis 1.20 MIT, siehe `LICENSE-MIT-bis-1.20.txt`). Der Code wird beim Bauen geschützt (`build/protect.js`: verschleiert, Hauptprozess als V8-Bytecode). Fremdlizenzen in `src/legal/THIRD_PARTY_NOTICES.txt` – nach dem Ändern von Abhängigkeiten neu erzeugen mit `npm run notices`.
 - **Problem melden:** öffnet ein vorausgefülltes GitHub-Issue im Browser; nichts wird automatisch verschickt.
 
 ## Für die Öffentlichkeit: Signatur
@@ -149,6 +75,9 @@ Dafür braucht das Repository zwei Secrets (**Settings → Secrets and variables
 ## Tests
 
 - `test/*.mjs` laufen unter Linux mit einem virtuellen Bildschirm (Xvfb) und Test-Antworten statt echter KI.
+- `test/bench.mjs` (KI-Test): liest alle Testbriefe aus `test/letters/` mit der echten KI und misst Betrag, Frist, Aufgabe, erfundene Zahlen, Dauer, Einlesen/Schreiben und Token/s. Läuft im Windows-Test mit; der Workflow „KI-Vergleich“ vergleicht Modelle und Tempo-Schalter (`BENCH_SPEED`).
+- `test/startbench.mjs`: Startzeit, Arbeitsspeicher und Prozessorlast im Leerlauf.
+- Im Protokoll der App (Hilfe → Protokoll öffnen) stehen „Zeit …“-Zeilen für jeden Schritt (Start, Markierung, Modell laden, Einlesen, Schreiben, Prüfen).
 - `test/windows.mjs` läuft bei jeder Änderung und vor jedem Release automatisch auf einem echten Windows-PC bei GitHub (Workflow „Windows-Test“): echter Editor, echte Tastenkürzel und Mausklicks, Ring, Mitwandern beim Scrollen, Texterkennung, Update-Signaturprüfung. Schlägt dort etwas Wichtiges fehl, wird nichts veröffentlicht.
 
 ## Selbst bauen / weiterentwickeln
@@ -164,7 +93,10 @@ npm run dist:mac     # macOS (.dmg), muss auf einem Mac gebaut werden
 
 Aufbau:
 
-- `src/main.js`: Hauptprozess mit Spinnenfenster, Tastenkürzel, Dateien lesen und KI-Aufruf (eingebaut, Claude oder Ollama)
+- `src/main.js`: Hauptprozess mit Spinnenfenster, Tastenkürzel, Dateien lesen und KI-Aufruf (eingebaute KI in zwei Stufen; Claude und Ollama nur noch für Profis)
+- `src/facts.js`: feste Regeln für Briefe (Betrag, Frist, IBAN, Betrugs-Check, Unterschrift, Verträge) – ohne KI, sofort
+- `src/learn.js`: lokales Lernen aus Korrekturen und Absender-Profilen
+- `src/pro.js`: Silkreader Pro (Codes und Store-Add-on)
 - `src/spider.js`: die animierte Spinne (Beine suchen sich Wörter als Halt)
 - `src/app.js` und `src/index.html`: Analysefenster
 - `src/bubble.html`: die Spinne am Bildschirmrand mit allen Kunststücken
