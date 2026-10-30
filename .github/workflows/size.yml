@@ -43,7 +43,12 @@ jobs:
           Get-Process Silkreader -ErrorAction SilentlyContinue | Stop-Process -Force
 
   mac:
-    runs-on: macos-15
+    strategy:
+      matrix:
+        include:
+          - { os: macos-15, arch: arm64 }
+          - { os: macos-15-intel, arch: x64 }
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -52,8 +57,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node build/protect.js
-      - name: DMG bauen (arm64)
+      - name: DMG bauen
         run: |
-          npx electron-builder --mac dmg --arm64 --publish never -c.mac.identity=- > /dev/null 2>&1
+          npx electron-builder --mac dmg --${{ matrix.arch }} --publish never -c.mac.identity=- > /dev/null 2>&1
           f=$(find dist -name '*.dmg' | head -1)
-          echo "::notice title=Paketgröße Mac arm64::$(basename "$f") $(du -m "$f" | cut -f1) MB"
+          echo "::notice title=Paketgröße Mac ${{ matrix.arch }}::$(basename "$f") $(du -m "$f" | cut -f1) MB"
