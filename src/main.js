@@ -267,7 +267,11 @@ function createBubble() {
     const still = lastRaw && lastRaw.x === c.x && lastRaw.y === c.y;
     checkTouchTap(lastRaw, c);
     // Maus nähert sich der Spinne: KI schon mal laden, dann ist das Ergebnis schneller da
-    if (Date.now() - lastHoverPreload > 30000) { const sp = spiderScreenPos(); if (Math.hypot(c.x - sp.x, c.y - sp.y) < 140) { lastHoverPreload = Date.now(); warmUpGrab(); preloadBuiltinModel(); } }
+    // (nur wenn die Maus bei der Spinne verweilt – nicht bei jedem Vorbeiwischen oben am Bildschirm)
+    if (Date.now() - lastHoverPreload > 30000) {
+      const sp = spiderScreenPos();
+      if (Math.hypot(c.x - sp.x, c.y - sp.y) < 90) { hoverSince ||= Date.now(); if (Date.now() - hoverSince > 400) { lastHoverPreload = Date.now(); warmUpGrab(); preloadBuiltinModel(); } } else hoverSince = 0;
+    }
     lastRaw = c;
     recordCursor(c);
     const [wx, wy] = bubbleWin.getPosition();
@@ -290,7 +294,7 @@ function createBubble() {
 // Dann hat das Fenster den Tipp noch durchgelassen – wir erkennen ihn hier und führen ihn selbst aus:
 // kurz tippen = lesen, lange drücken = Spinnennetz.
 let touchWatch = null;
-let lastHoverPreload = 0;
+let hoverSince = 0, lastHoverPreload = 0;
 function checkTouchTap(prev, c) {
   if (touchWatch || drag || !prev || !bubbleWin?.isVisible()) return;
   const jump = Math.hypot(c.x - prev.x, c.y - prev.y);
@@ -1648,20 +1652,26 @@ async function unloadBuiltinModel() {
 // Analyse anbahnt (Maus über der Spinne, Analysefenster offen …), und nach 10 Minuten ohne
 // Benutzung wieder freigegeben – so bremst Silkreader den PC im Hintergrund nicht aus.
 const MODEL_IDLE_MS = 3 * 60 * 1000;
-let lastModelUse = 0;
+const PRELOAD_KEEP_MS = 60 * 1000; // nur vorgeladen (Maus kam vorbei), aber nichts gelesen: nach 1 Minute wieder frei
+let lastModelUse = 0; // zuletzt wirklich gelesen, gefragt, übersetzt …
+let lastPreload = 0;  // zuletzt nur vorsorglich geladen
 let analysisRunning = 0;
 
 function preloadBuiltinModel() {
   const s = loadSettings();
   if (s.provider !== 'builtin' || !builtinModelReady()) return;
-  lastModelUse = Date.now();
+  // Vorladen verlängert die Ladezeit nicht dauerhaft – sonst bliebe das Modell (1–2,5 GB) im Speicher,
+  // nur weil die Maus oft oben am Bildschirm an der Spinne vorbeikommt
+  lastPreload = Date.now();
   if (llamaRuntime?.key === builtinKey(s)) return warmContext(llamaRuntime);
   if (llamaLoading) return;
   loadBuiltinModel().then(warmContext).catch((e) => console.error('Modell vorladen:', e));
 }
 
 setInterval(() => {
-  if (llamaRuntime && !llamaLoading && !analysisRunning && Date.now() - lastModelUse > MODEL_IDLE_MS) {
+  const now = Date.now();
+  if (llamaRuntime && !llamaLoading && !analysisRunning && now - lastModelUse > MODEL_IDLE_MS && now - lastPreload > PRELOAD_KEEP_MS) {
+    logLine(`KI-Modell freigegeben (${Math.round((now - Math.max(lastModelUse, lastPreload)) / 1000)} s nicht gebraucht)`);
     unloadBuiltinModel();
   }
 }, 60 * 1000);
