@@ -35,7 +35,9 @@ function uiLang() {
 const { setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
 const { CocoonStore } = require('./cocoons');
 const { scanSelection } = require('./selectionScan');
-const { recognizeText, recognizePdf } = require('./ocr');
+const { recognizeText: ocrText, recognizeTextSpawn, recognizePdf } = require('./ocr');
+// Texterkennung mit Zeitmessung im Protokoll
+const recognizeText = async (file) => { const t0 = Date.now(); const text = await ocrText(file); logLine(`Zeit Texterkennung: ${Date.now() - t0} ms (${text.length} Zeichen)`); return text; };
 const WHATS_NEW = require('./whatsnew');
 const facts = require('./facts');
 const pro = require('./pro');
@@ -1346,6 +1348,12 @@ async function openFile(filePath, opts) {
 const IMAGE_EXT = ['.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff'];
 const DOC_EXT = ['pdf', 'docx', 'txt', 'md', 'csv', 'json', 'html', 'log', 'png', 'jpg', 'jpeg', 'bmp', 'gif', 'tif', 'tiff'];
 async function readDocument(filePath) {
+  const t0 = Date.now();
+  const doc = await readDocumentInner(filePath);
+  logLine(`Zeit Datei lesen (${path.extname(filePath).toLowerCase() || 'ohne Endung'}${doc.ocr ? ', Texterkennung' : ''}): ${Date.now() - t0} ms, ${doc.pages.length} Seite(n), ${doc.pages.join('').length} Zeichen`);
+  return doc;
+}
+async function readDocumentInner(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   const title = path.basename(filePath);
   const buf = fs.readFileSync(filePath);
@@ -3565,6 +3573,11 @@ if (TESTING) global.__silk = { askPaid, watchCrashes, ocrText: (f) => recognizeT
     w.destroy();
     const file = path.join(app.getPath('temp'), `silk-ocr-${Date.now()}.png`);
     fs.writeFileSync(file, img.toPNG());
-    try { return await recognizeText(file); } finally { fs.unlink(file, () => {}); }
+    try {
+      // Zum Vergleich (KI-/Windows-Test): über den Helfer und mit eigener PowerShell, je mit Dauer
+      const t0 = Date.now(); const text = await recognizeText(file); const ms = Date.now() - t0;
+      const t1 = Date.now(); await recognizeTextSpawn(file); const spawnMs = Date.now() - t1;
+      return `${text} [${ms} ms; eigene PowerShell ${spawnMs} ms]`;
+    } finally { fs.unlink(file, () => {}); }
   },
 };

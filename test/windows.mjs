@@ -251,10 +251,13 @@ try {
 
   // 10) Scans und Fotos, Explorer-Aufruf, Vollbild-Erkennung (1.18)
   const scan = await silk(() => global.__silk.makeScan());
+  let tDoc = Date.now();
   const pngDoc = await silk((_e, f) => global.__silk.readFile(f), scan.png).catch((e) => ({ error: e.message }));
-  check('Foto eines Dokuments gelesen (Texterkennung)', /4711|Rechnung/i.test((pngDoc.pages || []).join(' ')), pngDoc.error || (pngDoc.pages || []).join(' ').slice(0, 80), false);
+  const pngMs = Date.now() - tDoc;
+  check('Foto eines Dokuments gelesen (Texterkennung)', /4711|Rechnung/i.test((pngDoc.pages || []).join(' ')), `${pngMs} ms – ${pngDoc.error || (pngDoc.pages || []).join(' ').slice(0, 80)}`, false);
+  tDoc = Date.now();
   const pdfDoc = await silk((_e, f) => global.__silk.readFile(f), scan.pdf).catch((e) => ({ error: e.message }));
-  check('Gescannte PDF gelesen (Texterkennung)', /4711|Rechnung/i.test((pdfDoc.pages || []).join(' ')), pdfDoc.error || (pdfDoc.pages || []).join(' ').slice(0, 80), false);
+  check('Gescannte PDF gelesen (Texterkennung)', /4711|Rechnung/i.test((pdfDoc.pages || []).join(' ')), `${Date.now() - tDoc} ms – ${pdfDoc.error || (pdfDoc.pages || []).join(' ').slice(0, 80)}`, false);
   const fsBusy = await silk(() => global.__silk.fullscreenBusy());
   check('Vollbild-Erkennung abfragbar', typeof fsBusy === 'boolean', `gerade Vollbild: ${fsBusy}`, false);
   await hidePopup();

@@ -46,9 +46,15 @@ function recognizeTextMac(file) {
 }
 
 /** Liefert den erkannten Text oder '' (z. B. keine Texterkennung verfügbar). */
-function recognizeText(file) {
+async function recognizeText(file) {
   if (process.platform === 'darwin') return recognizeTextMac(file);
-  if (process.platform !== 'win32') return Promise.resolve('');
+  if (process.platform !== 'win32') return '';
+  // Läuft der PowerShell-Helfer schon, erkennt er den Text – ohne eine neue PowerShell zu starten
+  const fast = await require('./grab').helperOcr(file);
+  if (fast !== null) return fast;
+  return recognizeTextSpawn(file);
+}
+function recognizeTextSpawn(file) {
   const encoded = Buffer.from(OCR_SCRIPT(file), 'utf16le').toString('base64');
   return new Promise((resolve) => {
     execFile('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded],
@@ -103,4 +109,4 @@ function recognizePdf(file, maxPages = 30) {
   });
 }
 
-module.exports = { recognizeText, recognizePdf };
+module.exports = { recognizeText, recognizeTextSpawn, recognizePdf };
