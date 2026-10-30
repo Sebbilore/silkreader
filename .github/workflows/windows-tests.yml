@@ -92,6 +92,11 @@ jobs:
         shell: pwsh
         run: node test/windows-ai.mjs win-ai
 
+      - name: KI-Test mit allen Testbriefen (schnelles und gründliches Modell)
+        if: always()
+        shell: pwsh
+        run: node test/bench.mjs win-ai/bench
+
       - name: Ergebnisse
         if: always()
         uses: actions/upload-artifact@v6

@@ -1,0 +1,8 @@
+{
+  "jobcenter": { "date": "2026-11-30", "task": "unterschreib|zurück|antrag|einreich|send" },
+  "finanzamt": { "amount": "512,00", "date": "2026-11-18", "task": "zahl|überweis|einspruch" },
+  "krankenkasse": { "amount": "212,40", "task": "nichts|lastschrift|kündig|beitrag" },
+  "inkasso": { "amount": "148,00", "date": "2026-11-05", "task": "zahl|überweis|widersprech|raten" },
+  "rundfunk": { "amount": "55,08", "date": "2026-11-15", "task": "zahl|überweis" },
+  "bussgeld": { "amount": "70,00", "date": "2026-10-26", "task": "zahl|äußer|stellungnahme|überweis" }
+}

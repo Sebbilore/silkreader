@@ -1,0 +1,50 @@
+# KI-Test zum Vergleichen: liest alle Testbriefe mit den eingebauten Modellen und mit neuen Kandidaten.
+# Kandidaten als „Name=hf:Besitzer/Repo:Q4_K_M|Dateiname.gguf“, mehrere mit ; getrennt.
+name: KI-Vergleich
+
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'Eingebaute Modelle (fast,quality)'
+        default: 'fast,quality'
+      extra:
+        description: 'Kandidaten: Name=hf:…:Q4_K_M|Datei.gguf; …'
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      SILK_MODEL_DIR: ${{ github.workspace }}\silk-models
+      BENCH_MODELS: ${{ inputs.models }}
+      BENCH_EXTRA: ${{ inputs.extra }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Testwerkzeug
+        run: npm i --no-save playwright-core@1.56.1
+      - name: KI-Modelle aus dem Zwischenspeicher
+        uses: actions/cache@v5
+        with:
+          path: silk-models
+          key: silk-models-qwen2.5-1.5b-qwen3-4b-v1
+      - name: Codeschutz anwenden (wie beim Bauen)
+        run: node build/protect.js
+      - name: KI-Test
+        shell: pwsh
+        run: node test/bench.mjs bench
+      - name: Ergebnisse
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ki-vergleich
+          path: bench/

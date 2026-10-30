@@ -3283,8 +3283,14 @@ if (TESTING) global.__silk = { askPaid, watchCrashes, ocrText: (f) => recognizeT
     let quickMs = null;
     const result = await analyze(doc, (c) => { if (c?.quick && quickMs === null) quickMs = Date.now() - t0; });
     const text = doc.pages.join('\n');
-    return { ms: Date.now() - t0, quickMs, result: { ...facts.verifyResult(result, text), letter: facts.letterFacts(text) }, notes: global.__lastNotes };
+    let r = facts.verifyResult(result, text);
+    let fixed = 0;
+    if (r.checks?.unsure?.length) { try { const x = await repairNumbers(r, doc); if (x) { r = x.result; fixed = x.fixed; } } catch {} } // wie in der App: Selbstkontrolle
+    return { ms: Date.now() - t0, quickMs, fixed, result: { ...r, letter: facts.letterFacts(text) }, notes: global.__lastNotes };
   },
+  // KI-Test: weitere Modelle zum Vergleich anmelden (nur im Test)
+  addModel: (key, m) => { BUILTIN_MODELS[key] = { chunkTokens: 1500, genTokens: 2200, minRamGB: 4, sizeLabel: '?', name: key, ...m }; return true; },
+  setModel: async (key) => { const s = loadSettings(); s.provider = 'builtin'; s.builtinModel = key; saveSettings(s); await unloadBuiltinModel(); return builtinKey(); },
   async transformTimed(mode, text) {
     const t0 = Date.now();
     const { value } = await runTransform(mode, text);
