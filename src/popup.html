@@ -35,16 +35,22 @@
   .lead li { font-size: 14px; line-height: 1.5; }
   .h2 { font-size: 14px; font-weight: 600; margin: 14px 0 6px; }
   .muted { color: var(--muted); font-size: 12px; }
-  .weave { display: flex; align-items: center; gap: 10px; padding: 6px 0 12px; }
-  .weave svg { width: 26px; height: 26px; flex: none; overflow: visible; }
-  .weave .sp { stroke: var(--silk); stroke-width: .7; opacity: .55; }
-  .weave .spiral { fill: none; stroke: var(--pink); stroke-width: 1.1; stroke-linecap: round; filter: drop-shadow(0 0 2px var(--pink-glow));
-    stroke-dasharray: var(--len); stroke-dashoffset: var(--len); transition: stroke-dashoffset .5s var(--ease-out); filter: none; }
-  .weave.indet svg { animation: silk-spin 6s linear infinite; }
-  .weave.indet .spiral { animation: weaveLoop 1.8s var(--ease-out) infinite; }
-  @keyframes weaveLoop { 0% { stroke-dashoffset: var(--len); opacity: 1; } 70% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+  /* Lesen läuft: ein feines, stehendes Netz – die Ringe füllen sich ruhig, darunter ein dünner Fortschrittsbalken */
+  .weave { display: flex; align-items: center; gap: 12px; padding: 6px 0 14px; }
+  .weave svg { width: 28px; height: 28px; flex: none; }
+  .weave .sp { stroke: var(--muted); stroke-width: .45; opacity: .45; }
+  .weave .rg { fill: none; stroke: var(--muted); stroke-width: .55; opacity: .25; transition: opacity .6s var(--ease-out), stroke .6s; }
+  .weave .rg.on { stroke: var(--pink); opacity: .9; }
+  .weave.indet .rg { animation: ringFill 3.2s ease-in-out infinite; } .weave.indet .rg:nth-of-type(2) { animation-delay: .4s; } .weave.indet .rg:nth-of-type(3) { animation-delay: .8s; } .weave.indet .rg:nth-of-type(4) { animation-delay: 1.2s; }
+  @keyframes ringFill { 0%, 100% { opacity: .2; stroke: var(--muted); } 40%, 60% { opacity: .85; stroke: var(--pink); } }
+  .weave .wv { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .weave .wbar { height: 2px; border-radius: 1px; background: var(--line-2); overflow: hidden; position: relative; }
+  .weave .wbar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--pink); transition: width .5s var(--ease-out); }
+  .weave.indet .wbar i { width: 30%; animation: barSweep 2.4s ease-in-out infinite; }
+  @keyframes barSweep { 0% { left: -30%; } 100% { left: 100%; } }
+  @media (prefers-reduced-motion: reduce) { .weave.indet .rg, .weave.indet .wbar i { animation: none; } .weave.indet .wbar i { width: 100%; opacity: .35; } }
   .stage { color: var(--muted); font-size: 12.5px; }
-  .cur { color: var(--pink); animation: blink 1s steps(2) infinite; } @keyframes blink { 50% { opacity: 0; } }
+  .cur { color: var(--pink); animation: blink 1.4s ease-in-out infinite; } @keyframes blink { 50% { opacity: .2; } }
   /* "Mehr ▾": alles Weitere ausgeklappt */
   .more { background: none; border: none; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; padding: 4px 0; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-2); transition: color var(--t-fast); }
   .more:hover { color: var(--strong); }
@@ -245,14 +251,18 @@
   document.getElementById('main').setAttribute('aria-live', 'polite'); // Ergebnisse werden vorgelesen, sobald sie da sind
 
   // Fortschritt als Spinnennetz, das gewebt wird (ohne Schritte: in Dauerschleife)
-  const SPIRAL = (() => { let d = '', n = 8 * 3.2; for (let k = 0; k <= n; k++) { const a = (k / 8) * Math.PI * 2 - Math.PI / 2, r = 2 + (k / n) * 9; d += `${k ? 'L' : 'M'}${(Math.cos(a) * r).toFixed(2)} ${(Math.sin(a) * r).toFixed(2)}`; } return d; })();
-  const weave = (label) => `<div class="weave indet" id="weave"><svg viewBox="-12 -12 24 24" style="--len:190">
+  // Feines Netz: 8 Speichen, 4 Ringe (Achtecke) – ruhig statt drehend
+  const RING = (r) => Array.from({ length: 8 }, (_, i) => { const a = i / 8 * Math.PI * 2 - Math.PI / 2; return `${(Math.cos(a) * r).toFixed(2)},${(Math.sin(a) * r).toFixed(2)}`; }).join(' ');
+  const weave = (label) => `<div class="weave indet" id="weave" role="status" aria-live="polite"><svg viewBox="-12 -12 24 24" aria-hidden="true">
     ${Array.from({ length: 8 }, (_, i) => { const a = i / 8 * Math.PI * 2 - Math.PI / 2; return `<line class="sp" x1="0" y1="0" x2="${(Math.cos(a) * 11.5).toFixed(2)}" y2="${(Math.sin(a) * 11.5).toFixed(2)}"/>`; }).join('')}
-    <path class="spiral" d="${SPIRAL}"/></svg><span class="stage" id="stage">${label}</span></div>`;
+    ${[3.2, 5.8, 8.4, 11].map((r) => `<polygon class="rg" points="${RING(r)}"/>`).join('')}</svg>
+    <div class="wv"><span class="stage" id="stage">${label}</span><span class="wbar"><i></i></span></div></div>`;
   function weaveProgress(p) {
     const w = $('weave'); if (!w) return;
+    p = Math.max(0.04, Math.min(1, p));
     w.classList.remove('indet');
-    w.querySelector('.spiral').style.strokeDashoffset = (190 * (1 - Math.max(0.04, Math.min(1, p)))).toFixed(1);
+    w.querySelectorAll('.rg').forEach((r, i) => r.classList.toggle('on', p >= (i + 0.5) / 4));
+    w.querySelector('.wbar i').style.width = `${(p * 100).toFixed(1)}%`;
   }
 
   // ---------- Fristen im Text finden (für den Kalender) – feste Regeln aus facts.js ----------
