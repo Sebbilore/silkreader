@@ -1676,8 +1676,15 @@ const LEAN_SCHEMA = { ...BUILTIN_SHORT_SCHEMA, properties: { ...BUILTIN_SHORT_SC
   key_points: { type: 'array', items: str(130), maxItems: 3 }, figures: { type: 'array', items: LEAN_FIGURE, maxItems: 4 } } };
 const LEAN_SCHEMA_NUMBERS = { ...LEAN_SCHEMA, properties: { ...LEAN_SCHEMA.properties, figures: { type: 'array', items: LEAN_FIGURE, minItems: 2, maxItems: 4 } } };
 // Zwei Stufen: zuerst das, was die Blase oben zeigt – danach (bei „Mehr“) die Details
-const QUICK_SCHEMA = { type: 'object', additionalProperties: false, required: ['title', 'doc_type', 'summary', 'actions'],
-  properties: { title: str(80), doc_type: str(40), summary: BULLETS, actions: { type: 'array', items: str(140), maxItems: 2 } } };
+const TWO_STAGE_TASKS = [
+  'Du bekommst unten ein Dokument (oft einen Brief, eine Rechnung oder einen Bescheid). Zahlen, Beträge und Daten immer genau so wie im Text.',
+  'Aufgabe 1: Als "summary" das Wichtigste in 3 bis 4 kurzen Stichpunkten. Als "actions": Was muss der Empfänger tun? 1 bis 2 konkrete Sätze mit Betrag und Datum – ist nichts zu tun, leer lassen. Dazu Titel und Art des Dokuments.',
+  'Aufgabe 2: Bis zu 3 weitere Kernaussagen (nicht die schon genannten Stichpunkte wiederholen), bis zu 4 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "value" genau so wie im Text) und bis zu 3 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen).',
+  'Fasse dich immer kurz.',
+].join('\n');
+// Reihenfolge = Reihenfolge der Antwort: die Stichpunkte zuerst, damit die Blase sie früh zeigen kann
+const QUICK_SCHEMA = { type: 'object', additionalProperties: false, required: ['summary', 'actions', 'title', 'doc_type'],
+  properties: { summary: BULLETS, actions: { type: 'array', items: str(140), maxItems: 2 }, title: str(80), doc_type: str(40) } };
 const DETAIL_SCHEMA = { type: 'object', additionalProperties: false, required: ['key_points', 'figures', 'findings'],
   properties: { key_points: { type: 'array', items: str(130), maxItems: 3 }, figures: { type: 'array', items: LEAN_FIGURE, maxItems: 4 },
     findings: { type: 'array', items: FINDING_SCHEMA, maxItems: 3 } } };
@@ -1842,33 +1849,27 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
     // Kurzes Dokument: ein Durchgang. Die Stichpunkte stehen im JSON vorn – sobald sie fertig sind,
     // erscheinen sie als Kurzfassung, während die KI die Details weiterschreibt.
     const hasNumbers = (t) => /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(t);
-    // Zwei Stufen (kurze Texte): Das Dokument steht vorn – so ist es für die Details schon eingelesen
-    const docFirst = (docText, task) => ['<document>', docText, '</document>', `Titel der Datei: „${doc.title}“.`,
+    // Zwei Stufen (kurze Texte): Feste Aufgaben vorn (bleiben von Brief zu Brief eingelesen), dann das Dokument
+    // (bleibt für die Details eingelesen), zum Schluss nur noch, welche Aufgabe jetzt dran ist.
+    const docFirst = (docText, task) => [TWO_STAGE_TASKS, '', '<document>', docText, '</document>', `Titel der Datei: „${doc.title}“.`,
       ...(factsBlock(doc) ? [factsBlock(doc)] : []), ...(learnHints(doc) ? [learnHints(doc)] : []), '', task].join('\n');
     if (chunks.length <= 1 && stage === 'more') {
       const docText = chunks[0]?.text || '';
       onProgress({ stage: 'Liest die Details …', step: 1, steps: 1 });
-      return ask(docFirst(docText, [
-        'Ergänze jetzt die Details zum Dokument oben.',
-        'Liefere bis zu 3 weitere Kernaussagen (wiederhole nicht die Stichpunkte unten), bis zu 4 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "value" genau so wie im Text) und bis zu 3 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen). Fasse dich kurz.',
-        base?.summary ? `Schon genannt:\n${base.summary}` : '',
-      ].join('\n')), hasNumbers(docText) ? DETAIL_SCHEMA_NUMBERS : DETAIL_SCHEMA, 900, false);
+      return ask(docFirst(docText, ['Erledige jetzt Aufgabe 2.', base?.summary ? `Schon genannt:\n${base.summary}` : ''].join('\n')), hasNumbers(docText) ? DETAIL_SCHEMA_NUMBERS : DETAIL_SCHEMA, 900, false);
     }
     if (chunks.length <= 1 && SPEED.twoStage) {
       const docText = chunks[0]?.text || '';
       onProgress({ stage: 'Liest …', step: 1, steps: 1 });
       let streamed = '', quickSent = false;
-      const r = await ask(docFirst(docText, [
-        'Analysiere das Dokument oben. Liefere Titel, Art und als "summary" das Wichtigste in 3 bis 4 kurzen Stichpunkten.',
-        'Ist es ein Brief, eine Rechnung oder ein Bescheid: Was muss der Empfänger tun? Schreibe das als "actions" (1 bis 2 konkrete Sätze, mit Betrag und Datum). Sonst "actions" leer lassen. Fasse dich kurz.',
-      ].join('\n')), QUICK_SCHEMA, 600, (c) => {
+      const r = await ask(docFirst(docText, 'Erledige jetzt Aufgabe 1.'), QUICK_SCHEMA, 600, (c) => {
         onProgress(c);
         if (quickSent) return;
         streamed += c;
         const m = streamed.match(/"summary"\s*:\s*(\[(?:[^\]"]|"(?:[^"\\]|\\.)*")*\])/);
         if (!m) return;
         quickSent = true;
-        try { onProgress({ quick: normalizeResult({ title: partialField(streamed, 'title'), summary: JSON.parse(m[1]) }) }); } catch {}
+        try { onProgress({ quick: { ...normalizeResult({ summary: JSON.parse(m[1]) }), title: null } }); } catch {} // Titel kommt hier erst danach
         onProgress({ stage: 'Schreibt, was zu tun ist …', step: 1, steps: 1 });
       });
       const out = addEventSentences(normalizeResult({ ...r, findings: (r.actions || []).map((a) => ({ kind: 'Handlung', title: a, detail: '', pages: [1] })) }), doc.pages.join('\n'));
