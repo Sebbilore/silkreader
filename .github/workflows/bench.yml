@@ -11,6 +11,9 @@ on:
       extra:
         description: 'Kandidaten: Name=hf:…:Q4_K_M|Datei.gguf; …'
         default: ''
+      speed:
+        description: 'Tempo-Schalter vergleichen: alles,aus,ohne-lookup,ohne-keep,ohne-lean'
+        default: 'alles'
 
 permissions:
   contents: read
@@ -23,6 +26,7 @@ jobs:
       SILK_MODEL_DIR: ${{ github.workspace }}\silk-models
       BENCH_MODELS: ${{ inputs.models }}
       BENCH_EXTRA: ${{ inputs.extra }}
+      BENCH_SPEED: ${{ inputs.speed }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

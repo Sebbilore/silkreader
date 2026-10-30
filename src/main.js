@@ -1525,7 +1525,14 @@ const builtinKey = (s = loadSettings()) => {
 };
 const builtinModelReady = () => modelReady(builtinKey());
 
-let llamaRuntime = null; // { key, llama, model } – bleibt geladen, damit weitere Analysen sofort starten
+let llamaRuntime = null; // { key, llama, model, ctx, seq } – bleibt geladen, damit weitere Analysen sofort starten
+// Tempo-Schalter der eingebauten KI (im KI-Test einzeln abschaltbar, um sie zu vergleichen):
+// lookup = Token aus dem Brieftext vorhersagen (Beträge, IBAN, Zitate werden in Blöcken geschrieben)
+// keep   = Kontext behalten: kein neuer Speicher pro Analyse, gleiche Anweisungen werden nicht neu eingelesen
+// lean   = schlankere Antwort (weniger Angaben, keine wörtlichen Zitate)
+const SPEED = { lookup: true, keep: true, lean: true };
+let lastGen = null; // Messwerte der letzten Antwort (für den KI-Test)
+const grammarCache = new WeakMap(); // je Schema einmal bauen
 let llamaLoading = null;
 let modelDownload = null;
 let modelDownloadCanceled = false;
@@ -1549,6 +1556,7 @@ async function loadBuiltinModel(key = builtinKey()) {
 async function unloadBuiltinModel() {
   const rt = llamaRuntime;
   llamaRuntime = null;
+  await rt?.ctx?.dispose().catch(() => {});
   await rt?.model.dispose().catch(() => {});
 }
 
@@ -1615,6 +1623,11 @@ const SHORT_SCHEMA = {
 const BUILTIN_SHORT_SCHEMA = { ...SHORT_SCHEMA, properties: { ...SHORT_SCHEMA.properties, summary: BULLETS,
   key_points: { type: 'array', items: str(150), maxItems: 4 }, findings: { type: 'array', items: FINDING_SCHEMA, maxItems: 3 },
   figures: { type: 'array', items: FIGURE_SCHEMA, maxItems: 5 } } };
+// Noch schlanker: Angaben ohne wörtliches Zitat (die Stelle im Text wird über Bezeichnung und Wert gesucht)
+const LEAN_FIGURE = { type: 'object', additionalProperties: false, required: ['label', 'value', 'page'], properties: { label: str(50), value: str(40), page: { type: 'integer' } } };
+const LEAN_SCHEMA = { ...BUILTIN_SHORT_SCHEMA, properties: { ...BUILTIN_SHORT_SCHEMA.properties,
+  key_points: { type: 'array', items: str(130), maxItems: 3 }, figures: { type: 'array', items: LEAN_FIGURE, maxItems: 4 } } };
+const LEAN_SCHEMA_NUMBERS = { ...LEAN_SCHEMA, properties: { ...LEAN_SCHEMA.properties, figures: { type: 'array', items: LEAN_FIGURE, minItems: 2, maxItems: 4 } } };
 const SHORT_SCHEMA_NUMBERS = { ...BUILTIN_SHORT_SCHEMA, properties: { ...BUILTIN_SHORT_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, minItems: 2, maxItems: 5 } } };
 
 // Ereignis-Sätze (Rücktritt, Kündigung, Frist, Ablauf … mit Datum oder Jahr) aus dem Originaltext, die im Ergebnis
@@ -1709,24 +1722,42 @@ async function analyzeBuiltin(doc, s, onProgress) {
 
   const chunks = splitIntoChunks(model, doc, info.chunkTokens);
   const systemPrompt = `Du bist ein sorgfältiger Analyst. Antworte auf ${s.language} in einfacher, verständlicher Sprache, kurz und präzise, ausschließlich mit JSON nach dem Schema.`;
-  let context = await model.createContext({ contextSize: info.chunkTokens + 2600, flashAttention: 'auto' });
-  let session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt });
+  const newSequence = async (contextSize) => {
+    const ctx = await model.createContext({ contextSize, flashAttention: 'auto' });
+    const { InputLookupTokenPredictor } = await esmImport('node-llama-cpp');
+    return { ctx, seq: ctx.getSequence(SPEED.lookup ? { tokenPredictor: new InputLookupTokenPredictor({ patternLength: { min: 2 }, predictionLength: { max: 4 } }) } : undefined) };
+  };
+  // Der Standard-Kontext bleibt mit dem Modell geladen (wird mit ihm freigegeben)
+  const baseSize = info.chunkTokens + 2600;
+  const rt = llamaRuntime;
+  let own = null; // eigener (größerer oder nicht behaltener) Kontext dieser Analyse
+  const shared = SPEED.keep && rt && !rt.busy; // läuft schon eine Analyse, bekommt diese einen eigenen Kontext
+  if (shared) { rt.busy = true; if (!rt.seq) { try { Object.assign(rt, await newSequence(baseSize)); } catch (e) { rt.busy = false; throw e; } } }
+  let cur = shared ? rt : (own = await newSequence(baseSize));
   try {
     const ask = async (prompt, schema, maxTokens, stream) => {
       // Reicht der Platz nicht (z. B. viele Notizen am Schluss), größeren Kontext anlegen
       const need = model.tokenize(prompt).length + maxTokens + 400;
-      if (need > context.contextSize) {
-        await context.dispose();
-        context = await model.createContext({ contextSize: Math.min(need, model.trainContextSize || need), flashAttention: 'auto' });
-        session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt });
+      if (need > cur.ctx.contextSize) {
+        await own?.ctx.dispose();
+        cur = own = await newSequence(Math.min(need, model.trainContextSize || need));
       }
-      session.resetChatHistory();
-      const grammar = await llama.createGrammarForJsonSchema(schema);
-      const text = await session.prompt(prompt, {
-        grammar, maxTokens, temperature: 0.2,
-        onTextChunk: typeof stream === 'function' ? stream : stream ? (c) => onProgress(c) : undefined,
-      });
-      return grammar.parse(text);
+      const session = new LlamaChatSession({ contextSequence: cur.seq, systemPrompt });
+      let grammar = grammarCache.get(schema);
+      if (!grammar) { grammar = await llama.createGrammarForJsonSchema(schema); grammarCache.set(schema, grammar); }
+      const t0 = Date.now();
+      let firstAt = 0;
+      const tap = typeof stream === 'function' ? stream : stream ? (c) => onProgress(c) : null;
+      try {
+        const text = await session.prompt(prompt, {
+          grammar, maxTokens, temperature: 0.2,
+          onTextChunk: (c) => { if (!firstAt) firstAt = Date.now(); tap?.(c); },
+        });
+        lastGen = { promptTokens: model.tokenize(prompt).length, outTokens: model.tokenize(text).length, firstMs: firstAt - t0, genMs: Date.now() - firstAt, totalMs: Date.now() - t0 };
+        return grammar.parse(text);
+      } finally {
+        session.dispose({ disposeSequence: false });
+      }
     };
 
     // Kurzes Dokument: ein Durchgang. Die Stichpunkte stehen im JSON vorn – sobald sie fertig sind,
@@ -1736,13 +1767,17 @@ async function analyzeBuiltin(doc, s, onProgress) {
       onProgress({ stage: 'Liest …', step: 1, steps: 1 });
       let streamed = '', quickSent = false;
       const r = await ask([
-        `Analysiere das folgende Dokument („${doc.title}“).`,
-        'Liefere Titel, Art, als "summary" das Wichtigste in 3 bis 4 kurzen Stichpunkten, bis zu 4 weitere Kernaussagen, bis zu 5 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "value" genau so wie im Text, z. B. „412 Millionen Euro“; "quote" = wörtliche Stelle aus dem Text) und bis zu 3 echte Erkenntnisse (Risiken, nötige Handlungen). Fasse dich kurz.',
+        'Analysiere das Dokument unten.',
+        SPEED.lean
+          ? 'Liefere Titel, Art, als "summary" das Wichtigste in 3 bis 4 kurzen Stichpunkten, bis zu 3 weitere Kernaussagen, bis zu 4 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "value" genau so wie im Text, z. B. „412 Millionen Euro“) und bis zu 3 echte Erkenntnisse (Risiken, nötige Handlungen). Fasse dich kurz.'
+          : 'Liefere Titel, Art, als "summary" das Wichtigste in 3 bis 4 kurzen Stichpunkten, bis zu 4 weitere Kernaussagen, bis zu 5 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "value" genau so wie im Text, z. B. „412 Millionen Euro“; "quote" = wörtliche Stelle aus dem Text) und bis zu 3 echte Erkenntnisse (Risiken, nötige Handlungen). Fasse dich kurz.',
         'Ist es ein Brief, eine Rechnung oder ein Bescheid: Was muss der Empfänger tun? Das gehört als Erkenntnis der Art „Handlung“ dazu (als konkreter Satz).',
+        `Titel der Datei: „${doc.title}“.`,
         ...(factsBlock(doc) ? [factsBlock(doc)] : []),
         ...(learnHints(doc) ? [learnHints(doc)] : []),
         '', '<document>', docText, '</document>',
-      ].join('\n'), /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(docText) ? SHORT_SCHEMA_NUMBERS : BUILTIN_SHORT_SCHEMA, 1500, (c) => {
+      ].join('\n'), SPEED.lean ? (/\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(docText) ? LEAN_SCHEMA_NUMBERS : LEAN_SCHEMA)
+        : /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(docText) ? SHORT_SCHEMA_NUMBERS : BUILTIN_SHORT_SCHEMA, 1500, (c) => {
         onProgress(c);
         if (quickSent) return;
         streamed += c;
@@ -1806,7 +1841,8 @@ async function analyzeBuiltin(doc, s, onProgress) {
     if (e.code) throw e;
     throw new Error(`Das eingebaute Modell ist bei der Analyse gestolpert: ${e.message || e}. Bitte erneut versuchen.`);
   } finally {
-    await context.dispose();
+    await own?.ctx.dispose();
+    if (shared) rt.busy = false;
   }
 }
 
@@ -3255,8 +3291,10 @@ if (TESTING) global.__silk = { askPaid, watchCrashes, ocrText: (f) => recognizeT
   proStatus: () => pro.status(),
   refreshPro: () => refreshPro(),
   collectDeadlines: () => collectDeadlines({ withDone: true }),
+  setSpeed: (o) => Object.assign(SPEED, o),
   async analyzeTimed(doc) {
     const t0 = Date.now();
+    lastGen = null;
     global.__lastNotes = '';
     let quickMs = null;
     const result = await analyze(doc, (c) => { if (c?.quick && quickMs === null) quickMs = Date.now() - t0; });
@@ -3264,7 +3302,7 @@ if (TESTING) global.__silk = { askPaid, watchCrashes, ocrText: (f) => recognizeT
     let r = facts.verifyResult(result, text);
     let fixed = 0;
     if (r.checks?.unsure?.length) { try { const x = await repairNumbers(r, doc); if (x) { r = x.result; fixed = x.fixed; } } catch {} } // wie in der App: Selbstkontrolle
-    return { ms: Date.now() - t0, quickMs, fixed, result: { ...r, letter: facts.letterFacts(text) }, notes: global.__lastNotes };
+    return { ms: Date.now() - t0, quickMs, fixed, gen: lastGen, result: { ...r, letter: facts.letterFacts(text) }, notes: global.__lastNotes };
   },
   // KI-Test: weitere Modelle zum Vergleich anmelden (nur im Test)
   addModel: (key, m) => { BUILTIN_MODELS[key] = { chunkTokens: 1500, genTokens: 2200, minRamGB: 4, sizeLabel: '?', name: key, ...m }; return true; },
