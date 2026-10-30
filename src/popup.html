@@ -172,7 +172,7 @@
   .entry .fold.on { background: var(--line); border-color: transparent; color: var(--text); } .fpick { margin: 4px 0 8px; } .fpick .chip { font-size: 11px; }
   .aiNote .sent { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; color: var(--ok); } .aiNote .sent .icon { width: 11px; height: 11px; } .aiNote .sent.cloud { color: var(--muted); }
   .langpick { margin: 12px 0 2px; } .langpick .h { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
-  .aiNote { font-size: 12px; color: var(--faint); margin: 12px 0 2px; }
+  .aiNote { font-size: 12px; color: var(--faint); margin: 12px 0 2px; } .aiNote .took { white-space: nowrap; }
   .where { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; padding-top: 7px; }
   .where .icon { width: 13px; height: 13px; }
   .where.cloud { color: var(--pink-2); }
@@ -605,6 +605,7 @@
       <div id="details">
         ${more.join('')}
         ${senderLines(r.sender)}
+        ${r.more === 'pending' ? `<div id="morePending"></div>` : ''}
         ${lead.length > 3 ? `<div class="sec"><ul class="lead" data-noi18n>${lead.slice(3).map((b) => `<li>${emphChecked(b)}</li>`).join('')}</ul></div>` : ''}
         ${r.key_points.length ? `<div class="sec"><div class="h">Kernaussagen</div><ul data-noi18n>${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}">${emphChecked(p)}</li>`).join('')}</ul></div>` : ''}
         ${r.findings.length ? `<div class="sec"><div class="h">Erkenntnisse</div>${r.findings.map((f, i) => `<div class="find jump" data-type="finding" data-index="${i}"><span class="k">${esc(f.kind)}</span> <span data-noi18n>${emph(f.title)}</span>${f.detail ? `<div class="d" data-noi18n>${emph(f.detail)}</div>` : ''}</div>`).join('')}</div>` : ''}
@@ -616,12 +617,15 @@
         <div class="sec quick"><button class="link" id="exLater">${silkIcon('bookmark')}${T('Später lesen')}</button><button class="link" id="exPdf">${silkIcon('file')}${T('Als PDF speichern')}</button><button class="link" id="exPrint">${silkIcon('copy')}${T('Drucken')}</button></div>
       </div>
       <div id="answers"></div>
-      <div class="aiNote">${r.checks?.unsure?.length ? `<span>${T('Gestrichelte Zahlen stehen so nicht im Text – bitte prüfen.')}</span> ` : ''}<span>${T('KI-Ergebnis. Beträge und Fristen bitte im Original prüfen.')}</span>${r.sentBytes === 0 ? `<br><span class="sent">${silkIcon('lock')}<span>${T('0 Bytes ins Internet gesendet')}</span></span>` : r.sentBytes ? `<br><span class="sent cloud">${silkIcon('cloud')}<span>${T('{kb} KB an Claude gesendet', { kb: Math.max(1, Math.round(r.sentBytes / 1024)) })}</span></span>` : ''}</div>`;
+      <div class="aiNote">${r.checks?.unsure?.length ? `<span>${T('Gestrichelte Zahlen stehen so nicht im Text – bitte prüfen.')}</span> ` : ''}<span>${T('KI-Ergebnis. Beträge und Fristen bitte im Original prüfen.')}</span>${r.readMs ? ` <span class="took">· ${T('in {s} s gelesen', { s: Math.max(1, Math.round(r.readMs / 1000)) })}</span>` : ''}${r.sentBytes === 0 ? `<br><span class="sent">${silkIcon('lock')}<span>${T('0 Bytes ins Internet gesendet')}</span></span>` : r.sentBytes ? `<br><span class="sent cloud">${silkIcon('cloud')}<span>${T('{kb} KB an Claude gesendet', { kb: Math.max(1, Math.round(r.sentBytes / 1024)) })}</span></span>` : ''}</div>`;
     $('moreBtn').addEventListener('click', () => {
       const open = $('details').classList.toggle('open');
       $('moreBtn').textContent = open ? T('Weniger anzeigen') : moreLabel;
       $('moreBtn').setAttribute('aria-expanded', String(open));
+      if (open && result.more === 'pending') loadMore();
     });
+    const reopen = P.openMore;
+    if (reopen) { P.openMore = false; $('moreBtn').click(); }
     $('main').querySelectorAll('.jump').forEach((row) => row.addEventListener('click', () =>
       toggleLupe(row, { type: row.dataset.type, index: Number(row.dataset.index) })));
     const addCal = async (btn, d) => {
@@ -648,7 +652,28 @@
     $('lPro')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); proView('letter'); });
     wireFeedback();
     $('sAll')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); notebook(null, r.sender.name); });
-    showQuestion(r).then((asked) => { if (asked) return maybeAskReview(); return maybeAskReview().then((rev) => { if (!rev) maybeTip(); }); });
+    if (!reopen) showQuestion(r).then((asked) => { if (asked) return maybeAskReview(); return maybeAskReview().then((rev) => { if (!rev) maybeTip(); }); });
+  }
+
+  // Zweite Stufe: Details erst schreiben lassen, wenn jemand „Mehr“ öffnet
+  let moreRun = 0;
+  async function loadMore() {
+    const box = $('morePending'); if (!box || box.dataset.busy) return;
+    box.dataset.busy = '1';
+    const my = ++moreRun, at = run;
+    box.innerHTML = weave(T('Die Spinne liest die Details …'));
+    const res = await window.spider.analyzeMore(P.doc, result);
+    if (my !== moreRun || at !== run || state !== 'done') return;
+    if (!res.ok) { box.innerHTML = `<p class="error">${esc(res.error)}</p>`; delete box.dataset.busy; return; }
+    const keep = { readMs: result.readMs, sentBytes: result.sentBytes };
+    result = { ...res.result, ...keep };
+    P.result = result;
+    const y = $('main').scrollTop;
+    const keepNodes = ['askBack', 'answers'].map((id) => $(id)); // offene Frage der Spinne und Antworten bleiben stehen
+    P.openMore = true;
+    showResult();
+    keepNodes.forEach((n) => { if (n) $(n.id)?.replaceWith(n); });
+    $('main').scrollTop = y;
   }
 
   // ---------- Tipps nach und nach (je einer, jeder nur einmal) ----------

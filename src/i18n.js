@@ -47,6 +47,7 @@
     'Mehr aus dem Text': 'More from the text', 'Weniger anzeigen': 'Show less',
     'Mehr aus dem Brief': 'More from the letter',
     'KI-Ergebnis. Beträge und Fristen bitte im Original prüfen.': 'AI result. Please check amounts and deadlines in the original.',
+    'in {s} s gelesen': 'read in {s} s', 'Die Spinne liest die Details …': 'The spider is reading the details …', 'Schreibt, was zu tun ist …': 'Writing what to do …', 'Liest die Details …': 'Reading the details …',
     'Im Kalender geöffnet': 'Opened in calendar',
     'Hallo! Schön, dass du da bist.': 'Hello! Nice to see you.', 'Ich bin Silkreader, eine kleine Spinne. Ich lese deine Briefe hier auf dem PC und erkläre sie dir.': 'I am Silkreader, a little spider. I read your letters right here on your PC and explain them to you.',
     'Gern geschehen!': "You're welcome!", '42. Aber frag mich lieber etwas zu deinem Text.': '42. But better ask me something about your text.', 'Fliegen? Lieber Briefe. Und dich mag ich sowieso.': 'Flies? I prefer letters. And I like you anyway.',

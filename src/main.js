@@ -1474,7 +1474,9 @@ async function analyze(doc, onProgress) {
   if (process.env.SPIDER_MOCK) {
     const mock = fs.readFileSync(process.env.SPIDER_MOCK, 'utf8');
     for (let i = 0; i < mock.length; i += 200) { await new Promise((r) => setTimeout(r, 120)); onProgress(mock.slice(i, i + 200)); }
-    return JSON.parse(mock);
+    const m = JSON.parse(mock);
+    if (process.env.SILK_MOCK_TWOSTAGE) return { ...m, key_points: [], figures: [], findings: m.findings.filter((f) => f.kind === 'Handlung'), more: 'pending' };
+    return m;
   }
   const s = loadSettings();
   if (s.provider === 'builtin') return analyzeBuiltin(doc, s, onProgress);
@@ -1530,9 +1532,10 @@ let llamaRuntime = null; // { key, llama, model, ctx, seq } – bleibt geladen, 
 // lookup = Token aus dem Brieftext vorhersagen (Beträge, IBAN, Zitate werden in Blöcken geschrieben)
 // keep   = Kontext behalten: kein neuer Speicher pro Analyse, gleiche Anweisungen werden nicht neu eingelesen
 // lean   = schlankere Antwort (weniger Angaben, keine wörtlichen Zitate)
-const SPEED = { lookup: true, keep: true, lean: true };
+// twoStage = erst nur Stichpunkte und Aufgabe, die Details schreibt die KI, wenn jemand „Mehr“ öffnet
+const SPEED = { lookup: true, keep: true, lean: true, twoStage: true };
 let lastGen = null; // Messwerte der letzten Antwort (für den KI-Test)
-const grammarCache = new WeakMap(); // je Schema einmal bauen
+const grammarCache = new WeakMap(); // je KI-Laufzeit und Schema einmal bauen (nach einem Modellwechsel neu)
 let llamaLoading = null;
 let modelDownload = null;
 let modelDownloadCanceled = false;
@@ -1628,6 +1631,13 @@ const LEAN_FIGURE = { type: 'object', additionalProperties: false, required: ['l
 const LEAN_SCHEMA = { ...BUILTIN_SHORT_SCHEMA, properties: { ...BUILTIN_SHORT_SCHEMA.properties,
   key_points: { type: 'array', items: str(130), maxItems: 3 }, figures: { type: 'array', items: LEAN_FIGURE, maxItems: 4 } } };
 const LEAN_SCHEMA_NUMBERS = { ...LEAN_SCHEMA, properties: { ...LEAN_SCHEMA.properties, figures: { type: 'array', items: LEAN_FIGURE, minItems: 2, maxItems: 4 } } };
+// Zwei Stufen: zuerst das, was die Blase oben zeigt – danach (bei „Mehr“) die Details
+const QUICK_SCHEMA = { type: 'object', additionalProperties: false, required: ['title', 'doc_type', 'summary', 'actions'],
+  properties: { title: str(80), doc_type: str(40), summary: BULLETS, actions: { type: 'array', items: str(140), maxItems: 2 } } };
+const DETAIL_SCHEMA = { type: 'object', additionalProperties: false, required: ['key_points', 'figures', 'findings'],
+  properties: { key_points: { type: 'array', items: str(130), maxItems: 3 }, figures: { type: 'array', items: LEAN_FIGURE, maxItems: 4 },
+    findings: { type: 'array', items: FINDING_SCHEMA, maxItems: 3 } } };
+const DETAIL_SCHEMA_NUMBERS = { ...DETAIL_SCHEMA, properties: { ...DETAIL_SCHEMA.properties, figures: { type: 'array', items: LEAN_FIGURE, minItems: 2, maxItems: 4 } } };
 const SHORT_SCHEMA_NUMBERS = { ...BUILTIN_SHORT_SCHEMA, properties: { ...BUILTIN_SHORT_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, minItems: 2, maxItems: 5 } } };
 
 // Ereignis-Sätze (Rücktritt, Kündigung, Frist, Ablauf … mit Datum oder Jahr) aus dem Originaltext, die im Ergebnis
@@ -1709,7 +1719,7 @@ function splitIntoChunks(model, doc, maxTokens) {
   return chunks;
 }
 
-async function analyzeBuiltin(doc, s, onProgress) {
+async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null } = {}) {
   const key = builtinKey(s);
   const info = BUILTIN_MODELS[key];
   if (!modelReady(key)) {
@@ -1743,8 +1753,9 @@ async function analyzeBuiltin(doc, s, onProgress) {
         cur = own = await newSequence(Math.min(need, model.trainContextSize || need));
       }
       const session = new LlamaChatSession({ contextSequence: cur.seq, systemPrompt });
-      let grammar = grammarCache.get(schema);
-      if (!grammar) { grammar = await llama.createGrammarForJsonSchema(schema); grammarCache.set(schema, grammar); }
+      if (!grammarCache.has(llama)) grammarCache.set(llama, new Map());
+      let grammar = grammarCache.get(llama).get(schema);
+      if (!grammar) { grammar = await llama.createGrammarForJsonSchema(schema); grammarCache.get(llama).set(schema, grammar); }
       const t0 = Date.now();
       let firstAt = 0;
       const tap = typeof stream === 'function' ? stream : stream ? (c) => onProgress(c) : null;
@@ -1762,6 +1773,39 @@ async function analyzeBuiltin(doc, s, onProgress) {
 
     // Kurzes Dokument: ein Durchgang. Die Stichpunkte stehen im JSON vorn – sobald sie fertig sind,
     // erscheinen sie als Kurzfassung, während die KI die Details weiterschreibt.
+    const hasNumbers = (t) => /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(t);
+    // Zwei Stufen (kurze Texte): Das Dokument steht vorn – so ist es für die Details schon eingelesen
+    const docFirst = (docText, task) => ['<document>', docText, '</document>', `Titel der Datei: „${doc.title}“.`,
+      ...(factsBlock(doc) ? [factsBlock(doc)] : []), ...(learnHints(doc) ? [learnHints(doc)] : []), '', task].join('\n');
+    if (chunks.length <= 1 && stage === 'more') {
+      const docText = chunks[0]?.text || '';
+      onProgress({ stage: 'Liest die Details …', step: 1, steps: 1 });
+      return ask(docFirst(docText, [
+        'Ergänze jetzt die Details zum Dokument oben.',
+        'Liefere bis zu 3 weitere Kernaussagen (wiederhole nicht die Stichpunkte unten), bis zu 4 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "value" genau so wie im Text) und bis zu 3 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen). Fasse dich kurz.',
+        base?.summary ? `Schon genannt:\n${base.summary}` : '',
+      ].join('\n')), hasNumbers(docText) ? DETAIL_SCHEMA_NUMBERS : DETAIL_SCHEMA, 900, false);
+    }
+    if (chunks.length <= 1 && SPEED.twoStage) {
+      const docText = chunks[0]?.text || '';
+      onProgress({ stage: 'Liest …', step: 1, steps: 1 });
+      let streamed = '', quickSent = false;
+      const r = await ask(docFirst(docText, [
+        'Analysiere das Dokument oben. Liefere Titel, Art und als "summary" das Wichtigste in 3 bis 4 kurzen Stichpunkten.',
+        'Ist es ein Brief, eine Rechnung oder ein Bescheid: Was muss der Empfänger tun? Schreibe das als "actions" (1 bis 2 konkrete Sätze, mit Betrag und Datum). Sonst "actions" leer lassen. Fasse dich kurz.',
+      ].join('\n')), QUICK_SCHEMA, 600, (c) => {
+        onProgress(c);
+        if (quickSent) return;
+        streamed += c;
+        const m = streamed.match(/"summary"\s*:\s*(\[(?:[^\]"]|"(?:[^"\\]|\\.)*")*\])/);
+        if (!m) return;
+        quickSent = true;
+        try { onProgress({ quick: normalizeResult({ title: partialField(streamed, 'title'), summary: JSON.parse(m[1]) }) }); } catch {}
+        onProgress({ stage: 'Schreibt, was zu tun ist …', step: 1, steps: 1 });
+      });
+      const out = addEventSentences(normalizeResult({ ...r, findings: (r.actions || []).map((a) => ({ kind: 'Handlung', title: a, detail: '', pages: [1] })) }), doc.pages.join('\n'));
+      return { ...out, more: 'pending' };
+    }
     if (chunks.length <= 1) {
       const docText = chunks[0]?.text || '';
       onProgress({ stage: 'Liest …', step: 1, steps: 1 });
@@ -2792,6 +2836,7 @@ ipcMain.handle('learn-import', async (e) => {
 });
 
 async function analyzeHandler(event, doc) {
+  const t0 = Date.now();
   try {
     bubbleWin?.webContents.send('rig-task', 'read');
     setBusy(true);
@@ -2843,6 +2888,7 @@ async function analyzeHandler(event, doc) {
     // Wie viel ging dabei ins Internet? Eingebautes Modell und Ollama (lokal): nichts. Claude: der Text selbst.
     const prov = loadSettings().provider;
     result.sentBytes = prov === 'claude' && !process.env.SPIDER_MOCK ? Buffer.byteLength(doc.pages.join('\n'), 'utf8') : 0;
+    result.readMs = cached ? 0 : Date.now() - t0;
     try { addHistory(doc, result); updateDeadlineBadge(); } catch (e) { console.error('Notizbuch:', e); }
     try { if (learnOn()) learner().observe(doc.pages.join('\n'), facts.letterFacts(doc.pages.join('\n'))); } catch (e) { logLine(`Lernen: ${e.message}`); }
     countSuccess();
@@ -2856,6 +2902,41 @@ async function analyzeHandler(event, doc) {
   }
 }
 ipcMain.handle('analyze', (event, doc) => analyzeHandler(event, doc));
+
+// Zweite Stufe: Details (Kernaussagen, Angaben, Erkenntnisse) erst, wenn jemand „Mehr aus dem Brief“ öffnet
+async function analyzeMore(doc, base, onProgress = () => {}) {
+  let d;
+  if (process.env.SPIDER_MOCK) {
+    await new Promise((r) => setTimeout(r, 300));
+    d = JSON.parse(fs.readFileSync(process.env.SPIDER_MOCK, 'utf8'));
+    d.findings = d.findings.filter((f) => f.kind !== 'Handlung');
+  } else d = await analyzeBuiltin(doc, loadSettings(), onProgress, { stage: 'more', base });
+  const add = normalizeResult(d);
+  const text = doc.pages.join('\n');
+  return facts.verifyResult({ ...base, key_points: add.key_points, figures: add.figures, findings: [...(base.findings || []), ...add.findings], more: null }, text);
+}
+ipcMain.handle('analyze-more', async (event, doc, base) => {
+  const t0 = Date.now();
+  try {
+    setBusy(true);
+    analysisRunning++;
+    const result = await analyzeMore(doc, base, (c) => { if (c && typeof c === 'object' && c.stage) event.sender.send('progress', { stage: c }); });
+    result.moreMs = Date.now() - t0;
+    // Im Notizbuch nachtragen, damit die Details beim nächsten Öffnen schon da sind
+    try {
+      const list = loadHistory(); const key = doc.pages.join('\n\n').slice(0, 200000);
+      const h = list.find((x) => x.text === key);
+      if (h) { Object.assign(h.result, { key_points: result.key_points, figures: result.figures, findings: result.findings, checks: result.checks, more: null }); fs.writeFileSync(historyFile(), JSON.stringify(list)); }
+    } catch (e) { logLine(`Notizbuch (Details): ${e.message}`); }
+    return { ok: true, result };
+  } catch (e) {
+    return { ok: false, error: friendlyError(e) };
+  } finally {
+    analysisRunning--;
+    lastModelUse = Date.now();
+    setBusy(false);
+  }
+});
 
 ipcMain.handle('open-file', (_e, p) => openFile(p));
 ipcMain.handle('pick-file', () => pickFile());
@@ -3315,7 +3396,11 @@ if (TESTING) global.__silk = { askPaid, watchCrashes, ocrText: (f) => recognizeT
     let r = facts.verifyResult(result, text);
     let fixed = 0;
     if (r.checks?.unsure?.length) { try { const x = await repairNumbers(r, doc); if (x) { r = x.result; fixed = x.fixed; } } catch {} } // wie in der App: Selbstkontrolle
-    return { ms: Date.now() - t0, quickMs, fixed, gen: lastGen, result: { ...r, letter: facts.letterFacts(text) }, notes: global.__lastNotes };
+    // Zwei Stufen: „ms“ = bis das Ergebnis oben steht; die Details (bei „Mehr“) werden extra gemessen
+    const ms = Date.now() - t0, gen = lastGen;
+    let moreMs = null, moreGen = null;
+    if (r.more === 'pending') { const t1 = Date.now(); try { r = await analyzeMore(doc, r); moreMs = Date.now() - t1; moreGen = lastGen; } catch (e) { r.moreError = String(e.message || e); } }
+    return { ms, quickMs, moreMs, moreGen, fixed, gen, result: { ...r, letter: facts.letterFacts(text) }, notes: global.__lastNotes };
   },
   // KI-Test: weitere Modelle zum Vergleich anmelden (nur im Test)
   addModel: (key, m) => { BUILTIN_MODELS[key] = { chunkTokens: 1500, genTokens: 2200, minRamGB: 4, sizeLabel: '?', name: key, ...m }; return true; },

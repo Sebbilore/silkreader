@@ -44,6 +44,7 @@ contextBridge.exposeInMainWorld('spider', {
   askFolder: (doc) => ipcRenderer.invoke('ask-folder', doc),
   learnThumbs: (good) => ipcRenderer.invoke('learn-thumbs', good),
   analyzeQuality: (doc) => ipcRenderer.invoke('analyze-quality', doc),
+  analyzeMore: (doc, base) => ipcRenderer.invoke('analyze-more', doc, base),
   learnFeedback: (good) => ipcRenderer.invoke('learn-feedback', good),
   learnList: () => ipcRenderer.invoke('learn-list'),
   learnForget: (what, id) => ipcRenderer.invoke('learn-forget', what, id),
