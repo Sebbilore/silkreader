@@ -63,12 +63,18 @@ function checkCode(code, now = Date.now()) {
   if (until && until.getTime() < now) return { ok: false, error: `Dieser Code ist am ${until.toLocaleDateString('de-DE')} abgelaufen.`, until };
   return { ok: true, id: data.readUInt32BE(2), until };
 }
+// Schlüssel so annehmen, wie er eingefügt wurde: mit oder ohne Zeilenumbrüche, mit Leerzeichen/Anführungszeichen
+// oder nur der Mittelteil (Base64) – daraus wieder eine saubere PEM-Datei machen
+function normalizePem(text) {
+  const body = String(text).replace(/-----(BEGIN|END)[^-]*-----/g, '').replace(/[^A-Za-z0-9+/=]/g, '');
+  return `-----BEGIN PRIVATE KEY-----\n${body.match(/.{1,64}/g).join('\n')}\n-----END PRIVATE KEY-----\n`;
+}
 /** Code erzeugen (nur mit privatem Schlüssel, z. B. im GitHub-Workflow) */
 function makeCode(privateKeyPem, { id = crypto.randomBytes(4).readUInt32BE(0), months = 0 } = {}) {
   const data = Buffer.alloc(8);
   data[0] = 1; data[1] = 1; data.writeUInt32BE(id >>> 0, 2);
   if (months) { const d = new Date(); d.setMonth(d.getMonth() + months); data.writeUInt16BE(Math.ceil((d.getTime() - EPOCH) / 864e5), 6); }
-  const sig = crypto.sign(null, data, crypto.createPrivateKey(privateKeyPem));
+  const sig = crypto.sign(null, data, crypto.createPrivateKey(normalizePem(privateKeyPem)));
   return group(b32encode(Buffer.concat([data, sig])));
 }
 
