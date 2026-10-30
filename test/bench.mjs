@@ -12,6 +12,9 @@ const { _electron: electron } = require(process.env.PW_MODULE || 'playwright-cor
 const electronPath = require('electron');
 const enc = (t) => String(t).replace(/%/g, '%25').replace(/\r/g, '').replace(/\n/g, '%0A').replace(/::/g, ': :');
 const out = path.resolve(process.argv[2] || 'bench');
+const crashed = (e) => { console.log(`::error title=KI-Test abgestürzt::${enc(e?.stack || e)}`); process.exit(1); };
+process.on('uncaughtException', crashed);
+process.on('unhandledRejection', crashed);
 fs.mkdirSync(out, { recursive: true });
 
 const expect = JSON.parse(fs.readFileSync('test/letters/expect.json', 'utf8'));
@@ -34,11 +37,10 @@ const SPEEDS = { alles: { lookup: true, keep: true, lean: true, twoStage: true, 
   'eine-stufe': { lookup: true, keep: true, lean: true, twoStage: false, draft: false },
   entwurf: { lookup: false, keep: true, lean: true, twoStage: true, draft: true },
   // Runde 2: Standard ist jetzt kompaktes JSON; Vergleich mit dem bisherigen Stand und weiteren Schaltern
-  jetzt: { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: 0, short: true, guidesUp: false },
+  jetzt: { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: 0, short: true },
   'v1.23': { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: false, threads: 0, short: false },
   kerne: { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: -1, short: false },
   kurz: { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: 0, short: true },
-  'anleitungen-vorn': { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: 0, short: true, guidesUp: true },
   'kurz-kerne': { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: -1, short: true } };
 const variants = (process.env.BENCH_SPEED || 'alles').split(',').map((x) => x.trim()).filter((x) => SPEEDS[x]);
 const keys = [...(process.env.BENCH_MODELS || 'fast,quality').split(',').map((x) => x.trim()).filter(Boolean), ...extra.map((m) => m.key)];

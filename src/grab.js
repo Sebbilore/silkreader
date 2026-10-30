@@ -123,7 +123,7 @@ public static class SilkText {
 # Texterkennung im laufenden Helfer: spart den Start einer eigenen PowerShell (1–3 s) pro Foto oder Bereich.
 # Die Windows-Bibliotheken werden beim ersten Mal geladen und bleiben geladen.
 $ocrReady = $false
-function SilkOcr([string]$path) {
+function SilkOcrInit() {
   if (-not $script:ocrReady) {
     Add-Type -AssemblyName System.Runtime.WindowsRuntime
     $script:asTask = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation\`1' })[0]
@@ -133,6 +133,9 @@ function SilkOcr([string]$path) {
     $script:ocrEngine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
     $script:ocrReady = $true
   }
+}
+function SilkOcr([string]$path) {
+  SilkOcrInit
   $aw = { param($op, [Type]$type) $t = $script:asTask.MakeGenericMethod($type).Invoke($null, @($op)); $t.Wait(-1) | Out-Null; $t.Result }
   $file = & $aw ([Windows.Storage.StorageFile]::GetFileFromPathAsync($path)) ([Windows.Storage.StorageFile])
   $stream = & $aw ($file.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
@@ -156,6 +159,7 @@ while ($true) {
     elseif ($line -eq 'seq') { [Console]::Out.WriteLine([SilkKeys]::Seq()) }
     elseif ($line -eq 'files') { $l = [System.Windows.Forms.Clipboard]::GetFileDropList(); [Console]::Out.WriteLine((@($l) -join '|')) }
     elseif ($line -eq 'rects') { if ($uia) { [Console]::Out.WriteLine([SilkText]::Selection(160)) } else { [Console]::Out.WriteLine('{}') } }
+    elseif ($line -eq 'ocrwarm') { SilkOcrInit; [Console]::Out.WriteLine('ok') }
     elseif ($line.StartsWith('ocr ')) { [Console]::Out.WriteLine((SilkOcr ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($line.Substring(4)))))) }
     elseif ($line -eq 'btn') { if ([SilkKeys]::LeftDown()) { [Console]::Out.WriteLine('down') } else { [Console]::Out.WriteLine('up') } }
     else { [Console]::Out.WriteLine('ok') }
@@ -387,4 +391,7 @@ async function helperOcr(file, timeoutMs = 30000) {
   try { return Buffer.from(r.slice(1), 'base64').toString('utf8').trim(); } catch { return null; }
 }
 
-module.exports = { helperOcr, setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable: () => process.platform === 'win32' && (!!winkeys.load() || !!helper?.ready) };
+/** Texterkennung vorbereiten (Bibliotheken laden), wenn sie gleich gebraucht wird – Bereich wählen, Kamera */
+function warmOcr() { if (process.platform === 'win32' && helper?.ready) helperCommand('ocrwarm', 10000); }
+
+module.exports = { helperOcr, warmOcr, setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable: () => process.platform === 'win32' && (!!winkeys.load() || !!helper?.ready) };

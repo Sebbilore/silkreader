@@ -32,7 +32,7 @@ function uiLang() {
   if (TESTING) return 'de'; // automatische Tests laufen auf Deutsch
   try { return app.getLocale().toLowerCase().startsWith('de') ? 'de' : 'en'; } catch { return 'de'; }
 }
-const { setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
+const { warmOcr, setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
 const { CocoonStore } = require('./cocoons');
 const { scanSelection } = require('./selectionScan');
 const { recognizeText: ocrText, recognizeTextSpawn, recognizePdf } = require('./ocr');
@@ -935,6 +935,7 @@ async function readFileDoc(filePath) {
 // ---------- Bildschirmbereich lesen (Texterkennung) ----------
 async function regionCapture() {
   if (!pro.allowed('ocr')) return showPopupPayload({ kind: 'pro', feature: 'ocr' });
+  warmOcr(); // während man den Bereich wählt, lädt die Texterkennung schon
   const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
   const sf = display.scaleFactor || 1;
   // Erst das Bildschirmfoto (noch ohne Abdunklung), dann den Bereich wählen lassen
@@ -1207,6 +1208,7 @@ let cameraWin = null;
 function openCamera() {
   if (!pro.allowed('ocr')) return showPopupPayload({ kind: 'pro', feature: 'ocr' });
   if (cameraWin && !cameraWin.isDestroyed()) { cameraWin.focus(); return; }
+  warmOcr(); // während man fotografiert, lädt die Texterkennung schon
   cameraWin = new BrowserWindow({
     width: 900, height: 680, title: T('Brief fotografieren'), backgroundColor: winBg(), autoHideMenuBar: true,
     webPreferences: WEB_PREFS,
@@ -1466,8 +1468,7 @@ function factsBlock(doc) {
       if (C.cancelBy) f.push(`Kündigen spätestens: ${day(C.cancelBy)}`);
       if (C.end) f.push(`Vertragsende: ${day(C.end)}`);
     }
-    // guidesUp: die Anleitungen stehen fest vorn in den Aufgaben (zwei Stufen) – hier dann nicht noch einmal
-    const guide = SPEED.guidesUp && SPEED.twoStage ? '' : KIND_GUIDE[C && (!L || ['vertrag', 'kuendigung'].includes(L.kind)) ? 'vertrag' : L?.kind] || '';
+    const guide = KIND_GUIDE[C && (!L || ['vertrag', 'kuendigung'].includes(L.kind)) ? 'vertrag' : L?.kind] || '';
     return [guide, `Geprüfte Fakten (sicher aus dem Text, genau so verwenden – erfinde keine anderen Beträge oder Daten): ${f.join('; ')}.`,
       'Nenne Betrag und Frist (mit Datum) aus diesen Fakten in den Stichpunkten und als Handlung.'].filter(Boolean).join('\n');
   } catch { return ''; }
@@ -1570,7 +1571,7 @@ let llamaRuntime = null; // { key, llama, model, ctx, seq } – bleibt geladen, 
 // twoStage = erst nur Stichpunkte und Aufgabe, die Details schreibt die KI, wenn jemand „Mehr“ öffnet
 // compact = JSON ohne Zeilenumbrüche/Einrückung (weniger Token zu schreiben); threads = Zahl der Rechen-Threads (0 = Standard)
 // short = genau 3 Stichpunkte (oben stehen ohnehin 3)
-const SPEED = { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: 0, short: true, guidesUp: false }; // lookup + draft: im KI-Test auf dem Prozessor langsamer – aus
+const SPEED = { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: 0, short: true }; // lookup + draft: im KI-Test auf dem Prozessor langsamer – aus
 let lastGen = null; // Messwerte der letzten Antwort (für den KI-Test)
 const grammarCache = new WeakMap(); // je KI-Laufzeit und Schema einmal bauen (nach einem Modellwechsel neu)
 // JSON-Grammatik: node-llama-cpp erlaubt nach jedem Element Zeilenumbruch + Einrückung – das Modell schreibt dann
@@ -1735,8 +1736,6 @@ const LEAN_SCHEMA = { ...BUILTIN_SHORT_SCHEMA, properties: { ...BUILTIN_SHORT_SC
   key_points: { type: 'array', items: str(130), maxItems: 3 }, figures: { type: 'array', items: LEAN_FIGURE, maxItems: 4 } } };
 const LEAN_SCHEMA_NUMBERS = { ...LEAN_SCHEMA, properties: { ...LEAN_SCHEMA.properties, figures: { type: 'array', items: LEAN_FIGURE, minItems: 2, maxItems: 4 } } };
 // Zwei Stufen: zuerst das, was die Blase oben zeigt – danach (bei „Mehr“) die Details
-// Alle Briefart-Anleitungen auf einmal (stehen vorn und werden von Brief zu Brief wiederverwendet)
-const GUIDES_UP = `Je nach Art (siehe „Art“ in den Fakten):\n${Object.values(KIND_GUIDE).map((g) => `- ${g}`).join('\n')}`;
 const TWO_STAGE_TASKS = [
   'Du bekommst unten ein Dokument (oft einen Brief, eine Rechnung oder einen Bescheid). Zahlen, Beträge und Daten immer genau so wie im Text.',
   'Aufgabe 1: Als "summary" das Wichtigste in 3 bis 4 kurzen Stichpunkten. Als "actions": Was muss der Empfänger tun? 1 bis 2 konkrete Sätze mit Betrag und Datum – ist nichts zu tun, leer lassen. Dazu Titel und Art des Dokuments.',
@@ -1916,7 +1915,7 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
     const hasNumbers = (t) => /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(t);
     // Zwei Stufen (kurze Texte): Feste Aufgaben vorn (bleiben von Brief zu Brief eingelesen), dann das Dokument
     // (bleibt für die Details eingelesen), zum Schluss nur noch, welche Aufgabe jetzt dran ist.
-    const docFirst = (docText, task) => [TWO_STAGE_TASKS, ...(SPEED.guidesUp ? [GUIDES_UP] : []), '', '<document>', docText, '</document>', `Titel der Datei: „${doc.title}“.`,
+    const docFirst = (docText, task) => [TWO_STAGE_TASKS, '', '<document>', docText, '</document>', `Titel der Datei: „${doc.title}“.`,
       ...(factsBlock(doc) ? [factsBlock(doc)] : []), ...(learnHints(doc) ? [learnHints(doc)] : []), '', task].join('\n');
     if (chunks.length <= 1 && stage === 'more') {
       const docText = chunks[0]?.text || '';
