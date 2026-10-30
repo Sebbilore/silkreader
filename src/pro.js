@@ -111,7 +111,9 @@ async function refresh(settings, { psEnv, log = () => {}, store = true } = {}) {
   }
   return status();
 }
-const active = () => !ENABLED || !!state.code || state.store || !!process.env.SILK_PRO;
+// SILK_PRO schaltet Pro nur für die Tests frei – nie in der installierten App
+const testPro = () => { if (!process.env.SILK_PRO) return false; try { return !require('electron').app?.isPackaged; } catch { return true; } };
+const active = () => !ENABLED || !!state.code || state.store || testPro();
 /** Darf diese Funktion benutzt werden? */
 function allowed(feature) {
   if (!FEATURES[feature]) return true;
