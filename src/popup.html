@@ -127,7 +127,7 @@
   .lead1 { margin: 2px 0 10px; } .mlist { display: flex; flex-direction: column; gap: 2px; } .mrow { display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px; background: var(--card); font-size: 13px; }
   .mrow:first-child { border-radius: var(--r-m) var(--r-m) 0 0; } .mrow:last-child { border-radius: 0 0 var(--r-m) var(--r-m); } .mrow:only-child { border-radius: var(--r-m); } .mrow b { font-weight: 600; white-space: nowrap; } .mrow.soon b { color: var(--warn); } .small1 { font-size: 12px; margin-top: 10px; }
   .alldone { display: flex; flex-direction: column; gap: 2px; padding: 14px; border-radius: var(--r-l); background: var(--pink-soft); } .alldone b { font-size: 16px; font-weight: 600; }
-  .bm { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; } .bm > span { flex: 1; min-width: 0; } .bm .icon { width: 15px; height: 15px; color: var(--pink); flex: none; } .bm .x { width: 26px; height: 26px; }
+  .bm { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; } .bm > span { flex: 1; min-width: 0; } .bm .icon { width: 15px; height: 15px; color: var(--pink); flex: none; } .bm .x { width: 26px; height: 26px; } .mytop { margin-bottom: 8px; } .mytop .bm { cursor: pointer; border-radius: var(--r-s); padding: 6px 4px; } .mytop .bm:hover { background: var(--hover, color-mix(in srgb, var(--ink) 6%, transparent)); } .bm.soon b { color: var(--pink); }
   .readalong { margin: 0 0 12px; padding: 12px 12px 8px; border-radius: var(--r-l); background: var(--card); }
   .readalong .rtext { font-size: 15.5px; line-height: 1.7; max-height: 170px; overflow: auto; } .readalong .rtext span.now { background: var(--pink); color: #1b1b1b; border-radius: 3px; box-shadow: 0 0 0 2px var(--pink); }
   .readalong .rbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; } .rprog { flex: 1; height: 4px; border-radius: 2px; background: var(--line-2); overflow: hidden; } .rprog i { display: block; height: 100%; width: 0; background: var(--pink); transition: width .2s; }
@@ -325,7 +325,7 @@
     const t = n < 0 ? T('abgelaufen') : n === 0 ? T('heute') : n === 1 ? T('morgen') : T('noch {n} Tage', { n });
     return `<span class="days${n > 14 ? ' calm' : ''}">${t}</span>`;
   }
-  function letterCard(L, r) {
+  function letterCard(L, r, more = []) {
     const day = (d) => new Date(`${d.iso}T00:00:00`).toLocaleDateString(I18N.locale); // aus dem Notizbuch kommt das Datum als Text
     const due = L.deadlines[0];
     const pay = L.amount && (L.iban || /rechnung|mahnung/.test(L.kind) || /nachzahlung|zu zahlen|offen|forderung/.test(L.amount.label));
@@ -354,6 +354,9 @@
     }
     const bigIdx = bigDate ? L.deadlines.indexOf(bigDate) : -1;
     const CQ = L.consequences;
+    // Für „Mehr aus dem Brief“: Was passiert, wenn ich nichts tue? und die Zahlungsdaten
+    if (CQ) more.push(`<details class="whatif"><summary>${silkIcon('info')}<span>${T('Was passiert, wenn ich nichts tue?')}</span></summary><ol>${CQ.steps.map((x) => `<li>${esc(T(x))}</li>`).join('')}</ol>${CQ.tip ? `<p class="muted">${esc(T(CQ.tip))}</p>` : ''}</details>`);
+    if (kv.length) more.push(`<details class="paydata"><summary><span>${T('Zahlungsdaten')}</span><span class="muted">${esc(kv.slice(0, 2).map(([k]) => k).join(', '))}</span></summary><div class="kv">${kv.map(([k, v, x]) => `<span>${k}</span><span>${v}</span><span>${x}</span>`).join('')}</div></details>`);
     return `<div class="letter rise">
       <div class="lh"><b>${T(L.label)}</b><span>${T('Was du tun musst')}</span></div>
       ${big ? `<div class="bigrow"><div class="big">${esc(big)}</div><button class="x say" id="lSay" title="${T('Vorlesen')}" aria-label="${T('Vorlesen')}">${silkIcon('speak')}</button></div>` : ''}
@@ -361,9 +364,6 @@
       ${todo.length || actions.length ? `<ul class="todo">${todo.map((t) => `<li><span>${esc(t)}</span></li>`).join('')}${actions.map((t) => `<li data-noi18n><span>${emphChecked(t)}</span></li>`).join('')}</ul>` : ''}
       ${S ? sigNote(S) : ''}
       <div class="btnrow">${bigIdx >= 0 ? `<button class="btn primary" data-ldl="${bigIdx}">${T('In den Kalender')}</button>` : ''}${replyButton([...(L.canObject ? ['objection'] : []), ...(L.amount ? ['installments'] : []), 'extension', 'question'], L)}</div>
-      ${CQ ? `<details class="whatif"><summary>${silkIcon('info')}<span>${T('Was passiert, wenn ich nichts tue?')}</span></summary><ol>${CQ.steps.map((x) => `<li>${esc(T(x))}</li>`).join('')}</ol>${CQ.tip ? `<p class="muted">${esc(T(CQ.tip))}</p>` : ''}</details>` : ''}
-      ${(r.learned || []).length ? `<div class="learned">${silkIcon('pro')}<span>${T('Gelernt:')} ${r.learned.map((x) => esc(T(x))).join(' ')}</span></div>` : ''}
-      ${kv.length ? `<details class="paydata"><summary><span>${T('Zahlungsdaten')}</span><span class="muted">${esc(kv.slice(0, 2).map(([k]) => k).join(', '))}</span></summary><div class="kv">${kv.map(([k, v, x]) => `<span>${k}</span><span>${v}</span><span>${x}</span>`).join('')}</div></details>` : ''}
     </div>`;
   }
   // ---------- Antwort-Vorlagen (Pro) ----------
@@ -384,7 +384,8 @@
     parcel: 'Ein Paket soll erst nach einer kleinen Gebühr zugestellt werden – eine bekannte Masche.', prize: 'Für einen Gewinn oder eine Erbschaft soll vorher gezahlt werden.' };
   const scamCard = (X) => `<div class="scam rise" role="alert">${silkIcon('warn')}<div><b class="st">${T('Vorsicht: Das wirkt nicht echt')}</b>
     <div>${T('Ich habe typische Merkmale von Betrug gefunden:')}</div><ul>${X.reasons.map((x) => `<li>${esc(T(SCAM[x.id] || x.text, { c: x.country || '' }))}</li>`).join('')}</ul>
-    <p><b>${T('Mein Rat:')}</b> ${T('Nichts bezahlen und auf keinen Link klicken. Ruf den Absender über die Nummer auf seiner echten Webseite an.')}</p></div></div>`;
+    <p><b>${T('Mein Rat:')}</b> ${T('Nichts bezahlen und auf keinen Link klicken. Ruf den Absender über die Nummer auf seiner echten Webseite an.')}</p>
+    <details class="whatif"><summary>${silkIcon('info')}<span>${T('So prüfst du, ob der Brief echt ist')}</span></summary><ol>${SCAM_HELP.map((x) => `<li>${esc(T(x))}</li>`).join('')}</ol></details></div></div>`;
   // Absender und Vergleich mit früheren Briefen (aus dem lokalen Lernen)
   function senderLines(X) {
     if (!X || (X.nth < 2 && !X.trend)) return '';
@@ -408,14 +409,9 @@
     const text = P.doc.pages.join('\n');
     const dueSoon = (iso, days) => iso && (new Date(`${iso}T00:00:00`) - Date.now()) / 864e5 <= days;
     const Q = [];
-    if (r.scam) Q.push({ id: 'scam', text: T('Soll ich dir zeigen, wie du den echten Absender erreichst?'), yes: T('Zeigen'), no: T('Nein'), run: () => answerBox(T('So prüfst du, ob der Brief echt ist'), SCAM_HELP.map(T)) });
     if (L?.canObject && L.deadlines.length) Q.push({ id: 'objection', text: T('Bist du einverstanden? Wenn nicht, schreibe ich dir einen {w}.', { w: objWord(L) }), yes: T('{w} schreiben', { w: objWord(L, true) }), no: T('Passt so'), run: () => replyToLetter(TEMPLATES.objection(L)[1]) });
     if (r.contract?.cancelBy && !r.contract.cancelPassed && dueSoon(r.contract.cancelBy, 75)) Q.push({ id: 'cancel', text: T('Willst du kündigen? Ich setze die Kündigung für dich auf.'), yes: T('Kündigung schreiben'), no: T('Behalten'), run: () => replyToLetter(TEMPLATES.cancel()[1]) });
     if (L && /rechnung|mahnung/.test(L.kind) && L.deadlines.length) Q.push({ id: 'remind', text: T('Soll ich dich 3 Tage vorher erinnern?'), yes: T('Ja, erinnern'), no: T('Nein'), run: async () => { await window.spider.askRemind(P.doc, true); return T('Ich erinnere dich 3 Tage vorher und am Tag davor ✓'); }, onNo: () => window.spider.askRemind(P.doc, false) });
-    if (r.sender?.trend && r.sender.trend.to > r.sender.trend.from) Q.push({ id: 'trend', text: T('Der Betrag ist um {p} % gestiegen. Soll ich erklären, was du tun kannst?', { p: r.sender.trend.pct.toLocaleString(I18N.locale) }), yes: T('Ja, erklären'), no: T('Nein'), run: () => ask(T('Der Betrag ist von {a} auf {b} gestiegen. Was kann ich tun? Kann ich widersprechen, den Anbieter wechseln oder kündigen?', { a: r.sender.trend.fromText, b: r.sender.trend.toText })) });
-    if (st.explainLang && /[äöüß]|\b(der|die|und|ist|sie)\b/i.test(text) && L) { const n = { tr: 'Türkisch', ar: 'Arabisch', uk: 'Ukrainisch', ru: 'Russisch', pl: 'Polnisch', ro: 'Rumänisch', en: 'Englisch' }[st.explainLang]; if (n) Q.push({ id: 'explain', text: T('Soll ich dir das wieder auf {l} erklären?', { l: T(n) }), yes: T('Auf {l}', { l: T(n) }), no: T('Nein'), run: () => startExplain(st.explainLang) }); }
-    if (st.thumbsDownRun >= 2 && st.quality) Q.push({ id: 'quality', text: T('Soll ich es mit dem gründlichen Modell nochmal versuchen?'), yes: T('Nochmal gründlich'), no: T('Nein'), run: () => analyzeAgain() });
-    if (r.sender?.nth >= 3) Q.push({ id: 'folder', text: T('Soll ich alle Briefe von {s} in eine Mappe legen?', { s: r.sender.name }), yes: T('Mappe anlegen'), no: T('Nein'), run: async () => { const x = await window.spider.askFolder(P.doc); return x.ok ? T('{n} Briefe liegen jetzt in der Mappe „{f}“ ✓', { n: x.n, f: T(x.folder) }) : T('Mappen gibt es mit Silkreader Pro.'); } });
     return Q.find((q) => ok(q.id)) || null;
   }
   function answerBox(title, lines) {
@@ -582,31 +578,39 @@
     const L = r.scam ? null : r.letter || null; // Verdacht auf Betrug: keine „bezahlen“-Karte
     const deadlines = L ? [] : findDeadlines(text); // Briefe zeigen ihre Fristen in der Karte
     const figs = r.figures.slice(0, 8);
+    const more = [];
+    const card = L ? letterCard(L, r, more) : '';
+    const lead = bullets(r.summary);
+    const moreLabel = T(L ? 'Mehr aus dem Brief' : 'Mehr aus dem Text');
     $('main').innerHTML = `
       ${r.scam ? scamCard(r.scam) : ''}
       ${!L && r.signature ? `<div class="letter sigonly rise">${sigNote(r.signature)}</div>` : ''}
-      ${L ? letterCard(L, r) : r.letterLocked ? lockedCard('Brief-Hilfe mit Pro', 'Was du tun musst, bis wann, und die IBAN zum Kopieren.', 'lPro') : ''}
+      ${L ? card : r.letterLocked ? lockedCard('Brief-Hilfe mit Pro', 'Was du tun musst, bis wann, und die IBAN zum Kopieren.', 'lPro') : ''}
       ${r.contract ? contractCard(r.contract) : r.contractLocked ? lockedCard('Vertrags-Check mit Pro', 'Kündigen bis wann, Verlängerung und eine Erinnerung, bevor es zu spät ist.', 'cPro') : ''}
-      ${senderLines(r.sender)}
       <div id="askBack"></div>
       ${L || r.contract ? `<div class="h2">${T('Worum es geht')}</div>` : ''}
-      <ul class="lead" data-noi18n>${bullets(r.summary).map((b) => `<li>${emphChecked(b)}</li>`).join('')}</ul>
+      <ul class="lead" data-noi18n>${lead.slice(0, 3).map((b) => `<li>${emphChecked(b)}</li>`).join('')}</ul>
       ${deadlines.map((d, i) => `<div class="dl">${silkIcon('calendar')}<span class="when">${d.date.toLocaleDateString(I18N.locale)}</span><span class="what" data-noi18n title="${esc(d.sentence)}">${esc(d.sentence)}</span><button class="link" data-dl="${i}">${T('In den Kalender')}</button></div>`).join('')}
-      <button class="more" id="moreBtn">${T('Mehr aus dem Text')}</button>
+      <button class="more" id="moreBtn" aria-expanded="false">${moreLabel}</button>
       <div id="details">
+        ${more.join('')}
+        ${senderLines(r.sender)}
+        ${lead.length > 3 ? `<div class="sec"><ul class="lead" data-noi18n>${lead.slice(3).map((b) => `<li>${emphChecked(b)}</li>`).join('')}</ul></div>` : ''}
         ${r.key_points.length ? `<div class="sec"><div class="h">Kernaussagen</div><ul data-noi18n>${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}">${emphChecked(p)}</li>`).join('')}</ul></div>` : ''}
         ${r.findings.length ? `<div class="sec"><div class="h">Erkenntnisse</div>${r.findings.map((f, i) => `<div class="find jump" data-type="finding" data-index="${i}"><span class="k">${esc(f.kind)}</span> <span data-noi18n>${emph(f.title)}</span>${f.detail ? `<div class="d" data-noi18n>${emph(f.detail)}</div>` : ''}</div>`).join('')}</div>` : ''}
         ${figs.length ? `<div class="sec"><div class="h">Angaben</div><div class="figs" data-noi18n>${figs.map((f, i) => `<span class="jump" data-type="figure" data-index="${i}">${esc(f.label)}</span><span><b>${esc(f.value)}</b>${ck(f)}</span>`).join('')}</div></div>` : ''}
         ${r.note ? `<div class="sec muted" data-noi18n>${esc(r.note)}</div>` : ''}
-        <div class="sec quick"><button class="link" id="exPdf">${silkIcon('file')}${T('Als PDF speichern')}</button><button class="link" id="exPrint">${silkIcon('copy')}${T('Drucken')}</button></div>
+        ${checkNote(r)}
+        ${(r.learned || []).length ? `<div class="learned">${silkIcon('pro')}<span>${T('Gelernt:')} ${r.learned.map((x) => esc(T(x))).join(' ')}</span></div>` : ''}
+        ${feedbackRow()}
+        <div class="sec quick"><button class="link" id="exLater">${silkIcon('bookmark')}${T('Später lesen')}</button><button class="link" id="exPdf">${silkIcon('file')}${T('Als PDF speichern')}</button><button class="link" id="exPrint">${silkIcon('copy')}${T('Drucken')}</button></div>
       </div>
       <div id="answers"></div>
-      ${feedbackRow()}
-      ${checkNote(r)}
       <div class="aiNote">${r.checks?.unsure?.length ? `<span>${T('Gestrichelte Zahlen stehen so nicht im Text – bitte prüfen.')}</span> ` : ''}<span>${T('KI-Ergebnis. Beträge und Fristen bitte im Original prüfen.')}</span>${r.sentBytes === 0 ? `<br><span class="sent">${silkIcon('lock')}<span>${T('0 Bytes ins Internet gesendet')}</span></span>` : r.sentBytes ? `<br><span class="sent cloud">${silkIcon('cloud')}<span>${T('{kb} KB an Claude gesendet', { kb: Math.max(1, Math.round(r.sentBytes / 1024)) })}</span></span>` : ''}</div>`;
     $('moreBtn').addEventListener('click', () => {
       const open = $('details').classList.toggle('open');
-      $('moreBtn').textContent = open ? T('Weniger anzeigen') : T('Mehr aus dem Text');
+      $('moreBtn').textContent = open ? T('Weniger anzeigen') : moreLabel;
+      $('moreBtn').setAttribute('aria-expanded', String(open));
     });
     $('main').querySelectorAll('.jump').forEach((row) => row.addEventListener('click', () =>
       toggleLupe(row, { type: row.dataset.type, index: Number(row.dataset.index) })));
@@ -630,6 +634,7 @@
     $('lExplain')?.addEventListener('click', explainPicker);
     $('exPdf')?.addEventListener('click', async (e) => { const ok = await window.spider.exportResult(P.doc, result, 'pdf'); if (ok) e.target.closest('button').lastChild.textContent = T('Gespeichert'); });
     $('exPrint')?.addEventListener('click', () => window.spider.exportResult(P.doc, result, 'print'));
+    $('exLater')?.addEventListener('click', laterPicker);
     $('lPro')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); proView('letter'); });
     wireFeedback();
     $('sAll')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); notebook(null, r.sender.name); });
@@ -920,7 +925,7 @@
     });
     $('qRegion').addEventListener('click', () => window.spider.regionCapture());
     $('qCam').addEventListener('click', () => window.spider.openCamera());
-    footer({ visible: 2, actions: [['Notizbuch', () => { setBack(home); notebook(); }], ['Fristen', () => { setBack(home); deadlines(); }], ['Einstellungen', () => { setBack(home); settings(); }], ['Lesemodus', () => window.spider.openReader(null)]] });
+    footer({ visible: 2, actions: [['Meine Briefe', () => { setBack(home); notebook(); }], ['Einstellungen', () => { setBack(home); settings(); }], ['Lesemodus', () => window.spider.openReader(null)]] });
     setTimeout(() => $('homeIn')?.focus(), 60);
     // Zwischenablage als Vorschlag
     const clip = (await window.spider.clipboardText()).trim();
@@ -939,7 +944,7 @@
   function runText(text, mode) {
     setBack(home);
     if (mode === 'read') { P = { kind: 'analyze', doc: { title: 'Eingefügter Text', source: 'text', pages: [text] } }; $('title').textContent = P.doc.title; analyze(); }
-    else { P = { kind: 'transform', mode, title: TITLES[mode], text }; $('title').textContent = P.title; transform(); }
+    else { P = { kind: 'transform', mode, title: TITLES[mode] || T('In meiner Sprache'), text }; $('title').textContent = P.title; transform(); }
   }
 
   // ---------- Notizbuch ----------
@@ -1042,16 +1047,24 @@
 
   async function notebook(folder = null, query = '') {
     state = 'done';
-    $('title').textContent = 'Notizbuch';
+    $('title').textContent = 'Meine Briefe';
     const F = await window.spider.folders();
+    // Oben: was gerade ansteht (Später lesen und die nächsten Fristen), darunter alle Briefe
+    const [marks, dls] = folder || query ? [[], []] : await Promise.all([window.spider.bookmarkList(), window.spider.deadlinesList()]);
+    const open = dls.filter((d) => !d.done).slice(0, 3);
+    const when = (d) => (d.days === 0 ? T('heute') : d.days === 1 ? T('morgen') : T('in {n} Tagen', { n: d.days }));
+    const top = marks.length || dls.length ? `<div class="sec mytop">
+        ${marks.map((b) => `<div class="bm" data-bm="${esc(b.id)}">${silkIcon('bookmark')}<span data-noi18n>${esc(b.title)}</span><button class="link" data-bmo>${T('Jetzt lesen')}</button></div>`).join('')}
+        ${open.map((d) => `<div class="bm${d.days <= 3 ? ' soon' : ''}" data-dl="${esc(d.histId || '')}">${silkIcon('calendar')}<span><b>${when(d)}</b> · <span data-noi18n>${esc(d.title)}</span></span></div>`).join('')}
+        ${dls.length ? `<button class="link" id="nbDl">${T('Alle Fristen')} (${dls.filter((d) => !d.done).length})</button>` : ''}</div>` : '';
     $('main').innerHTML = `<input class="ask" id="nbQ" placeholder="${T('Suchen – oder fragen und Enter drücken …')}" style="margin-bottom:8px">
-      <div id="nbAnswer"></div>
+      <div id="nbAnswer"></div>${top}
       ${F.used.length ? `<div class="chips" id="nbFolders"><button class="chip${!folder ? ' on' : ''}" data-f="">${T('Alle')}</button>${F.used.map((f) => `<button class="chip${f === folder ? ' on' : ''}" data-f="${esc(f)}">${T(f)}</button>`).join('')}</div>` : ''}
       <div id="nbList"></div>`;
     const load = async () => {
       const list = await window.spider.historyList($('nbQ')?.value || '', folder);
       if (!$('nbList')) return;
-      $('nbList').innerHTML = list.length ? list.map(entryHtml).join('') : `<div class="muted">${$('nbQ').value ? 'Nichts gefunden.' : 'Noch nichts gelesen – die Spinne merkt sich hier die letzten 20 Texte.'}</div>`;
+      $('nbList').innerHTML = list.length ? list.map(entryHtml).join('') : `<div class="muted">${$('nbQ').value ? T('Nichts gefunden.') : T('Noch keine Briefe – lies einen, dann liegt er hier.')}</div>`;
       bindEntries($('nbList'), () => notebook(folder));
       // Mappe wählen (Pro)
       $('nbList').querySelectorAll('.fold').forEach((b) => b.addEventListener('click', (e) => {
@@ -1088,6 +1101,12 @@
         setBack(() => notebook(folder)); P = { kind: 'analyze', doc: h.doc, result: h.result }; result = h.result; showResult();
       }));
     });
+    $('nbDl')?.addEventListener('click', () => { setBack(() => notebook()); deadlines(); });
+    $('main').querySelectorAll('.mytop [data-bm]').forEach((row) => row.addEventListener('click', () => window.spider.bookmarkOpen(row.dataset.bm)));
+    $('main').querySelectorAll('.mytop [data-dl]').forEach((row) => row.addEventListener('click', async () => {
+      const h = row.dataset.dl && await window.spider.historyGet(row.dataset.dl); if (!h) return;
+      setBack(() => notebook()); P = { kind: 'analyze', doc: h.doc, result: h.result }; result = h.result; showResult();
+    }));
     $('nbFolders')?.addEventListener('click', (e) => { const c = e.target.closest('[data-f]'); if (c) notebook(c.dataset.f || null); });
     if ((await window.spider.getSettings()).privateMode) $('nbList').insertAdjacentHTML('beforebegin', `<div class="muted" style="margin-bottom:6px">${silkIcon('lock')} ${T('Privatmodus: Neue Texte werden nicht gespeichert.')}</div>`);
     $('foot').classList.add('hidden');
@@ -1281,7 +1300,7 @@
     });
     f.classList.remove('hidden');
   }
-  const ACTION_ICONS = { 'Alle Änderungen': 'notebook', 'Im Browser öffnen': 'send', 'Protokoll öffnen': 'file', 'Über': 'info', Vorlesen: 'speak', Kürzer: 'shorter', Förmlicher: 'tone', Lockerer: 'tone', Kopieren: 'copy', Festhalten: 'keep', 'Später lesen': 'bookmark', 'Als PDF speichern': 'file', Drucken: 'file', Lesemodus: 'reader', Sprache: 'translate', 'In meiner Sprache': 'translate', Fristen: 'calendar', Notizbuch: 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Alle Einstellungen …': 'settings', 'Erneut versuchen': 'send' };
+  const ACTION_ICONS = { 'Alle Änderungen': 'notebook', 'Im Browser öffnen': 'send', 'Protokoll öffnen': 'file', 'Über': 'info', Vorlesen: 'speak', Kürzer: 'shorter', Förmlicher: 'tone', Lockerer: 'tone', Kopieren: 'copy', Festhalten: 'keep', 'Später lesen': 'bookmark', 'Als PDF speichern': 'file', Drucken: 'file', Lesemodus: 'reader', Sprache: 'translate', 'In meiner Sprache': 'translate', Fristen: 'calendar', Notizbuch: 'notebook', 'Meine Briefe': 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Alle Einstellungen …': 'settings', 'Erneut versuchen': 'send' };
   function flash(label, text) { const b = $('foot').querySelector(`[data-a="${label}"] span`); if (!b) return; b.textContent = T(text); setTimeout(() => (b.textContent = T(label)), 1300); }
   function showError(res, retry) {
     state = 'error';

@@ -39,6 +39,7 @@ Ihre Stadtwerke`;
 let pop = await show(brief('120,00', '84,00', '15.11.2030', '1. März 2030'), 'Rechnung März');
 ok('Feedback-Zeile da', !!(await pop.$('#fb')));
 const first = await pop.evaluate(() => document.querySelector('.letter .when2')?.textContent);
+await pop.click('#moreBtn'); await sleep(200);
 await pop.click('#fb [data-fb="0"]'); await sleep(300);
 ok('Korrektur-Feld öffnet sich', !!(await pop.$('#fixV')));
 await pop.click('#fixF [data-f="deadline"]');
@@ -56,6 +57,7 @@ ok('Gelernte Regel beim nächsten Brief', /15\. Dezember 2030/.test(R.when) && /
 ok('„2. Brief von …“', /2\. Brief von/.test(R.senders), R.senders);
 ok('Abschlag steigt 84 → 92 (+9,5 %)', /84,00 €/.test(R.senders) && /92,00 €/.test(R.senders) && /\+9,5/.test(R.senders), R.senders.replace(/\n/g, ' | '));
 await pop.screenshot({ path: `${out}/v123-gelernt.png` });
+await pop.click('#moreBtn'); await sleep(200);
 await pop.click('#sAll'); await sleep(700);
 ok('„Alle anzeigen“ sucht im Notizbuch', (await pop.$$('#nbList .entry')).length === 2, String((await pop.$$('#nbList .entry')).length));
 
@@ -71,6 +73,7 @@ const sg = await pop.evaluate(() => ({ big: document.querySelector('.letter .big
 ok('Unterschrift nötig erkannt', /Unterschreiben/.test(sg.big || '') || /Unterschrift nötig/.test(sg.note), JSON.stringify(sg));
 ok('Seite und Adresse', /Seite 2/.test(sg.note) && /Jobcenter/.test(sg.note), sg.note);
 pop = await show('Stadtwerke Musterstadt GmbH\n\nMahnung\n\nSehr geehrte Frau Beispiel,\n\nleider haben wir noch keine Zahlung erhalten. Offener Betrag: 103,90 € (inkl. Mahngebühr: 5,00 €). Bitte zahlen Sie bis zum 13.11.2030 für Ihren Strom.\nIBAN: DE89 3704 0044 0532 0130 00\n\nMit freundlichen Grüßen\nIhre Stadtwerke', 'Mahnung');
+await pop.click('#moreBtn'); await sleep(200);
 await pop.click('details.whatif summary'); await sleep(200);
 const wi = await pop.evaluate(() => document.querySelector('details.whatif')?.innerText || '');
 ok('„Was passiert, wenn ich nichts tue?“', /Inkasso/.test(wi) && /5,00/.test(wi) && /Sperre/.test(wi), wi.slice(0, 200).replace(/\n/g, ' | '));
@@ -113,6 +116,8 @@ const at = await app.evaluate(() => { const n = new Date('2026-10-29T20:00:00');
 ok('Zeitpunkte: Abend / Morgen früh / Wochenende', /Fri Oct 30 2026 19:00/.test(at[0]) && /Fri Oct 30 2026 08:00/.test(at[1]) && /Sat Oct 31 2026 10:00/.test(at[2]), at.join(' | '));
 
 // 7) Guten Morgen und „Alle Fristen erledigt“
+ok('Guten Morgen ist standardmäßig aus', !(await app.evaluate(() => global.__silk.maybeMorning({ force: true }))));
+await pop.evaluate(() => window.spider.saveSettings({ morning: true }));
 ok('Guten Morgen (erzwungen)', await app.evaluate(() => global.__silk.maybeMorning({ force: true })));
 await sleep(700);
 const mo = await pop.evaluate(() => ({ t: document.getElementById('title').textContent, rows: document.querySelectorAll('.mrow').length }));

@@ -74,12 +74,11 @@ const s2 = JSON.parse(fs.readFileSync(`${home}/.config/Silkreader/settings.json`
 ok('Sprache gemerkt', s2.explainLang === 'ar', s2.explainLang);
 await pop.click('#back'); await sleep(500);
 ok('Zurück zum Ergebnis', await pop.evaluate(() => !!document.querySelector('.letter')));
-// Ring: Fristen auf Seite 2
+// Ring: vorne die Kern-Aktionen, „Meine Briefe“ (Notizbuch + Fristen) vorne
 await app.evaluate(() => global.__silk.openRing({ at: { x: 800, y: 500 } }));
 const ring = await find('ring.html'); await sleep(500);
-await ring.evaluate(() => { page = 1; build(); }); await sleep(200);
 const labels = await ring.evaluate(() => [...document.querySelectorAll('.lb')].map((t) => t.textContent).join(', '));
-ok('Ring Seite 2 hat Fristen', /Fristen/.test(labels), labels);
+ok('Ring Seite 1: Lesen, In meiner Sprache, Antworten, Meine Briefe, Foto, Mehr', labels === 'Lesen, In meiner Sprache, Antworten, Meine Briefe, Foto, Mehr', labels);
 await app.evaluate(() => global.__silk.closeRing());
 
 ok('keine Fehler im Fenster', !errs.length, errs.slice(0, 3).join(' | '));

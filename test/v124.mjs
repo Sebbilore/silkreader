@@ -1,4 +1,4 @@
-// 1.23: Die Spinne fragt nach (Erinnerung, Widerspruch, Betrag gestiegen, Betrug, schon bezahlt?), „Nicht mehr fragen“,
+// 1.23: Die Spinne fragt nach (nur noch das Wichtigste: Erinnerung, Widerspruch, schon bezahlt?), „Nicht mehr fragen“,
 // Selbstkontrolle der Zahlen, „Sofort da“ (schon gelesen), Antwort mit Beleg aus dem Text
 import { _electron as electron } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 import fs from 'fs';
@@ -26,6 +26,10 @@ const brief = (betrag, abschlag, faellig) => `Stadtwerke Musterstadt GmbH\nPostf
 // 1) Rechnung → „Soll ich dich erinnern?“, Selbstkontrolle
 let pop = await show(brief('98,90', '84,00', '15.11.2030'), 'Rechnung 1');
 ok('Frage „erinnern“ nach Rechnung', /3 Tage vorher erinnern/.test(await q(pop)), await q(pop));
+ok('Schlank: höchstens 3 Stichpunkte oben', (await pop.$$eval('ul.lead:not(#details ul) li', (l) => l.length)) <= 3);
+ok('Zusätze stecken unter „Mehr aus dem Brief“', /Mehr aus dem Brief/.test(await pop.textContent('#moreBtn')) && !(await pop.isVisible('#fb')));
+await pop.click('#moreBtn'); await sleep(200);
+ok('Mehr aus dem Brief: Zahlungsdaten und Feedback', await pop.isVisible('#fb') && !!(await pop.$('#details .paydata')));
 const ck = await pop.evaluate(() => document.querySelector('.checks')?.innerText || '');
 ok('Selbstkontrolle sichtbar (Nachgefragt/geprüft)', /Nachgefragt|Zahlen geprüft/.test(ck), ck);
 await pop.screenshot({ path: `${out}/v124-frage.png` });
@@ -34,12 +38,12 @@ ok('Erinnerung bestätigt', /Ich erinnere dich/.test(await pop.evaluate(() => do
 // 2) Derselbe Text nochmal → sofort da
 pop = await show(brief('98,90', '84,00', '15.11.2030'), 'Rechnung 1');
 ok('„Sofort da“ beim zweiten Mal', /Sofort da/.test(await pop.evaluate(() => document.querySelector('.checks')?.innerText || '')));
-// 3) „Nicht mehr fragen“ → Erinnerungsfrage kommt nicht mehr; Betrag gestiegen kommt dran
+// 3) „Nicht mehr fragen“ → Erinnerungsfrage kommt nicht mehr; „Betrag gestiegen“ fragt nicht mehr nach
 await pop.click('.askq [data-q="mute"]').catch(() => {}); await sleep(300);
 pop = await show(brief('77,00', '92,00', '15.12.2030'), 'Rechnung 2');
 const q2 = await q(pop);
 ok('Gemutete Frage kommt nicht wieder', !/erinnern/.test(q2), q2);
-ok('Frage „Betrag gestiegen“', /gestiegen/.test(q2), q2);
+ok('Keine Frage zu „Betrag gestiegen“ (nur noch Kern-Fragen)', !/gestiegen/.test(q2), q2);
 // 4) Bescheid → Widerspruch/Einspruch
 pop = await show(fs.readFileSync('test/letters/finanzamt.txt', 'utf8').replace(/2026/g, '2030'), 'Bescheid');
 const q3 = await q(pop);
@@ -49,9 +53,9 @@ await pop.waitForSelector('.out.rise', { timeout: 20000 }); await sleep(300);
 ok('Einspruch wird geschrieben', (await pop.textContent('.out')).length > 5);
 // 5) Betrug → Hilfe
 pop = await show('Sehr geehrter Kunde,\n\nIhr Paket wartet. Die Zollgebühr von 2,99 € ist offen. Zahlen Sie innerhalb von 24 Stunden, klicken Sie auf den Link: https://paket-zoll.xyz\nIBAN: LT12 1000 0111 0100 1000\n\nMit freundlichen Grüßen', 'Paket');
-ok('Frage bei Betrug', /echten Absender/.test(await q(pop)));
-await pop.click('.askq [data-q="yes"]'); await sleep(300);
-ok('Hilfe zum echten Absender', /Webseite des Absenders/.test(await pop.evaluate(() => document.getElementById('answers').innerText)));
+ok('Betrug: Warnung statt Frage', !(await pop.$('.askq')) && !!(await pop.$('.scam')));
+await pop.click('.scam summary'); await sleep(200);
+ok('Hilfe zum echten Absender in der Warnung', /Webseite des Absenders/.test(await pop.textContent('.scam')));
 // 6) Antwort mit Beleg (Stelle steht im Text) und ohne (steht nicht im Text)
 pop = await show(fs.readFileSync('test/sample.txt', 'utf8'), 'Bericht');
 await pop.fill('#askIn', 'Wie hoch ist die Dividende?'); await pop.press('#askIn', 'Enter');

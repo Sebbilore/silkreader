@@ -39,15 +39,14 @@ const tpl = await pop.evaluate(() => [...document.querySelectorAll('#lTplMenu [d
 ok('Rechnung: Vorlagen Ratenzahlung, Fristverlängerung, Rückfrage', ['installments', 'extension', 'question'].every((k) => tpl.includes(k)), tpl.join(','));
 // Mappen
 await app.evaluate(() => global.__silk.showPopupPayload({ kind: 'notebook' })); await sleep(900);
-const folders = await pop.evaluate(() => [...document.querySelectorAll('#nbFolders [data-f]')].map((c) => c.textContent));
-ok('Mappen automatisch (Verträge)', folders.includes('Verträge'), folders.join(','));
-await pop.click('#nbFolders [data-f="Verträge"]'); await sleep(500);
-ok('Filter nach Mappe', (await pop.$$('#nbList .entry')).length === 1);
-await pop.click('#nbFolders [data-f=""]'); await sleep(500);
+ok('Keine Mappen automatisch (nur von Hand)', !(await pop.$('#nbFolders')));
 await pop.click('#nbList .entry .fold:not(.on)'); await sleep(300);
 await pop.click('.fpick [data-set="Wohnung"]'); await sleep(600);
 const f2 = await pop.evaluate(() => [...document.querySelectorAll('#nbFolders [data-f]')].map((c) => c.textContent));
 ok('Mappe von Hand setzen', f2.includes('Wohnung'), f2.join(','));
+await pop.click('#nbFolders [data-f="Wohnung"]'); await sleep(500);
+ok('Filter nach Mappe', (await pop.$$('#nbList .entry')).length === 1);
+await pop.click('#nbFolders [data-f=""]'); await sleep(500);
 await pop.screenshot({ path: `${out}/v121-notizbuch.png` });
 // Frag dein Notizbuch
 await pop.fill('#nbQ', 'Wann muss ich den Handyvertrag kündigen?'); await pop.press('#nbQ', 'Enter');

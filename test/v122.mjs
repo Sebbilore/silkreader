@@ -1,10 +1,10 @@
-// 0 Bytes gesendet, PDF speichern, Ordner-Wächter, Kamera-Fenster (mit Test-Antworten)
+// 0 Bytes gesendet, PDF speichern, Kamera-Fenster (mit Test-Antworten)
 import { _electron as electron } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 import fs from 'fs';
 const [out, home] = process.argv.slice(2);
 fs.mkdirSync(`${home}/.config/Silkreader`, { recursive: true });
 fs.mkdirSync(`${home}/Downloads`, { recursive: true });
-fs.writeFileSync(`${home}/.config/Silkreader/settings.json`, JSON.stringify({ onboarded: true, watchDownloads: true, lastVersion: JSON.parse(fs.readFileSync('package.json', 'utf8')).version }));
+fs.writeFileSync(`${home}/.config/Silkreader/settings.json`, JSON.stringify({ onboarded: true, lastVersion: JSON.parse(fs.readFileSync('package.json', 'utf8')).version }));
 const pdfOut = `${home}/.config/export.pdf`;
 const app = await electron.launch({ executablePath: './node_modules/electron/dist/electron', args: ['--no-sandbox', '.'],
   env: { ...process.env, SPIDER_MOCK: 'test/mock.json', HOME: home, XDG_DOWNLOAD_DIR: `${home}/Downloads`, SILK_MODEL_PATH: '/nonexistent', SILK_EXPORT_TO: pdfOut } });
@@ -26,16 +26,6 @@ await pop.click('#moreBtn'); await sleep(300);
 await pop.click('#exPdf'); await sleep(2500);
 const pdf = fs.existsSync(pdfOut) ? fs.readFileSync(pdfOut) : null;
 ok('Als PDF gespeichert', pdf && pdf.slice(0, 4).toString() === '%PDF' && pdf.length > 5000, pdf ? `${pdf.length} Bytes` : 'fehlt');
-// 2) Ordner-Wächter
-const dl = await app.evaluate(({ app }) => app.getPath('downloads'));
-await sleep(1500);
-fs.writeFileSync(`${dl}/Rechnung-Test.pdf`, fs.readFileSync(pdfOut));
-let offer = null;
-for (let i = 0; i < 20 && !offer; i++) { await sleep(400); offer = await app.evaluate(() => global.__silk.downloadOffer); }
-ok('Neue Datei im Download-Ordner wird angeboten', offer && /Rechnung-Test\.pdf$/.test(offer.file), `${dl} → ${offer?.file}`);
-fs.writeFileSync(`${dl}/halb.pdf.crdownload`, 'x'.repeat(500)); await sleep(2500);
-offer = await app.evaluate(() => global.__silk.downloadOffer);
-ok('Halbe Downloads werden ignoriert', !/crdownload/.test(offer?.file || ''));
 // 3) Kamera-Fenster (hier ohne Kamera: freundliche Meldung, Abbrechen schließt)
 await app.evaluate(() => global.__silk.openCamera());
 const cam = await find('camera.html'); await sleep(1500);

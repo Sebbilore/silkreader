@@ -41,6 +41,7 @@ await show(brief, 'Markierter Text');
 const pop = await find('popup.html');
 await pop.waitForSelector('#moreBtn', { timeout: 20000 });
 await sleep(800);
+await pop.click('#moreBtn'); await sleep(200); // Zahlungsdaten stehen unter „Mehr aus dem Brief“
 await pop.evaluate(() => document.querySelectorAll('.paydata').forEach((d) => { d.open = true; }));
 const L = await pop.evaluate(() => ({
   card: !!document.querySelector('.letter'), kind: document.querySelector('.letter .lh b')?.textContent,

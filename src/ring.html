@@ -51,8 +51,8 @@
 
   // Seite 1: das Wichtigste (6 Felder), Seite 2: alles Weitere
   const PAGES = [
-    [['read', 'Lesen'], ['translate', 'Übersetzen'], ['simplify', 'Einfach'], ['reply', 'Antworten'], ['notebook', 'Notizbuch'], ['more', 'Mehr']],
-    [['region', 'Bereich'], ['file', 'Datei lesen'], ['deadlines', 'Fristen'], ['reader', 'Großes Fenster'], ['pro', 'Silkreader Pro'],
+    [['read', 'Lesen'], ['explain', 'In meiner Sprache'], ['reply', 'Antworten'], ['notebook', 'Meine Briefe'], ['camera', 'Foto'], ['more', 'Mehr']],
+    [['region', 'Bereich'], ['file', 'Datei lesen'], ['reader', 'Großes Fenster'], ['pro', 'Silkreader Pro'],
      ['settings', 'Einstellungen'], ['hide', 'Verstecken'], ['back', 'Zurück']],
   ];
   // Pro-Funktionen bekommen ein kleines Schloss, solange Pro nicht aktiv ist
@@ -102,7 +102,7 @@
       mk('path', { class: 'hit', d: wedge(INNER, R + 30) }, g);
       const ix = C + Math.cos(am) * (R * 0.62), iy = C + Math.sin(am) * (R * 0.62);
       const ic = mk('g', { class: 'ic', style: `transform-origin:${ix}px ${iy - 5}px` }, g);
-      ic.innerHTML = `<g transform="translate(${ix} ${iy - 5})">${SILK_ICONS[id] || ''}${PRO_IDS.has(id) && !proActive ? LOCK : ''}</g>`;
+      ic.innerHTML = `<g transform="translate(${ix} ${iy - 5})">${SILK_ICONS[id === 'explain' ? 'translate' : id] || ''}${PRO_IDS.has(id) && !proActive ? LOCK : ''}</g>`;
       mk('text', { class: 'lb', x: ix, y: iy + 16 }, g).textContent = label;
       g.addEventListener('click', (e) => { e.stopPropagation(); choose(id); });
       return { id, label, a0, a1, g };

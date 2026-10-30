@@ -53,7 +53,7 @@ await pop.screenshot({ path: `${out}/pro-aktiv.png` });
 await pop.click('#back'); await sleep(400);
 await app.evaluate((_e, t) => global.__silk.showPopupPayload({ kind: 'analyze', doc: { title: 'Brief', source: 'selection', pages: [t] }, autoStart: true }), brief);
 await sleep(300); await pop.waitForSelector('#moreBtn', { timeout: 20000 }); await sleep(400);
-ok('Mit Pro: Brief-Karte da', await pop.evaluate(() => !!document.querySelector('.letter .kv')));
+ok('Mit Pro: Brief-Karte da', await pop.evaluate(() => !!document.querySelector('.letter:not(.locked) .big')));
 // Code bleibt nach Neustart gespeichert
 const saved = JSON.parse(fs.readFileSync(`${home}/.config/Silkreader/settings.json`, 'utf8'));
 ok('Code gespeichert', saved.proCode === code);

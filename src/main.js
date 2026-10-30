@@ -498,7 +498,8 @@ async function transformSelection(mode, grabbed = null) {
     return;
   }
   preloadBuiltinModel();
-  showPopupPayload({ kind: 'transform', mode, title: TRANSFORMS[mode].title, text: grabbed.text });
+  const title = mode.startsWith('explain:') ? EXPLAIN_LANGS[mode.slice(8)][0] : TRANSFORMS[mode].title;
+  showPopupPayload({ kind: 'transform', mode, title, text: grabbed.text });
 }
 
 // Notizbuch als Sprechblase (das große Fenster hat seins weiterhin unter Strg+H)
@@ -589,6 +590,11 @@ async function runRingAction(id) {
   switch (id) {
     case 'read': return spiderTake({ fromHotkey: true, mode: 'read' });
     case 'translate': case 'simplify': case 'reply': return transformSelection(id);
+    case 'explain': { // in der Sprache, die zuletzt gewählt wurde – sonst übersetzen
+      const lang = loadSettings().explainLang;
+      return EXPLAIN_LANGS[lang] ? transformSelection(`explain:${lang}`) : transformSelection('translate');
+    }
+    case 'camera': return openCamera();
     case 'region': return regionCapture();
     case 'pin': {
       const before = cocoons.list().length;
@@ -1000,13 +1006,6 @@ async function spiderTake({ autoStart = false, fromHotkey = false, mode = null }
       if (mode !== 'read') return transformSelection(mode, grabbed);
       return showPopup({ title: 'Kopierter Text', source: 'clipboard', pages: [grabbed.text] }, { autoStart: true });
     }
-    // Nichts markiert, aber gerade eine neue Datei heruntergeladen? Dann die lesen.
-    if (!grabbed.text && !grabbed.files.length && downloadOffer && Date.now() < downloadOffer.until) {
-      const file = downloadOffer.file;
-      downloadOffer = null;
-      bubbleWin?.webContents.send('rig-hint', null);
-      return readFileToBubble(file);
-    }
     // Analysiert wird nur markierter Text. Markierte Dateien werden festgehalten.
     if (!grabbed.text && grabbed.files.length) {
       grabbed.files.slice(0, 6).forEach((f) => cocoons.addFile(f));
@@ -1211,43 +1210,6 @@ ipcMain.on('camera-done', async (e, dataUrl) => {
 });
 ipcMain.handle('open-camera', () => openCamera());
 
-// ---------- Ordner-Wächter: neue Datei im Download-Ordner → „Klick zum Lesen“ ----------
-// Nur wenn eingeschaltet. Wartet, bis die Datei fertig geladen ist (Größe bleibt gleich), und ignoriert halbe Downloads.
-let downloadOffer = null;
-const WATCH_EXT = ['.pdf', '.docx', '.png', '.jpg', '.jpeg'];
-function watchDownloads() {
-  let watcher = null, dir = null;
-  const seen = new Map();
-  const offer = async (file) => {
-    try {
-      const a = fs.statSync(file); await new Promise((r) => setTimeout(r, 1500));
-      const b = fs.statSync(file);
-      if (!b.isFile() || a.size !== b.size || b.size < 200 || Date.now() - b.mtimeMs > 60000) return;
-      downloadOffer = { file, until: Date.now() + 15000 };
-      logLine('Neue Datei im Download-Ordner – angeboten');
-      if (bubbleWin?.isVisible()) bubbleWin.webContents.send('rig-hint', T('Neue Datei – Klick zum Lesen'));
-    } catch { /* schon wieder weg */ }
-  };
-  const start = () => {
-    const want = loadSettings().watchDownloads === true;
-    if (!want) { watcher?.close(); watcher = null; return; }
-    if (watcher) return;
-    try {
-      dir = app.getPath('downloads');
-      watcher = fs.watch(dir, (_ev, name) => {
-        if (!name || !WATCH_EXT.includes(path.extname(name).toLowerCase()) || /\.(crdownload|part|tmp)$/i.test(name)) return;
-        const file = path.join(dir, name);
-        if (Date.now() - (seen.get(file) || 0) < 10000) return;
-        seen.set(file, Date.now());
-        setTimeout(() => offer(file), 800);
-      });
-      watcher.on('error', () => { watcher = null; });
-    } catch (e) { logLine(`Download-Ordner nicht beobachtbar: ${e.message}`); }
-  };
-  start();
-  setInterval(start, 5000); // Einstellung an/aus ohne Neustart
-}
-
 // ---------- Kokon-Ablage ----------
 
 const iconCache = new Map();
@@ -1295,9 +1257,6 @@ function cocoonMenu(id) {
       { label: T('Im Lesemodus öffnen'), click: async () => showDocument(await cocoonDoc(it)) },
     ]),
     ...(it.type === 'file' ? [{ label: T('Im Ordner zeigen'), click: () => shell.showItemInFolder(it.path) }] : []),
-    ...(cocoons.list().length > 1 && !(it.type === 'file' && isFolder(it.path)) ? [{ label: T('Vergleichen mit …'), submenu: cocoons.list()
-      .filter((o) => o.id !== id && !(o.type === 'file' && isFolder(o.path)))
-      .map((o) => ({ label: o.name, click: () => compareCocoons(id, o.id) })) }] : []),
     { type: 'separator' },
     { label: T('Aus dem Netz nehmen'), click: () => { cocoons.remove(id); sendCocoons(); } },
   ];
@@ -2365,8 +2324,8 @@ ipcMain.handle('next-tip', () => {
   const seen = s.tipsSeen || [];
   const tip = TIPS.find((t) => !seen.includes(t.id) && (s.uses || 0) >= t.after && !(t.id === 'explorer' && process.platform !== 'win32'));
   if (!tip) return null;
-  // Höchstens ein Tipp pro Tag – sonst wird es lästig
-  if (Date.now() - (s.tipAt || 0) < 20 * 3600e3 && !process.env.SPIDER_MOCK) return null;
+  // Höchstens ein Tipp alle 3 Tage – sonst wird es lästig
+  if (Date.now() - (s.tipAt || 0) < 3 * 24 * 3600e3 && !process.env.SPIDER_MOCK) return null;
   s.tipsSeen = [...seen, tip.id]; s.tipAt = Date.now();
   saveSettings(s);
   return { id: tip.id, text: tip.id === 'explorer' && STORE ? 'Im Explorer geht es auch: Rechtsklick auf eine Datei → „Öffnen mit“ → Silkreader.' : tip.text };
@@ -2525,7 +2484,7 @@ ipcMain.handle('analyze-quality', async (event, doc) => {
 const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 function maybeMorning({ force = false } = {}) {
   const s = loadSettings();
-  if (s.morning === false || !s.onboarded) return false;
+  if (s.morning !== true || !s.onboarded) return false; // „Guten Morgen“ nur, wenn eingeschaltet
   const h = new Date().getHours();
   if (!force && (h < 5 || h >= 11 || s.lastMorning === todayIso())) return false;
   const week = collectDeadlines().filter((d) => d.days <= 7);
@@ -2641,7 +2600,7 @@ function addHistory(doc, result) {
   const old = loadHistory();
   const before = old.find((h) => h.text === text);
   const list = old.filter((h) => h.text !== text);
-  const folder = before?.folder || (pro.allowed('folders') ? guessFolder(text, result) : null);
+  const folder = before?.folder || null; // Mappen nur von Hand
   list.unshift({ id: `${Date.now()}`, aiKey: aiKey(), date: Date.now(), title: result.title || doc.title, docTitle: doc.title, path: doc.path, mtime: doc.mtime, pages: doc.pages.map((p) => p.slice(0, 100000)), text, result, folder });
   fs.writeFileSync(historyFile(), JSON.stringify(trimHistory(list)));
 }
@@ -2959,7 +2918,7 @@ ipcMain.handle('get-settings', () => {
     theme: ['light', 'dark', 'contrast'].includes(s.theme) ? s.theme : 'system',
     fontSize: ZOOM[s.fontSize] ? s.fontSize : 'normal',
     learn: s.learn !== false,
-    morning: s.morning !== false,
+    morning: s.morning === true,
     askBack: s.askBack !== false, askMutedCount: (s.askMuted || []).length + Object.values(s.askPaused || {}).filter((t) => t > Date.now()).length,
     autostart: app.getLoginItemSettings().openAtLogin,
     clickMode: clickMode(),
@@ -3236,7 +3195,6 @@ if (!app.requestSingleInstanceLock()) {
     watchFullscreen();
     watchDeadlines();
     watchCrashes();
-    watchDownloads();
     refreshPro().catch((e) => logLine(`Pro: ${e.message}`));
     const startFile = fileFromArgs(process.argv);
     if (startFile) setTimeout(() => readFileToBubble(startFile), 1500);
@@ -3258,7 +3216,7 @@ if (!app.requestSingleInstanceLock()) {
 if (TESTING) global.__silk = { askPaid, watchCrashes, ocrText: (f) => recognizeText(f), offerCrashReport, openBookmark, maybeMorning, remindBookmarks, loadBookmarks, saveBookmarks, remindAt, learner, letterExtras, deadlineAction, showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
   get popupWin() { return popupWin; }, get cocoons() { return cocoons; }, get lastScreenSel() { return lastScreenSel; }, set lastScreenSel(v) { lastScreenSel = v; },
   set copiedOffer(v) { copiedOffer = v; },
-  get downloadOffer() { return downloadOffer; }, spiderTake, runCrawlOverlay,
+  spiderTake, runCrawlOverlay,
   // Für die Windows-Tests: Diagnose und direkte Aufrufe der Windows-Bausteine
   diag: () => ({ winkeys: !!winkeys.load(), winkeysError: winkeys.load.error?.message || null, helper: helperAvailable(),
     shortcuts: { ...shortcutStatus }, tray: !!tray && !tray.isDestroyed(), lang: uiLang(), userData: app.getPath('userData') }),

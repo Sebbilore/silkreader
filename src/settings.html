@@ -137,7 +137,6 @@
   <div class="grp">
     <div class="line"><label class="check grow"><input type="checkbox" id="privateMode"> Privatmodus: nichts im Notizbuch speichern</label></div>
     <div class="line"><label class="check grow"><input type="checkbox" id="pinCopied"> Kopierte Dateien (Strg+C im Explorer) ins Spinnennetz hängen</label></div>
-    <div class="line"><label class="check grow"><input type="checkbox" id="watchDownloads"> Neue Downloads (PDF, Fotos) zum Lesen anbieten</label></div>
     <div class="line"><label class="check grow"><input type="checkbox" id="hideInShare"> In Bildschirmfreigaben (Teams, Zoom …) unsichtbar</label></div>
     <div class="line"><label class="check grow"><input type="checkbox" id="lowPower"> Sparmodus: braucht weniger Arbeitsspeicher (nach einem Neustart)</label></div>
   </div>
@@ -302,7 +301,7 @@
 
   // ---- Laden ----
   const TOGGLES = { hatch: 'hatchAnimation', copyHint: 'copyHint', hideFullscreen: 'hideFullscreen', privateMode: 'privateMode', pinCopied: 'pinCopied',
-    watchDownloads: 'watchDownloads', hideInShare: 'hideInShare', lowPower: 'lowPower', autostart: 'autostart', learn: 'learn', morning: 'morning', askBack: 'askBack' };
+    hideInShare: 'hideInShare', lowPower: 'lowPower', autostart: 'autostart', learn: 'learn', morning: 'morning', askBack: 'askBack' };
   window.spider.getSettings().then((s) => {
     for (const [id, name] of Object.entries(s.models)) $('model').add(new Option(name, id, false, id === s.model));
     $('lang').value = s.language;
