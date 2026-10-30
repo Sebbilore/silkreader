@@ -88,6 +88,7 @@ jobs:
       # Bildschirmfotos zum Ansehen in einen eigenen Zweig legen (mac-screens/<arch>)
       - name: Bildschirmfotos in Zweig mac-screens
         if: always()
+        continue-on-error: true # nur zum Ansehen – darf die Veröffentlichung nicht verhindern
         run: |
           [ -d mac-test ] || exit 0
           tmp=$(mktemp -d); cp -R mac-test "$tmp/${{ matrix.arch }}"
