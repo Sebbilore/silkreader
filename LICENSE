@@ -1,0 +1,19 @@
+Silkreader
+Copyright (c) 2026 Sebbilore. Alle Rechte vorbehalten. / All rights reserved.
+
+Silkreader darf kostenlos heruntergeladen und auf eigenen Geräten benutzt werden.
+Weitergabe des Quellcodes, Veränderung, Nachbau oder Weiterverkauf sind ohne
+schriftliche Erlaubnis nicht gestattet. Silkreader Pro wird über den Microsoft Store
+oder über persönliche Codes freigeschaltet.
+
+Silkreader may be downloaded free of charge and used on your own devices.
+Redistributing the source code, modifying, rebuilding or reselling it is not
+permitted without written permission.
+
+Versionen bis einschließlich 1.20.0 wurden unter der MIT-Lizenz veröffentlicht
+(siehe LICENSE-MIT-bis-1.20.txt). Für diese Versionen gilt die MIT-Lizenz weiter.
+Versions up to and including 1.20.0 were published under the MIT License, which
+continues to apply to those versions.
+
+Bausteine anderer Projekte (Electron, llama.cpp, KI-Modelle u. a.) stehen unter
+ihren eigenen Lizenzen, siehe THIRD_PARTY_NOTICES.txt.

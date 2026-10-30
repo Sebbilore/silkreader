@@ -1,0 +1,120 @@
+{
+  "name": "silkreader",
+  "productName": "Silkreader",
+  "version": "1.22.0",
+  "description": "Silkreader – eine schwebende Spinne, die Texte und Dokumente mit KI liest, zusammenfasst und analysiert",
+  "main": "src/main.js",
+  "author": "Silkreader",
+  "license": "SEE LICENSE IN LICENSE",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis --x64 --publish never",
+    "dist:mac": "electron-builder --mac dmg",
+    "dist:linux": "electron-builder --linux AppImage",
+    "dist:win:linux": "electron-builder --win nsis --x64 --publish never -c.win.signtoolOptions.sign=./build/sign.js",
+    "dist:store": "electron-builder --win appx --config electron-builder.store.js --publish never",
+    "notices": "node scripts/notices.mjs"
+  },
+  "build": {
+    "appId": "app.silkreader",
+    "productName": "Silkreader",
+    "files": [
+      "src/**/*",
+      "package.json",
+      "!node_modules/@node-llama-cpp/*-cuda*/**",
+      "!node_modules/@node-llama-cpp/{linux,win}-arm*/**",
+      "!node_modules/node-llama-cpp/llama/**/*.{h,c,cpp,hpp,cu,cuh,txt,md}",
+      "!node_modules/koffi/build/koffi/{darwin,freebsd,linux,musl,openbsd}_*/**",
+      "!node_modules/koffi/src/**",
+      "!node_modules/koffi/vendor/**",
+      "!node_modules/**/*.{md,markdown,map,d.ts,d.mts,d.cts}",
+      "!node_modules/**/{test,tests,__tests__,example,examples,.github}/**",
+      "!node_modules/**/{CHANGELOG,HISTORY,AUTHORS,CONTRIBUTING}*"
+    ],
+    "icon": "build/icon.png",
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Silkreader",
+      "runAfterFinish": true,
+      "installerLanguages": [
+        "de_DE"
+      ],
+      "language": "1031",
+      "artifactName": "Silkreader-Setup-${version}.exe",
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Sebbilore",
+        "repo": "silkreader-download",
+        "releaseType": "release"
+      }
+    ],
+    "copyright": "© 2026 Silkreader",
+    "win": {
+      "signtoolOptions": {
+        "publisherName": [
+          "CN=Silkreader, O=Silkreader"
+        ],
+        "signingHashAlgorithms": [
+          "sha256"
+        ]
+      },
+      "legalTrademarks": "Silkreader"
+    },
+    "asarUnpack": [
+      "node_modules/node-llama-cpp/**",
+      "node_modules/@node-llama-cpp/**",
+      "node_modules/koffi/**"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg"
+        },
+        {
+          "target": "zip"
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "artifactName": "Silkreader-${version}-mac-${arch}.${ext}",
+      "darkModeSupport": true,
+      "extendInfo": {
+        "LSUIElement": true,
+        "NSCameraUsageDescription": "Silkreader fotografiert Briefe mit der Kamera, um sie zu lesen. Die Bilder bleiben auf deinem Mac.",
+        "NSAppleEventsUsageDescription": "Silkreader kopiert markierten Text (⌘C), um ihn zu lesen."
+      }
+    },
+    "dmg": {
+      "title": "Silkreader ${version}"
+    }
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.1.0",
+    "bytenode": "1.7.0",
+    "electron-updater": "^6.8.9",
+    "koffi": "2.16.3",
+    "mammoth": "^1.13.0",
+    "node-llama-cpp": "^3.22.1",
+    "unpdf": "^1.9.1"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3",
+    "javascript-obfuscator": "5.8.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sebbilore/silkreader.git"
+  }
+}

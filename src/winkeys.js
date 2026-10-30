@@ -1,0 +1,75 @@
+// Tastendrücke und Maus-/Zwischenablage-Status direkt über die Windows-API (user32.dll).
+// Läuft im Hauptprozess, ganz ohne PowerShell – klappt daher auch auf Firmen-PCs,
+// auf denen PowerShell-Skripte eingeschränkt sind. Fehlt etwas, liefert load() null.
+
+let api;
+function load() {
+  if (api !== undefined) return api;
+  api = null;
+  if (process.platform !== 'win32') return api;
+  try {
+    const koffi = require('koffi');
+    const user32 = koffi.load('user32.dll');
+    api = {
+      keybd_event: user32.func('void __stdcall keybd_event(uint8_t bVk, uint8_t bScan, uint32_t dwFlags, uintptr_t dwExtraInfo)'),
+      GetAsyncKeyState: user32.func('int16_t __stdcall GetAsyncKeyState(int vKey)'),
+      GetClipboardSequenceNumber: user32.func('uint32_t __stdcall GetClipboardSequenceNumber()'),
+    };
+    try {
+      const shell32 = koffi.load('shell32.dll');
+      api.SHQueryUserNotificationState = shell32.func('int __stdcall SHQueryUserNotificationState(_Out_ int *pquns)');
+    } catch { /* ältere Windows-Versionen */ }
+  } catch (e) {
+    api = null;
+    load.error = e;
+  }
+  return api;
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const down = (vk) => (api.GetAsyncKeyState(vk) & 0x8000) !== 0;
+
+/** Strg+C an das aktive Fenster schicken. Nach einem Tastenkürzel erst warten, bis alle Tasten los sind. */
+async function copy(hotkey) {
+  if (!load()) return false;
+  if (hotkey) {
+    // Unbelegte Taste antippen: verhindert, dass das Loslassen von Alt die Menüleiste öffnet
+    api.keybd_event(0xe8, 0, 0, 0);
+    api.keybd_event(0xe8, 0, 2, 0);
+    const until = Date.now() + 2000;
+    while (Date.now() < until && [0x10, 0x11, 0x12, 0x5b, 0x5c].some(down)) await sleep(15);
+    await sleep(40);
+  }
+  api.keybd_event(0x11, 0x1d, 0, 0);
+  api.keybd_event(0x43, 0x2e, 0, 0);
+  api.keybd_event(0x43, 0x2e, 2, 0);
+  api.keybd_event(0x11, 0x1d, 2, 0);
+  return true;
+}
+
+/** Windows-Spracheingabe öffnen (Win+H): schreibt Gesprochenes ins gerade fokussierte Feld */
+function voiceTyping() {
+  if (!load()) return false;
+  api.keybd_event(0x5b, 0x5b, 1, 0); // linke Windows-Taste (erweitert)
+  api.keybd_event(0x48, 0x23, 0, 0);
+  api.keybd_event(0x48, 0x23, 2, 0);
+  api.keybd_event(0x5b, 0x5b, 3, 0);
+  return true;
+}
+
+const leftDown = () => (load() ? down(0x01) : null);
+/** Ist noch Umschalt, Strg, Alt oder die Windows-Taste gedrückt? */
+const modifiersDown = () => (load() ? [0x10, 0x11, 0x12, 0x5b, 0x5c].some(down) : false);
+const clipboardSeq = () => (load() ? api.GetClipboardSequenceNumber() : null);
+/**
+ * Läuft gerade etwas im Vollbild? Windows weiß es selbst (wie bei „Benachrichtigungen unterdrücken“):
+ * 2 = Vollbild-App, 3 = Spiel (Direct3D), 4 = Präsentationsmodus, 7 = Store-App im Vollbild, 1 = gesperrt/Bildschirmschoner.
+ */
+function fullscreenBusy() {
+  if (!load() || !api.SHQueryUserNotificationState) return false;
+  const out = [0];
+  if (api.SHQueryUserNotificationState(out) !== 0) return false;
+  return [1, 2, 3, 4, 7].includes(out[0]);
+}
+
+module.exports = { load, voiceTyping, copy, leftDown, modifiersDown, clipboardSeq, fullscreenBusy };

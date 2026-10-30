@@ -1,0 +1,20 @@
+# Prüft, ob das Secret RELEASES_TOKEN ins Download-Repo schreiben darf (ändert nichts).
+name: Token-Check
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/token-check.yml]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: RELEASES_TOKEN prüfen
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "::error title=RELEASES_TOKEN fehlt::Secret ist nicht gesetzt"; exit 1; fi
+          push=$(gh api repos/Sebbilore/silkreader-download --jq '.permissions.push' 2>&1) || { echo "::error title=RELEASES_TOKEN ungültig::$push"; exit 1; }
+          if [ "$push" = "true" ]; then echo "::notice title=RELEASES_TOKEN OK::Darf ins Download-Repo schreiben"; else echo "::error title=RELEASES_TOKEN ohne Schreibrecht::Contents auf Read and write stellen"; exit 1; fi

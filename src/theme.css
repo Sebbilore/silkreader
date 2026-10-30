@@ -1,0 +1,110 @@
+/* Silkreader – ruhig wie ein eingebautes Windows-Werkzeug.
+   Neutrale Grautöne, Pink nur als Markenfarbe (Spinne, Hauptknopf, Auswahl, Fokus).
+   Hell oder dunkel folgt Windows (oder der Einstellung „Darstellung“ über nativeTheme). */
+:root {
+  color-scheme: dark;
+  /* Flächen */
+  --ink: #1c1c1c;            /* großer Fenstergrund */
+  --surface: #202020;        /* Blasen, Ring, kleine Fenster */
+  --glass: var(--surface);
+  --glass-2: #262626;
+  --card: #2b2b2b;           /* Zeilen und Karten */
+  --raised: #333333;         /* Knöpfe, Felder */
+  --control-line: #454545;
+  --line: rgba(255, 255, 255, .08);
+  --line-2: rgba(255, 255, 255, .14);
+  /* Schrift */
+  --text: #f2f2f2;
+  --strong: #ffffff;
+  --muted: #ababab;
+  --faint: #8f8f8f;
+  /* Marke */
+  --pink: #ff5c9d;           /* Spinne, Auswahl, Fokus */
+  --pink-2: #ff7aae;         /* Links */
+  --primary: #c42b67;        /* der eine Hauptknopf */
+  --on-primary: #ffffff;
+  --pink-soft: rgba(255, 92, 157, .14);
+  --pink-glow: rgba(255, 92, 157, .3);
+  /* Zustände */
+  --warn: #f5c27a; --warn-bg: #3a2f1f;
+  --ok: #6fd39a; --bad: #ff8a9e;
+  /* Seidenfäden */
+  --silk: rgba(244, 244, 250, .85);
+  --dew: rgba(255, 255, 255, .95);
+
+  --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+
+  /* Formen wie Windows 11: Fenster 8 px, Bedienelemente 4 px */
+  --r-s: 4px; --r-m: 6px; --r-l: 8px; --r-pill: 4px;
+  --shadow: 0 8px 24px rgba(0, 0, 0, .35), 0 1px 3px rgba(0, 0, 0, .3);
+  --sheen: 0 0 0 transparent;
+
+  /* Bewegung: kurz und ruhig */
+  --ease-spring: cubic-bezier(.2, 1.1, .4, 1);
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --t-fast: .12s; --t-mid: .2s; --t-slow: .26s;
+}
+/* Hell: per Attribut (preload.js) oder, falls es fehlt, nach Windows */
+:root[data-theme="light"] {
+    color-scheme: light;
+    --ink: #f3f3f3; --surface: #fbfbfb; --glass-2: #f3f3f3; --card: #ffffff; --raised: #ffffff; --control-line: #d0d0d0;
+    --line: rgba(0, 0, 0, .08); --line-2: rgba(0, 0, 0, .14);
+    --text: #1b1b1b; --strong: #000000; --muted: #5c5c5c; --faint: #6b6b6b;
+    --pink: #d81b6a; --pink-2: #b0245c; --pink-soft: rgba(216, 27, 106, .1); --pink-glow: rgba(216, 27, 106, .25);
+    --warn: #7a4300; --warn-bg: #fcefd9; --ok: #1f7a4d; --bad: #b3261e;
+    --silk: rgba(40, 40, 50, .55);
+    --shadow: 0 8px 24px rgba(0, 0, 0, .14), 0 1px 3px rgba(0, 0, 0, .1);
+}
+
+:root[data-theme="contrast"] {
+    color-scheme: dark;
+    --ink: #000000; --surface: #000000; --glass: #000000; --glass-2: #000000; --card: #000000; --raised: #000000; --control-line: #ffffff;
+    --line: rgba(255, 255, 255, .55); --line-2: #ffffff;
+    --text: #ffffff; --strong: #ffffff; --muted: #f0f0f0; --faint: #dcdcdc;
+    --pink: #ffff00; --pink-2: #00ffff; --primary: #ffff00; --on-primary: #000000; --pink-soft: rgba(255, 255, 0, .16); --pink-glow: transparent;
+    --warn: #ffd400; --warn-bg: #000000; --ok: #3ff23f; --bad: #ff7070;
+    --silk: #ffffff; --shadow: none;
+}
+/* Hoher Kontrast: Karten und Knöpfe mit klarer Kante, Links unterstrichen */
+:root[data-theme="contrast"] :is(.letter, .card, .fixbox, .readalong, .tipline, .scam, .alldone, .mrow, .line, .opt, .box, details.adv > summary, .chip) { outline: 1px solid #fff; outline-offset: -1px; }
+:root[data-theme="contrast"] :is(a, .link) { text-decoration: underline; }
+:root[data-theme="contrast"] :focus-visible { outline: 3px solid #00ffff !important; outline-offset: 1px; }
+
+/* Gemeinsame Bausteine */
+.glass { background: var(--surface); border: 1px solid var(--line-2); box-shadow: var(--shadow); }
+.icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+@keyframes silk-pop { from { transform: scale(.94); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes silk-out { to { transform: scale(.96); opacity: 0; } }
+@keyframes silk-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes silk-draw { to { stroke-dashoffset: 0; } }
+@keyframes silk-spin { to { transform: rotate(360deg); } }
+@keyframes dew-glint { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+
+/* Die große Spinne (spider.js) – im Lesemodus und beim Lesen auf dem Bildschirm */
+.spider-layer { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; transition: opacity .35s var(--ease-out); z-index: 5; }
+/* Die ruhige Spinne: einfarbig, flach, kein Glanz */
+.spider-femur { stroke: var(--pink); stroke-width: 2.3; stroke-linecap: round; }
+.spider-tibia { stroke: var(--pink); stroke-width: 1.6; stroke-linecap: round; }
+.spider-knee { display: none; }
+.spider-foot { fill: var(--pink); stroke: none; }
+.spider-abdomen, .spider-thorax { fill: #2b2b2b; stroke: var(--pink); stroke-width: 1.2; }
+.spider-shine { display: none; }
+.spider-mark { fill: var(--pink); }
+.spider-eye { fill: #fff; } .spider-eye.small { fill: rgba(255, 255, 255, .7); }
+.spider-glint { fill: var(--pink); }
+.spider-glow { display: none; }
+.spider-shadow { fill: rgba(0, 0, 0, .3); filter: blur(7px); }
+.spider-print { fill: none; stroke: var(--pink); stroke-width: 1.3; transform-box: fill-box; transform-origin: center;
+  animation: spider-print .7s var(--ease-out) forwards; }
+@keyframes spider-print { from { transform: scale(.4); opacity: .95; } to { transform: scale(2.8); opacity: 0; } }
+
+/* Tastaturbedienung: deutlich sichtbarer Fokus */
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--pink); outline-offset: 2px; border-radius: var(--r-s); }
+
+/* Windows-Einstellung „Animationen anzeigen“ aus: Bewegungen auf das Nötigste reduzieren */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

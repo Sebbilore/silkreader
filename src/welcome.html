@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<title>Willkommen</title>
+<link rel="stylesheet" href="theme.css">
+<script src="i18n.js"></script>
+<script src="a11y.js"></script>
+<script src="icons.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--ink); color: var(--text); font: 14px/1.55 var(--font); overflow: hidden; user-select: none; }
+  body { background: var(--ink); }
+  .wrap { height: 100%; display: flex; flex-direction: column; padding: 26px 30px 22px; }
+  .top { display: flex; align-items: center; gap: 10px; }
+  .dots { display: flex; gap: 6px; flex: 1; }
+  .dots i { width: 22px; height: 3px; border-radius: 2px; background: var(--line-2); transition: background var(--t-mid); }
+  .dots i.on { background: var(--pink); }
+  .langs { display: flex; gap: 6px; }
+  .chip { background: var(--raised); border: 1px solid var(--control-line); color: var(--text); font: inherit; font-size: 13px; border-radius: var(--r-s); padding: 4px 12px; cursor: pointer; }
+  .chip.on { border-color: var(--pink); color: var(--strong); font-weight: 600; }
+  .step { display: none; flex: 1; flex-direction: column; animation: silk-rise .4s var(--ease-out); overflow: auto; }
+  .step.on { display: flex; }
+  h1 { font: 650 22px/1.25 var(--font-display); margin: 18px 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+  .spider { width: 120px; height: 120px; margin: 14px auto 0; display: block; }
+  ul.how { list-style: none; padding: 0; margin: 10px 0 0; }
+  ul.how li { display: flex; gap: 12px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--line); }
+  ul.how li:first-child { border-top: none; }
+  ul.how .icon { width: 18px; height: 18px; color: var(--pink); margin-top: 2px; }
+  .opt { border: 1px solid var(--line); border-radius: var(--r-m); padding: 12px 14px; margin-bottom: 10px; cursor: pointer; background: var(--card);
+    transition: border-color var(--t-fast), background var(--t-fast); }
+  .opt:hover { border-color: var(--line-2); }
+  .opt.on { border-color: var(--pink); background: var(--pink-soft); }
+  .opt b { display: block; font-weight: 650; }
+  .opt span { color: var(--muted); font-size: 12.5px; }
+  .extra { margin-top: 10px; display: none; } .opt.on .extra { display: block; }
+  input.key { width: 100%; background: var(--raised); border: 1px solid var(--control-line); border-radius: var(--r-s); color: var(--text); font: inherit;
+    font-size: 13px; padding: 7px 10px; outline: none; }
+  input.key:focus { border-color: var(--pink); }
+  .bar { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; margin-top: 8px; display: none; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--pink); transition: width .4s; }
+  .small { font-size: 12px; color: var(--muted); }
+  .data { display: grid; gap: 10px; margin-bottom: 12px; }
+  .data div { border: 1px solid var(--line); border-radius: var(--r-m); padding: 10px 12px; background: var(--card); }
+  .data h3 { margin: 0 0 3px; font-size: 13px; color: var(--strong); display: flex; align-items: center; gap: 7px; }
+  .data h3 .icon { width: 15px; height: 15px; color: var(--pink); }
+  .data p { margin: 0; font-size: 12.5px; color: var(--muted); }
+  label.tog { display: flex; gap: 9px; align-items: flex-start; font-size: 12.5px; margin: 7px 0; cursor: pointer; }
+  label.tog input { accent-color: var(--primary); margin-top: 3px; }
+  .note { margin-top: 10px; font-size: 12px; color: var(--muted); border-left: 2px solid var(--pink); padding-left: 10px; }
+  .links { display: flex; gap: 16px; margin-top: 8px; }
+  .link { background: none; border: none; color: var(--pink); font: inherit; font-size: 12px; cursor: pointer; padding: 0; }
+  .link:hover { text-decoration: underline; }
+  .practice { user-select: text; cursor: text; background: #fff; color: #1b1b1f; border-radius: var(--r-m); padding: 16px 18px; font: 14px/1.6 Georgia, 'Times New Roman', serif;
+    box-shadow: var(--shadow); margin-bottom: 10px; }
+  .practice ::selection { background: #3390ff; color: #fff; }
+  .nav { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
+  button.go { background: var(--primary); color: var(--on-primary); border: none; border-radius: var(--r-s); font: 600 14px var(--font); height: 34px; padding: 0 22px; cursor: pointer;
+    box-shadow: 0 6px 18px var(--pink-glow); transition: transform var(--t-fast) var(--ease-spring); }
+  button.go:hover { transform: translateY(-1px); }
+  button.ghost { background: none; border: none; color: var(--muted); font: inherit; cursor: pointer; }
+  button.ghost:hover { color: var(--text); }
+  /* 1.22: drei Schritte */
+  .s1 { align-items: center; text-align: center; }
+  .s1 .sub { max-width: 400px; }
+  .s1 .langs { justify-content: center; margin-top: 2px; }
+  .card { width: 100%; padding: 12px 14px; background: var(--card); border-radius: var(--r-m); text-align: left; margin-top: 20px; }
+  .card .row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+  .card .bar { display: block; margin: 8px 0 6px; height: 4px; background: var(--line-2); }
+  .tips { list-style: none; padding: 0; margin: 4px 0 0; display: flex; flex-direction: column; gap: 2px; }
+  .tips li { display: flex; gap: 12px; padding: 12px 14px; background: var(--card); }
+  .tips li:first-child { border-radius: var(--r-m) var(--r-m) 0 0; } .tips li:last-child { border-radius: 0 0 var(--r-m) var(--r-m); }
+  .tips b { width: 170px; flex: none; font-weight: 600; } .tips span { color: var(--muted); }
+  .prohint { display: flex; gap: 12px; align-items: center; margin-top: 16px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--pink) 40%, transparent); border-radius: var(--r-m); font-size: 13px; color: var(--muted); }
+  .prohint b { color: var(--strong); font-weight: 600; } .prohint .icon { width: 16px; height: 16px; color: var(--pink); flex: none; }
+  ol.do { margin: 0 0 14px; padding-left: 20px; color: var(--muted); }
+  .loadline { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+  .loadline .bar { display: block; flex: 1; margin: 0; height: 4px; background: var(--line-2); }
+  .nav .dots { flex: 1; } .nav .dots i { width: 6px; height: 4px; } .nav .dots i.on { width: 18px; }
+  .nav .right { display: flex; gap: 8px; align-items: center; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- 1: Hallo + Sprache, die KI lädt schon im Hintergrund -->
+  <section class="step on s1" id="s1">
+    <svg class="spider" viewBox="-40 -46 80 86" aria-hidden="true">
+      <line x1="0" y1="-46" x2="0" y2="-11" stroke="var(--silk)" stroke-width=".7"/>
+      <g stroke="var(--pink)" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 -5L18 -15L24 -4M10 -1L21 -7L28 4M10 3L20 2L26 13M8 7L16 9L20 20M-8 -5L-18 -15L-24 -4M-10 -1L-21 -7L-28 4M-10 3L-20 2L-26 13M-8 7L-16 9L-20 20"/>
+      </g>
+      <circle r="11" fill="#2b2b2b" stroke="var(--pink)" stroke-width="1.2"/>
+      <ellipse cx="-4.2" cy="-1.6" rx="3.6" ry="4.1" fill="#fff"/><ellipse cx="4.2" cy="-1.6" rx="3.6" ry="4.1" fill="#fff"/>
+      <circle cx="-3.8" cy="-1" r="1.8" fill="#111"/><circle cx="4.6" cy="-1" r="1.8" fill="#111"/>
+      <circle cx="-4.6" cy="-2" r=".6" fill="#fff"/><circle cx="3.8" cy="-2" r=".6" fill="#fff"/>
+      <path d="M-2.4 5.2Q0 7.6 2.4 5.2" stroke="var(--pink)" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+    </svg>
+    <h1>Hallo, ich bin Silkreader</h1>
+    <p class="sub">Ich lese Briefe, Rechnungen und Verträge für dich und sage dir, was zu tun ist. Direkt auf deinem PC.</p>
+    <div class="langs" role="radiogroup" aria-label="Sprache" data-noi18n><button class="chip" role="radio" data-l="de">Deutsch</button><button class="chip" role="radio" data-l="en">English</button></div>
+    <div class="card" id="dlCard">
+      <div class="row"><span id="dlTitle">Ich lade mein Wissen herunter</span><span class="small" id="dlPct"></span></div>
+      <div class="bar"><i id="dlBar"></i></div>
+      <div class="row"><span class="small" id="dlInfo">1 GB, nur einmal. Danach arbeite ich ganz ohne Internet.</span><button class="link" id="dlLater">Später laden</button></div>
+    </div>
+  </section>
+
+  <!-- 2: Ausprobieren mit dem Übungsbrief -->
+  <section class="step" id="s2">
+    <h1>Probier es aus</h1>
+    <ol class="do"><li>Markiere den Brief unten mit der Maus.</li><li>Klick auf die Spinne oben am Bildschirmrand.</li></ol>
+    <div class="practice" id="practice"></div>
+    <div class="links"><button class="link" id="selAll">Text für mich markieren</button></div>
+    <div class="small" id="practiceHint" style="margin-top:10px"></div>
+    <div class="loadline hidden" id="loadLine"><span class="bar"><i id="dlBar2"></i></span><span id="dlPct2"></span></div>
+  </section>
+
+  <!-- 3: Fertig – drei Dinge reichen -->
+  <section class="step" id="s3">
+    <h1>Fertig! Das kann ich</h1>
+    <p class="sub">Drei Dinge reichen, alles andere findest du später.</p>
+    <ul class="tips">
+      <li><b>Klick auf die Spinne</b><span>Markierten Text lesen</span></li>
+      <li><b>Rechtsklick oder lange drücken</b><span>Alle Funktionen im Spinnennetz</span></li>
+      <li><b>Datei draufziehen</b><span>PDF oder Word-Datei lesen</span></li>
+    </ul>
+    <div class="prohint" id="proHint"><span id="iLock"></span><span id="proText"><b>Silkreader Pro kommt bald:</b> Brief-Hilfe, Antworten, Übersetzen und mehr. Du findest es im Spinnennetz unter Mehr.</span></div>
+    <div class="prohint hidden" id="macAccess"><span id="iMac"></span><span><b>Auf dem Mac:</b> Damit ich markierten Text lesen kann, erlaube mir „Bedienungshilfen“. <button class="link" id="macOpen">Systemeinstellungen öffnen</button></span></div>
+    <p class="small" style="margin-top:14px">Alles bleibt auf deinem PC. KI kann sich irren – wichtige Angaben bitte im Original prüfen. <button class="link" id="privacy">Datenschutz</button></p>
+  </section>
+
+  <div class="nav">
+    <div class="dots"><i class="on"></i><i></i><i></i></div>
+    <div class="right"><button class="ghost" id="back">Zurück</button><button class="go" id="next">Weiter</button></div>
+  </div>
+</div>
+<script>
+  const $ = (id) => document.getElementById(id);
+  $('iLock').outerHTML = silkIcon('lock');
+  let step = 1, prefs = { hatchAnimation: true, pinCopied: false, copyHint: false };
+  const LAST = 3;
+  // Übungsbrief (in der Sprache der Oberfläche) – die Spinne erkennt ihn und zeigt ohne KI ein Beispiel-Ergebnis
+  $('practice').textContent = I18N.lang === 'en'
+    ? 'Dear Ms Sample, your electricity bill for March is 84.20 euros. Please transfer the amount by 15 December 2026. From January, your monthly instalment rises to 92 euros. Kind regards, City Power'
+    : 'Sehr geehrte Frau Muster, Ihre Stromrechnung für März beträgt 84,20 Euro. Bitte überweisen Sie den Betrag bis zum 15. Dezember 2026. Ab Januar steigt der Abschlag auf 92 Euro im Monat. Freundliche Grüße, Stadtwerke';
+  $('selAll').addEventListener('click', () => {
+    const r = document.createRange(); r.selectNodeContents($('practice'));
+    getSelection().removeAllRanges(); getSelection().addRange(r);
+    $('practiceHint').textContent = T('Jetzt oben auf die Spinne klicken.');
+  });
+  const show = () => {
+    document.querySelectorAll('.step').forEach((s, i) => s.classList.toggle('on', i + 1 === step));
+    document.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i + 1 === step));
+    $('back').style.visibility = step > 1 ? 'visible' : 'hidden';
+    $('next').textContent = T(step === LAST ? "Los geht's" : 'Weiter');
+  };
+  show();
+
+  // Sprache: sofort umschalten (Fenster lädt neu, der Download läuft weiter)
+  document.querySelectorAll('[data-l]').forEach((b) => {
+    b.classList.toggle('on', b.dataset.l === I18N.lang);
+    b.setAttribute('aria-checked', String(b.dataset.l === I18N.lang));
+    b.addEventListener('click', async () => { if (b.dataset.l !== I18N.lang) { await window.spider.setUiLang(b.dataset.l); location.reload(); } });
+  });
+
+  // Die schnelle KI lädt gleich im Hintergrund – bis man fertig geklickt hat, ist sie meist da
+  const pct = (p) => `${Math.round(p * 100)} %`;
+  function progress(p) {
+    for (const id of ['dlBar', 'dlBar2']) $(id).style.width = `${p * 100}%`;
+    $('dlPct').textContent = pct(p);
+    $('dlPct2').textContent = T('KI wird geladen, {p}', { p: pct(p) });
+    $('loadLine').classList.remove('hidden');
+  }
+  function ready() {
+    for (const id of ['dlBar', 'dlBar2']) $(id).style.width = '100%';
+    $('dlTitle').textContent = T('✓ Ich bin bereit'); $('dlPct').textContent = '';
+    $('dlInfo').textContent = T('Ab jetzt arbeite ich ganz ohne Internet.');
+    $('dlLater').classList.add('hidden'); $('loadLine').classList.add('hidden');
+  }
+  window.spider.welcomeState().then(async (st) => {
+    prefs = { hatchAnimation: st.hatchAnimation, pinCopied: st.pinCopied, copyHint: st.copyHint };
+    // Wer schon Claude nutzt, braucht keinen Download
+    if (st.provider === 'claude' && st.hasKey) { $('dlCard').classList.add('hidden'); return; }
+    if (st.modelReady) return ready();
+    const ms = await window.spider.modelStatus();
+    if (ms.downloading) return;
+    window.spider.saveSettings({ provider: 'builtin' });
+    window.spider.modelDownload(ms.selected);
+    progress(0);
+  });
+  window.spider.onModelProgress((p) => {
+    if (p.finished) return ready();
+    if (p.error) { $('dlInfo').textContent = T('Der Download hat nicht geklappt. Bitte prüfe die Internetverbindung.'); $('loadLine').classList.add('hidden'); $('dlLater').textContent = T('Nochmal versuchen'); $('dlLater').dataset.retry = '1'; return; }
+    if (p.total) progress(p.done / p.total);
+  });
+  $('dlLater').addEventListener('click', async () => {
+    if ($('dlLater').dataset.retry) { delete $('dlLater').dataset.retry; $('dlLater').textContent = T('Später laden'); const ms = await window.spider.modelStatus(); window.spider.modelDownload(ms.selected); return; }
+    window.spider.modelCancel();
+    $('dlCard').classList.add('hidden'); $('loadLine').classList.add('hidden');
+  });
+
+  // Pro: freundlicher Hinweis, wo man es findet
+  window.spider.proState().then((st) => {
+    if (st.active) $('proText').innerHTML = `<b>${T('Silkreader Pro ist aktiv.')}</b> ${T('Du findest es im Spinnennetz unter Mehr.')}`;
+  });
+  $('privacy').addEventListener('click', () => window.spider.openPrivacy());
+  // Mac: Bedienungshilfen erlauben (sonst kommt beim Klick auf die Spinne kein markierter Text an)
+  window.spider.macAccess?.().then((a) => {
+    if (!a.mac || a.trusted) return;
+    $('macAccess').classList.remove('hidden'); $('iMac').outerHTML = silkIcon('settings');
+    $('macOpen').addEventListener('click', () => window.spider.macAccessOpen());
+  });
+  if (window.spider.platform === 'darwin') document.querySelectorAll('.tips b').forEach((b) => { if (/Rechtsklick/.test(b.textContent)) b.textContent = T('Rechtsklick oder lange drücken'); });
+
+  $('back').addEventListener('click', () => { step = Math.max(1, step - 1); show(); });
+  $('next').addEventListener('click', () => {
+    if (step === 1) window.spider.welcomePrefs(prefs);
+    if (step < LAST) { step++; show(); return; }
+    window.spider.welcomeDone(prefs);
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.defaultPrevented) return;
+    const a = document.activeElement;
+    if (a?.tagName === 'BUTTON' || a?.tagName === 'INPUT') return;
+    $('next').click();
+  });
+</script>
+</body>
+</html>

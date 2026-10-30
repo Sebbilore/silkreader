@@ -1,0 +1,16 @@
+ARD ZDF Deutschlandradio Beitragsservice
+50656 Köln
+Beitragsnummer: 123 456 789
+Köln, 01.10.2026
+
+Zahlungsaufforderung
+
+Sehr geehrte Frau Beispiel,
+
+für den Zeitraum Oktober bis Dezember 2026 ist der Rundfunkbeitrag von 55,08 € fällig.
+Bitte zahlen Sie den Betrag bis zum 15.11.2026.
+IBAN: DE12 3701 0050 0000 1234 56
+Verwendungszweck: 123 456 789
+
+Mit freundlichen Grüßen
+Ihr Beitragsservice

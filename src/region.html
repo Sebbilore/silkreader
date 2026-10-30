@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<link rel="stylesheet" href="theme.css">
+<script src="i18n.js"></script>
+<title>Bereich wählen</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; cursor: crosshair; background: rgba(10,10,16,.35); user-select: none; }
+  #box { position: absolute; border: 1.5px solid var(--pink); background: rgba(255,255,255,.04); box-shadow: 0 0 0 9999px rgba(10,10,16,.25); display: none; }
+  #hint { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); font: 600 13px var(--font); color: #fff;
+    background: var(--ink); border: 1px solid var(--pink); border-radius: var(--r-pill); padding: 6px 14px; box-shadow: 0 0 14px var(--pink-glow); }
+</style>
+</head>
+<body>
+<div id="hint">Bereich aufziehen, den die Spinne lesen soll. Esc bricht ab.</div>
+<div id="box"></div>
+<script>
+  const box = document.getElementById('box');
+  let start = null;
+  const rect = (e) => ({ x: Math.min(start.x, e.clientX), y: Math.min(start.y, e.clientY), w: Math.abs(e.clientX - start.x), h: Math.abs(e.clientY - start.y) });
+  window.addEventListener('mousedown', (e) => { start = { x: e.clientX, y: e.clientY }; box.style.display = 'block'; document.getElementById('hint').style.display = 'none'; });
+  window.addEventListener('mousemove', (e) => {
+    if (!start) return;
+    const r = rect(e);
+    Object.assign(box.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
+  });
+  window.addEventListener('mouseup', (e) => {
+    if (!start) return;
+    const r = rect(e);
+    start = null;
+    if (r.w < 12 || r.h < 12) { box.style.display = 'none'; return; }
+    window.spider.regionDone(r);
+  });
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.spider.regionDone(null); });
+</script>
+</body>
+</html>

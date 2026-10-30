@@ -1,0 +1,30 @@
+import { _electron as electron } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+const [out, home] = process.argv.slice(2);
+const app = await electron.launch({ executablePath: './node_modules/electron/dist/electron', args: ['--no-sandbox', '.'], env: { ...process.env, SPIDER_MOCK: 'test/mock.json', HOME: home, SILK_MODEL_PATH: '/nonexistent' } });
+const errs = [];
+app.on('window', (w) => w.on('pageerror', (e) => errs.push(String(e))));
+await new Promise((r) => setTimeout(r, 3500));
+const vis = () => app.evaluate(({ BrowserWindow }) => Object.fromEntries(BrowserWindow.getAllWindows().map((w) => [w.webContents.getURL().split('/').pop(), w.isVisible()])));
+const rig = app.windows().find((w) => w.url().includes('bubble'));
+await rig.evaluate(() => window.spider.openMain());
+await new Promise((r) => setTimeout(r, 1500));
+console.log('nach Öffnen:', JSON.stringify(await vis()));
+const main = app.windows().find((w) => w.url().includes('index.html'));
+main.on('pageerror', (e) => errs.push(String(e)));
+let n = 0;
+const shots = async (k, gap = 110) => { for (let i = 0; i < k; i++) { await main.screenshot({ path: `${out}/m${String(n++).padStart(3, '0')}.png` }); await new Promise((r) => setTimeout(r, gap)); } };
+for (const a of ['hop', 'flip', 'abseil', 'dance', 'peek']) {
+  await main.evaluate((a) => window.__mascot.start(a), a);
+  await shots(a === 'abseil' ? 26 : a === 'peek' ? 30 : 12);
+  console.log(a, '→ state', await main.evaluate(() => window.__mascot.state), 'x', await main.evaluate(() => Math.round(window.__mascot.x)));
+}
+await main.evaluate(() => window.__mascot.poked());
+await shots(8);
+await main.evaluate(() => { window.__mascot.lastMouse = -1e9; window.__mascot.start('sleep'); });
+await shots(6, 200);
+console.log('schläft:', await main.evaluate(() => window.__mascot.mood));
+await main.evaluate(() => window.spider.closeWindow());
+await new Promise((r) => setTimeout(r, 800));
+console.log('nach Schließen:', JSON.stringify(await vis()));
+console.log('errors:', errs);
+await app.close();
