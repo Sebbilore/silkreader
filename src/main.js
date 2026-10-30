@@ -125,6 +125,11 @@ const OLLAMA_URL = 'http://127.0.0.1:11434';
 
 // Eingebautes KI-Modell (läuft mit llama.cpp direkt in der App, kostenlos und offline).
 // Die Modelldatei wird einmalig aus der App heraus geladen und im Benutzerordner gespeichert.
+// Gemeinsame Fenster-Einstellungen. v8CacheOptions: Chromium speichert den übersetzten Code der Fenster
+// schon beim ersten Öffnen – danach gehen Blase, Ring und Einstellungen schneller auf.
+const WEB_PREFS = { preload: path.join(__dirname, 'preload.js'), spellcheck: false, v8CacheOptions: 'bypassHeatCheck' };
+// Sparmodus: von Hand gewählt – oder automatisch auf PCs mit wenig Arbeitsspeicher (unter 6 GB, also 4-GB-Geräte)
+const lowPowerOn = (s) => (typeof s.lowPower === 'boolean' ? s.lowPower : require('os').totalmem() < 6 * 1024 ** 3);
 const BUILTIN_MODELS = {
   fast: {
     name: 'Schnell (Qwen2.5 1.5B)',
@@ -229,7 +234,7 @@ function createBubble() {
     width: RIG.width, height: RIG.height, x: Math.round(x), y: area.y,
     frame: false, transparent: true, resizable: false, alwaysOnTop: true,
     skipTaskbar: true, hasShadow: false, focusable: false, maximizable: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+    webPreferences: WEB_PREFS,
   });
   bubbleWin.setAlwaysOnTop(true, 'floating');
   bubbleWin.setVisibleOnAllWorkspaces(true);
@@ -371,7 +376,7 @@ function createMain() {
     show: false,
     width: 1280, height: 860, minWidth: 820, minHeight: 560,
     title: 'Silkreader', backgroundColor: winBg(), autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+    webPreferences: WEB_PREFS,
   });
   mainWin.loadFile(path.join(__dirname, 'index.html'));
   mainWin.on('close', (e) => {
@@ -410,7 +415,7 @@ function openSettings() {
   settingsWin = new BrowserWindow({
     width: 580, height: 820, resizable: true, title: T('Einstellungen'),
     backgroundColor: winBg(), autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+    webPreferences: WEB_PREFS,
   });
   settingsWin.loadFile(path.join(__dirname, 'settings.html'));
   settingsWin.on('closed', () => {
@@ -444,7 +449,7 @@ function createPopup() {
   popupWin = new BrowserWindow({
     width: popupW(), height: popupH(), show: false, frame: false, transparent: true, resizable: false,
     alwaysOnTop: true, skipTaskbar: true, hasShadow: false, maximizable: false, minimizable: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+    webPreferences: WEB_PREFS,
   });
   popupWin.setAlwaysOnTop(true, 'floating');
   protectFromCapture(popupWin);
@@ -535,7 +540,7 @@ function createRing() {
   ringWin = new BrowserWindow({
     width: RING_SIZE, height: RING_SIZE, show: false, frame: false, transparent: true, resizable: false, movable: false,
     alwaysOnTop: true, skipTaskbar: true, focusable: false, hasShadow: false, maximizable: false, minimizable: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+    webPreferences: WEB_PREFS,
   });
   ringWin.setAlwaysOnTop(true, 'screen-saver');
   protectFromCapture(ringWin);
@@ -670,7 +675,7 @@ function showWelcome() {
   welcomeWin = new BrowserWindow({
     width: 560, height: 640, resizable: false, maximizable: false, minimizable: false, title: T('Willkommen'),
     backgroundColor: winBg(), autoHideMenuBar: true, show: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+    webPreferences: WEB_PREFS,
   });
   welcomeWin.loadFile(path.join(__dirname, 'welcome.html'));
   welcomeWin.once('ready-to-show', () => welcomeWin.show());
@@ -723,7 +728,7 @@ ipcMain.handle('set-ui-lang', (_e, l) => {
 // Datenschutz und Lizenzen in kleinen Fenstern
 function openDoc(file, title, size = { width: 680, height: 720 }) {
   const w = new BrowserWindow({ ...size, title, backgroundColor: winBg(), autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false } });
+    webPreferences: WEB_PREFS });
   w.loadFile(path.join(__dirname, file));
   return w;
 }
@@ -928,7 +933,7 @@ async function regionCapture() {
   const win = new BrowserWindow({
     x: b.x, y: b.y, width: b.width, height: b.height, frame: false, transparent: true, resizable: false, movable: false,
     alwaysOnTop: true, skipTaskbar: true, hasShadow: false, show: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+    webPreferences: WEB_PREFS,
   });
   win.setAlwaysOnTop(true, 'screen-saver');
   const rect = await new Promise((resolve) => {
@@ -1065,7 +1070,7 @@ function prepareOverlay(near) {
     x: b.x, y: b.y, width: b.width, height: b.height, show: false,
     frame: false, transparent: true, resizable: false, movable: false, alwaysOnTop: true,
     skipTaskbar: true, focusable: false, hasShadow: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+    webPreferences: WEB_PREFS,
   });
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setIgnoreMouseEvents(true);
@@ -1187,7 +1192,7 @@ function openCamera() {
   if (cameraWin && !cameraWin.isDestroyed()) { cameraWin.focus(); return; }
   cameraWin = new BrowserWindow({
     width: 900, height: 680, title: T('Brief fotografieren'), backgroundColor: winBg(), autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), spellcheck: false },
+    webPreferences: WEB_PREFS,
   });
   cameraWin.loadFile(path.join(__dirname, 'camera.html'));
   cameraWin.on('closed', () => { cameraWin = null; });
@@ -1612,8 +1617,9 @@ function preloadBuiltinModel() {
   const s = loadSettings();
   if (s.provider !== 'builtin' || !builtinModelReady()) return;
   lastModelUse = Date.now();
-  if (llamaRuntime?.key === builtinKey(s) || llamaLoading) return;
-  loadBuiltinModel().catch((e) => console.error('Modell vorladen:', e));
+  if (llamaRuntime?.key === builtinKey(s)) return warmContext(llamaRuntime);
+  if (llamaLoading) return;
+  loadBuiltinModel().then(warmContext).catch((e) => console.error('Modell vorladen:', e));
 }
 
 setInterval(() => {
@@ -1757,6 +1763,32 @@ function splitIntoChunks(model, doc, maxTokens) {
   return chunks;
 }
 
+// Kontext + Sequenz anlegen, mit Token-Vorhersage (aus dem Text oder per Hilfsmodell)
+const baseContextSize = (key) => BUILTIN_MODELS[key].chunkTokens + 2600;
+async function makeSequence(model, llama, key, contextSize) {
+  const draftFile = path.join(modelDir(), DRAFT_MODELS[`draft-${key}`]?.file || '-');
+  const ctx = await model.createContext({ contextSize, flashAttention: 'auto' });
+  const { InputLookupTokenPredictor, DraftSequenceTokenPredictor } = await esmImport('node-llama-cpp');
+  if (SPEED.draft && fs.existsSync(draftFile)) {
+    // Hilfsmodell schlägt vor, das große Modell prüft mehrere Token auf einmal
+    const rtd = llamaRuntime;
+    if (rtd && !rtd.draftModel) rtd.draftModel = await llama.loadModel({ modelPath: draftFile });
+    const dctx = await rtd.draftModel.createContext({ contextSize });
+    const tokenPredictor = new DraftSequenceTokenPredictor(dctx.getSequence(), { minTokens: 0, maxTokens: 6, minConfidence: 0.6 });
+    return { ctx, dctx, seq: ctx.getSequence({ tokenPredictor }) };
+  }
+  const tokenPredictor = SPEED.lookup ? new InputLookupTokenPredictor({ patternLength: { min: 2 }, predictionLength: { max: 4 } }) : undefined;
+  return { ctx, seq: ctx.getSequence(tokenPredictor ? { tokenPredictor } : undefined) };
+}
+// Beim Vorladen gleich den Kontext anlegen – dann beginnt das erste Lesen ohne diese Wartezeit
+function warmContext(rt) {
+  if (!SPEED.keep || !rt || rt.seq || rt.busy || rt.warming) return;
+  rt.warming = makeSequence(rt.model, rt.llama, rt.key, baseContextSize(rt.key))
+    .then((x) => { if (llamaRuntime === rt && !rt.seq) Object.assign(rt, x, { seqKey: `${SPEED.lookup}|${SPEED.draft}` }); else { x.ctx.dispose(); x.dctx?.dispose(); } })
+    .catch((e) => logLine(`Kontext vorbereiten: ${e.message}`))
+    .finally(() => { rt.warming = null; });
+}
+
 async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null } = {}) {
   const key = builtinKey(s);
   const info = BUILTIN_MODELS[key];
@@ -1770,30 +1802,15 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
 
   const chunks = splitIntoChunks(model, doc, info.chunkTokens);
   const systemPrompt = `Du bist ein sorgfältiger Analyst. Antworte auf ${s.language} in einfacher, verständlicher Sprache, kurz und präzise, ausschließlich mit JSON nach dem Schema.`;
-  const draftFile = path.join(modelDir(), DRAFT_MODELS[`draft-${key}`]?.file || '-');
-  const newSequence = async (contextSize) => {
-    const ctx = await model.createContext({ contextSize, flashAttention: 'auto' });
-    const { InputLookupTokenPredictor, DraftSequenceTokenPredictor } = await esmImport('node-llama-cpp');
-    let tokenPredictor;
-    if (SPEED.draft && fs.existsSync(draftFile)) {
-      // Hilfsmodell schlägt vor, das große Modell prüft mehrere Token auf einmal
-      const rtd = llamaRuntime;
-      if (rtd && !rtd.draftModel) rtd.draftModel = await llama.loadModel({ modelPath: draftFile });
-      const dctx = await rtd.draftModel.createContext({ contextSize });
-      tokenPredictor = new DraftSequenceTokenPredictor(dctx.getSequence(), { minTokens: 0, maxTokens: 6, minConfidence: 0.6 });
-      return { ctx, dctx, seq: ctx.getSequence({ tokenPredictor }) };
-    }
-    if (SPEED.lookup) tokenPredictor = new InputLookupTokenPredictor({ patternLength: { min: 2 }, predictionLength: { max: 4 } });
-    return { ctx, seq: ctx.getSequence(tokenPredictor ? { tokenPredictor } : undefined) };
-  };
+  const newSequence = (contextSize) => makeSequence(model, llama, key, contextSize);
   // Der Standard-Kontext bleibt mit dem Modell geladen (wird mit ihm freigegeben)
-  const baseSize = info.chunkTokens + 2600;
+  const baseSize = baseContextSize(key);
   const rt = llamaRuntime;
   let own = null; // eigener (größerer oder nicht behaltener) Kontext dieser Analyse
   const shared = SPEED.keep && rt && !rt.busy; // läuft schon eine Analyse, bekommt diese einen eigenen Kontext
   const seqKey = `${SPEED.lookup}|${SPEED.draft}`; // andere Vorhersage eingestellt → Kontext neu anlegen
   if (shared && rt.seq && rt.seqKey !== seqKey) { await rt.ctx.dispose().catch(() => {}); await rt.dctx?.dispose().catch(() => {}); rt.ctx = rt.seq = rt.dctx = null; }
-  if (shared) { rt.busy = true; rt.seqKey = seqKey; if (!rt.seq) { try { Object.assign(rt, await newSequence(baseSize)); } catch (e) { rt.busy = false; throw e; } } }
+  if (shared) { rt.busy = true; rt.seqKey = seqKey; if (rt.warming) await rt.warming.catch(() => {}); if (!rt.seq) { try { Object.assign(rt, await newSequence(baseSize)); } catch (e) { rt.busy = false; throw e; } } }
   let cur = shared ? rt : (own = await newSequence(baseSize));
   try {
     const ask = async (prompt, schema, maxTokens, stream) => {
@@ -3087,7 +3104,7 @@ ipcMain.handle('get-settings', () => {
     uiLang: uiLang(),
     provider: s.provider, model: s.model, ollamaModel: s.ollamaModel, language: s.language,
     hatchAnimation: s.hatchAnimation !== false,
-    lowPower: !!s.lowPower,
+    lowPower: lowPowerOn(s),
     pinCopied: s.pinCopied !== false,
     copyHint: s.copyHint !== false,
     privateMode: !!s.privateMode,
@@ -3321,12 +3338,12 @@ function checkUpdatesNow() {
 
 // ---------- Start ----------
 
-// Sparmodus (Einstellungen): ohne Grafikbeschleunigung – spart den Grafik-Prozess (~100 MB).
+// Sparmodus (Einstellungen, auf PCs mit wenig Arbeitsspeicher automatisch): ohne Grafikbeschleunigung – spart den Grafik-Prozess.
 // Muss vor dem Start feststehen, deshalb direkt aus der Einstellungsdatei gelesen.
 try {
   const early = JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'settings.json'), 'utf8'));
-  if (early.lowPower || process.env.SILK_LOW_POWER) app.disableHardwareAcceleration();
-} catch { if (process.env.SILK_LOW_POWER) app.disableHardwareAcceleration(); }
+  if (lowPowerOn(early) || process.env.SILK_LOW_POWER) app.disableHardwareAcceleration();
+} catch { if (lowPowerOn({}) || process.env.SILK_LOW_POWER) app.disableHardwareAcceleration(); }
 
 // Chromium hält sonst einen Reserve-Prozess (~60 MB) bereit, den Silkreader nicht braucht.
 app.commandLine.appendSwitch('disable-features', 'SpareRendererForSitePerProcess');

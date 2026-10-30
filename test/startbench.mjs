@@ -11,6 +11,9 @@ for (let i = 0; i < runs; i++) {
   let w; for (;;) { w = app.windows().find((x) => x.url().includes('bubble.html')); if (w) break; await new Promise(r => setTimeout(r, 20)); }
   await w.waitForLoadState('load'); const tStart = Date.now() - t0;
   await new Promise(r => setTimeout(r, 8000));
+  // Prozessor im Leerlauf über 10 s (der erste Aufruf setzt den Zähler zurück)
+  await app.evaluate(({ app }) => app.getAppMetrics());
+  await new Promise(r => setTimeout(r, 10000));
   const m = await app.evaluate(({ app, BrowserWindow }) => { const ws = BrowserWindow.getAllWindows().map(w => ({ pid: w.webContents.getOSProcessId(), url: w.webContents.getURL().split('/').pop(), vis: w.isVisible() })); return app.getAppMetrics().map(p => ({ t: p.type, mem: p.memory.workingSetSize, cpu: p.cpu.percentCPUUsage, win: ws.filter(w => w.pid === p.pid) })); }); if (i === 0) console.log(JSON.stringify(m.map(p => [p.t, Math.round(p.mem/1024), p.win.map(w => w.url + (w.vis ? '' : '(hidden)')).join(',')])));
   const mem = Math.round(m.reduce((a, p) => a + p.mem, 0) / 1024); const cpu = m.reduce((a, p) => a + p.cpu, 0).toFixed(1);
   res.push({ tStart, mem, cpu, procs: m.length }); await app.close();

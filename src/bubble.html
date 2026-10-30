@@ -106,6 +106,7 @@
   #items { transition: opacity .3s, transform .3s; transform-origin: 50% 20%; }
   body.webClosed #items { opacity: 0; transform: scale(.4); pointer-events: none; }
   body.webClosed .item .sway, body.webClosed #holdWeb .dew, body.faded .item .sway { animation: none; } /* zugeklappt: nichts animieren (spart Leistung) */
+  body.sleeping .item .sway, body.sleeping #holdWeb .dew, body.sleeping #zoneGlow::before { animation-play-state: paused; } /* Spinne schläft: alles ruht */
   #count { position: absolute; top: 6px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--pink);
     color: var(--text); font: 700 9px/13px var(--font); text-align: center; display: none; transition: opacity .3s; }
   body.webClosed.hasItems #count { display: block; }
@@ -323,13 +324,14 @@
     lastActivity = performance.now();
     if (!sleeping) return;
     sleeping = false;
+    document.body.classList.remove('sleeping');
     surprisedUntil = performance.now() + 1200;
     el.zzz.setAttribute('opacity', '0');
     doTrick('yoyo');
   }
 
   // ---------- Animationsschleife ----------
-  // Bildrate: bei Action volle Bildrate, sonst 10 fps, halb ausgeblendet 4 fps, schlafend 3 fps.
+  // Bildrate: bei Action volle Bildrate, sonst 7 fps, halb ausgeblendet 4 fps, schlafend 2 fps.
   // In Ruhe schläft die Schleife wirklich (Timer) statt 60-mal pro Sekunde aufzuwachen.
   let nextTimer = null;
   function schedule(gap) {
@@ -345,7 +347,7 @@
   function frame(now) {
     const active = dragging || hover || trick || catching || busy || talking || fx || bits.length || Math.abs(omega) > 0.6 || Math.abs(lenV) > 40;
     const calm = !active && document.body.classList.contains('faded');
-    const minGap = sleeping ? 330 : active ? 0 : calm ? 250 : 100;
+    const minGap = sleeping ? 500 : active ? 0 : calm ? 250 : 140;
     schedule(minGap);
     lastDraw = now;
 
@@ -356,6 +358,7 @@
     if (trick && now > trickUntil) endTrick();
     if (!sleeping && !busy && !dragging && now - lastActivity > SLEEP_AFTER && !trick) {
       sleeping = true;
+      document.body.classList.add('sleeping'); // CSS-Animationen (Kokons, Tau) ruhen mit
     }
     if (!trick && !sleeping && !hover && !dragging && !busy && !catching && now > nextTrick && !reduceMotion.matches) {
       doTrick(randomTrick());

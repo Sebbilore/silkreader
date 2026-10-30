@@ -74,10 +74,11 @@ for (const key of keys) {
 await app.close();
 
 const pct = ([a, b]) => (b ? `${a}/${b}` : '–');
+const worst = (a) => (a.length ? `${(Math.max(...a) / 1000).toFixed(1)} s` : '–');
 const avg = (a) => (a.length ? `${(a.reduce((x, y) => x + y, 0) / a.length / 1000).toFixed(1)} s` : '–');
 const mean = (a, f = (x) => x) => (a.length ? f(a.reduce((x, y) => x + y, 0) / a.length) : '–');
-const table = ['| Modell | Betrag | Frist | Aufgabe | ohne erfundene Zahlen | nachgefragt | Ø Dauer | Ø erste Stichpunkte | Ø Details (Mehr) | Ø Token | Token/s |', '|---|---|---|---|---|---|---|---|---|---|---|',
-  ...rows.map((r) => (r.error ? `| ${r.key} | Download fehlgeschlagen | | | | | | | | | |` : `| ${r.key}${r.used !== r.key ? ` (→ ${r.used})` : ''} | ${pct(r.amount)} | ${pct(r.date)} | ${pct(r.task)} | ${pct(r.clean)} | ${r.fixed} | ${avg(r.ms)} | ${avg(r.quick)} | ${avg(r.more)} | ${mean(r.tok, Math.round)} | ${mean(r.tps, (x) => x.toFixed(1))} |`))].join('\n');
+const table = ['| Modell | Betrag | Frist | Aufgabe | ohne erfundene Zahlen | nachgefragt | Ø Dauer | langsamster | Ø erste Stichpunkte | langsamste | Ø Details (Mehr) | Ø Token | Token/s |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|',
+  ...rows.map((r) => (r.error ? `| ${r.key} | Download fehlgeschlagen | | | | | | | | | | | |` : `| ${r.key}${r.used !== r.key ? ` (→ ${r.used})` : ''} | ${pct(r.amount)} | ${pct(r.date)} | ${pct(r.task)} | ${pct(r.clean)} | ${r.fixed} | ${avg(r.ms)} | ${worst(r.ms)} | ${avg(r.quick)} | ${worst(r.quick)} | ${avg(r.more)} | ${mean(r.tok, Math.round)} | ${mean(r.tps, (x) => x.toFixed(1))} |`))].join('\n');
 console.log(`\n${table}`);
 fs.writeFileSync(path.join(out, 'bench.json'), JSON.stringify(rows, null, 2));
 fs.writeFileSync(path.join(out, 'bench.md'), `# KI-Test – ${new Date().toISOString().slice(0, 10)}\n\n${table}\n`);
