@@ -144,6 +144,12 @@ const BUILTIN_MODELS = {
     minRamGB: 8,
   },
 };
+// Kleine Hilfsmodelle (gleiche Familie): schlagen Wörter vor, das große Modell prüft sie nur (Entwurfs-Vorhersage).
+// Noch im Test – nur aktiv mit SPEED.draft und wenn die Datei schon da ist.
+const DRAFT_MODELS = {
+  'draft-fast': { uri: 'hf:bartowski/Qwen2.5-0.5B-Instruct-GGUF:Q4_K_M', file: 'Qwen2.5-0.5B-Instruct-Q4_K_M.gguf', for: 'fast', sizeLabel: '0,4 GB' },
+  'draft-quality': { uri: 'hf:unsloth/Qwen3-0.6B-GGUF:Q4_K_M', file: 'Qwen3-0.6B-Q4_K_M.gguf', for: 'quality', sizeLabel: '0,4 GB' },
+};
 const MODELS = {
   'claude-opus-5-5': 'Claude Opus 5.5 (beste Qualität)',
   'claude-sonnet-5-5': 'Claude Sonnet 5.5 (schneller, günstiger)',
@@ -1533,7 +1539,7 @@ let llamaRuntime = null; // { key, llama, model, ctx, seq } – bleibt geladen, 
 // keep   = Kontext behalten: kein neuer Speicher pro Analyse, gleiche Anweisungen werden nicht neu eingelesen
 // lean   = schlankere Antwort (weniger Angaben, keine wörtlichen Zitate)
 // twoStage = erst nur Stichpunkte und Aufgabe, die Details schreibt die KI, wenn jemand „Mehr“ öffnet
-const SPEED = { lookup: true, keep: true, lean: true, twoStage: true };
+const SPEED = { lookup: true, keep: true, lean: true, twoStage: true, draft: false };
 let lastGen = null; // Messwerte der letzten Antwort (für den KI-Test)
 const grammarCache = new WeakMap(); // je KI-Laufzeit und Schema einmal bauen (nach einem Modellwechsel neu)
 let llamaLoading = null;
@@ -1547,19 +1553,51 @@ async function loadBuiltinModel(key = builtinKey()) {
     await unloadBuiltinModel();
     const { getLlama } = await esmImport('node-llama-cpp');
     const llama = await getLlama({ gpu: 'auto' }); // nutzt die Grafikkarte, falls möglich, sonst den Prozessor
-    const model = await llama.loadModel({ modelPath: modelPathFor(key) });
-    logLine(`KI-Modell ${key} geladen (Grafikkarte: ${llama.gpu || 'keine, Prozessor'})`);
+    // Schwache eingebaute Grafik kann langsamer sein als der Prozessor – das misst tuneGpu einmal pro Modell
+    const cpuOnly = llama.gpu && loadSettings().gpuTune?.[key] === 'cpu';
+    const model = await llama.loadModel({ modelPath: modelPathFor(key), ...(cpuOnly ? { gpuLayers: 0 } : {}) });
+    logLine(`KI-Modell ${key} geladen (Grafikkarte: ${llama.gpu && !cpuOnly ? llama.gpu : 'keine, Prozessor'})`);
     llamaRuntime = { key, llama, model };
+    if (llama.gpu === 'vulkan' && !loadSettings().gpuTune?.[key]) setTimeout(() => tuneGpu(key).catch((e) => logLine(`Grafik-Messung: ${e.message}`)), 3000);
     return llamaRuntime;
   })();
   llamaLoading = { key, promise };
   try { return await promise; } finally { llamaLoading = null; }
 }
 
+// Einmal pro Modell messen: Grafikkarte (Vulkan) oder Prozessor – was schreibt schneller? Nur im Leerlauf.
+async function tokensPerSecond(model) {
+  const ctx = await model.createContext({ contextSize: 512 });
+  try {
+    const seq = ctx.getSequence();
+    const prompt = model.tokenize('Fasse kurz zusammen: Die Stadtwerke bitten um Zahlung von 98,90 Euro bis zum 15. November. Bitte überweisen Sie den Betrag auf das angegebene Konto.');
+    let n = 0, t0 = 0;
+    for await (const _ of seq.evaluate(prompt, { temperature: 0 })) { if (!t0) t0 = Date.now(); if (++n >= 24) break; } // eslint-disable-line no-unused-vars
+    return n > 1 ? (n - 1) / ((Date.now() - t0) / 1000) : 0;
+  } finally { await ctx.dispose(); }
+}
+async function tuneGpu(key) {
+  const rt = llamaRuntime;
+  if (!rt || rt.key !== key || rt.busy || analysisRunning || llamaLoading) return;
+  rt.busy = true;
+  try {
+    const gpu = await tokensPerSecond(rt.model);
+    const cpuModel = await rt.llama.loadModel({ modelPath: modelPathFor(key), gpuLayers: 0 });
+    let cpu = 0;
+    try { cpu = await tokensPerSecond(cpuModel); } finally { await cpuModel.dispose(); }
+    const choice = cpu > gpu * 1.1 ? 'cpu' : 'gpu';
+    const s = loadSettings(); s.gpuTune = { ...(s.gpuTune || {}), [key]: choice }; saveSettings(s);
+    logLine(`Grafik-Messung ${key}: Grafikkarte ${gpu.toFixed(1)} Token/s, Prozessor ${cpu.toFixed(1)} Token/s → ${choice === 'cpu' ? 'Prozessor' : 'Grafikkarte'}`);
+    if (choice === 'cpu' && !analysisRunning && llamaRuntime === rt) { rt.busy = false; await unloadBuiltinModel(); } // beim nächsten Lesen mit dem Prozessor laden
+  } finally { rt.busy = false; }
+}
+
 async function unloadBuiltinModel() {
   const rt = llamaRuntime;
   llamaRuntime = null;
   await rt?.ctx?.dispose().catch(() => {});
+  await rt?.dctx?.dispose().catch(() => {});
+  await rt?.draftModel?.dispose().catch(() => {});
   await rt?.model.dispose().catch(() => {});
 }
 
@@ -1732,17 +1770,30 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
 
   const chunks = splitIntoChunks(model, doc, info.chunkTokens);
   const systemPrompt = `Du bist ein sorgfältiger Analyst. Antworte auf ${s.language} in einfacher, verständlicher Sprache, kurz und präzise, ausschließlich mit JSON nach dem Schema.`;
+  const draftFile = path.join(modelDir(), DRAFT_MODELS[`draft-${key}`]?.file || '-');
   const newSequence = async (contextSize) => {
     const ctx = await model.createContext({ contextSize, flashAttention: 'auto' });
-    const { InputLookupTokenPredictor } = await esmImport('node-llama-cpp');
-    return { ctx, seq: ctx.getSequence(SPEED.lookup ? { tokenPredictor: new InputLookupTokenPredictor({ patternLength: { min: 2 }, predictionLength: { max: 4 } }) } : undefined) };
+    const { InputLookupTokenPredictor, DraftSequenceTokenPredictor } = await esmImport('node-llama-cpp');
+    let tokenPredictor;
+    if (SPEED.draft && fs.existsSync(draftFile)) {
+      // Hilfsmodell schlägt vor, das große Modell prüft mehrere Token auf einmal
+      const rtd = llamaRuntime;
+      if (rtd && !rtd.draftModel) rtd.draftModel = await llama.loadModel({ modelPath: draftFile });
+      const dctx = await rtd.draftModel.createContext({ contextSize });
+      tokenPredictor = new DraftSequenceTokenPredictor(dctx.getSequence(), { minTokens: 0, maxTokens: 6, minConfidence: 0.6 });
+      return { ctx, dctx, seq: ctx.getSequence({ tokenPredictor }) };
+    }
+    if (SPEED.lookup) tokenPredictor = new InputLookupTokenPredictor({ patternLength: { min: 2 }, predictionLength: { max: 4 } });
+    return { ctx, seq: ctx.getSequence(tokenPredictor ? { tokenPredictor } : undefined) };
   };
   // Der Standard-Kontext bleibt mit dem Modell geladen (wird mit ihm freigegeben)
   const baseSize = info.chunkTokens + 2600;
   const rt = llamaRuntime;
   let own = null; // eigener (größerer oder nicht behaltener) Kontext dieser Analyse
   const shared = SPEED.keep && rt && !rt.busy; // läuft schon eine Analyse, bekommt diese einen eigenen Kontext
-  if (shared) { rt.busy = true; if (!rt.seq) { try { Object.assign(rt, await newSequence(baseSize)); } catch (e) { rt.busy = false; throw e; } } }
+  const seqKey = `${SPEED.lookup}|${SPEED.draft}`; // andere Vorhersage eingestellt → Kontext neu anlegen
+  if (shared && rt.seq && rt.seqKey !== seqKey) { await rt.ctx.dispose().catch(() => {}); await rt.dctx?.dispose().catch(() => {}); rt.ctx = rt.seq = rt.dctx = null; }
+  if (shared) { rt.busy = true; rt.seqKey = seqKey; if (!rt.seq) { try { Object.assign(rt, await newSequence(baseSize)); } catch (e) { rt.busy = false; throw e; } } }
   let cur = shared ? rt : (own = await newSequence(baseSize));
   try {
     const ask = async (prompt, schema, maxTokens, stream) => {
@@ -1886,13 +1937,14 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
     throw new Error(`Das eingebaute Modell ist bei der Analyse gestolpert: ${e.message || e}. Bitte erneut versuchen.`);
   } finally {
     await own?.ctx.dispose();
+    await own?.dctx?.dispose().catch(() => {});
     if (shared) rt.busy = false;
   }
 }
 
 async function startModelDownload(sender, key) {
   if (modelDownload) return;
-  const info = BUILTIN_MODELS[key] || BUILTIN_MODELS.fast;
+  const info = BUILTIN_MODELS[key] || DRAFT_MODELS[key] || BUILTIN_MODELS.fast;
   // An alle Fenster: Willkommen und Einstellungen zeigen denselben Fortschritt (auch nach einem Neuladen)
   const send = (ch, d) => BrowserWindow.getAllWindows().forEach((w) => { if (!w.isDestroyed() && !w.webContents.isDestroyed()) w.webContents.send(ch, d); });
   try {
@@ -3374,11 +3426,12 @@ if (TESTING) global.__silk = { askPaid, watchCrashes, ocrText: (f) => recognizeT
     fs.writeFileSync(pdfFile, pdf);
     return { png: pngFile, pdf: pdfFile };
   },
+  draftReady: (k) => fs.existsSync(path.join(modelDir(), DRAFT_MODELS[k].file)),
   async downloadModel(k = 'fast') {
     let last = 0;
     const sender = { isDestroyed: () => false, send: (_ch, p) => { if (p?.error) global.__dlError = p.error; if (p?.done) last = p.done; } };
     await startModelDownload(sender, k);
-    return { ready: modelReady(k), error: global.__dlError || null, bytes: last };
+    return { ready: DRAFT_MODELS[k] ? fs.existsSync(path.join(modelDir(), DRAFT_MODELS[k].file)) : modelReady(k), error: global.__dlError || null, bytes: last };
   },
   remindDeadlines: () => remindDeadlines(),
   openCamera: () => openCamera(),

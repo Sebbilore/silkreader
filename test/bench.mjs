@@ -29,9 +29,10 @@ await sleep(5000);
 
 const extra = (process.env.BENCH_EXTRA || '').split(';').map((x) => x.trim()).filter(Boolean).map((x) => { const [key, rest] = x.split('='); const [uri, file] = rest.split('|'); return { key, uri, file }; });
 for (const m of extra) await silk((_e, mm) => global.__silk.addModel(mm.key, { uri: mm.uri, file: mm.file, name: mm.key }), m);
-const SPEEDS = { alles: { lookup: true, keep: true, lean: true, twoStage: true }, aus: { lookup: false, keep: false, lean: false, twoStage: false },
-  'ohne-lookup': { lookup: false, keep: true, lean: true, twoStage: true }, 'ohne-keep': { lookup: true, keep: false, lean: true, twoStage: true }, 'ohne-lean': { lookup: true, keep: true, lean: false, twoStage: true },
-  'eine-stufe': { lookup: true, keep: true, lean: true, twoStage: false } };
+const SPEEDS = { alles: { lookup: true, keep: true, lean: true, twoStage: true, draft: false }, aus: { lookup: false, keep: false, lean: false, twoStage: false, draft: false },
+  'ohne-lookup': { lookup: false, keep: true, lean: true, twoStage: true, draft: false }, 'ohne-keep': { lookup: true, keep: false, lean: true, twoStage: true, draft: false }, 'ohne-lean': { lookup: true, keep: true, lean: false, twoStage: true, draft: false },
+  'eine-stufe': { lookup: true, keep: true, lean: true, twoStage: false, draft: false },
+  entwurf: { lookup: false, keep: true, lean: true, twoStage: true, draft: true } };
 const variants = (process.env.BENCH_SPEED || 'alles').split(',').map((x) => x.trim()).filter((x) => SPEEDS[x]);
 const keys = [...(process.env.BENCH_MODELS || 'fast,quality').split(',').map((x) => x.trim()).filter(Boolean), ...extra.map((m) => m.key)];
 const rows = [];
@@ -39,6 +40,11 @@ for (const key of keys) {
   let ready = await silk((_e, k) => global.__silk.modelReady(k), key);
   if (!ready) { const dl = await silk((_e, k) => global.__silk.downloadModel(k), key); ready = dl.ready; if (!ready) { console.log(`⚠️ ${key}: Download fehlgeschlagen – ${dl.error}`); rows.push({ key, error: dl.error }); continue; } }
   const used = await silk((_e, k) => global.__silk.setModel(k), key);
+  // Hilfsmodell für die Variante „entwurf“ (nur wenn es eins zu diesem Modell gibt)
+  if (variants.includes('entwurf') && !(await silk((_e, k) => global.__silk.draftReady(`draft-${k}`), key).catch(() => true))) {
+    const dl = await silk((_e, k) => global.__silk.downloadModel(`draft-${k}`), key);
+    if (!dl.ready) console.log(`::warning title=Hilfsmodell ${key}::${enc(dl.error || 'Download fehlgeschlagen')}`);
+  }
   for (const v of variants) {
   await silk((_e, o) => global.__silk.setSpeed(o), SPEEDS[v]);
   const label = variants.length > 1 ? `${key} · ${v}` : key;
