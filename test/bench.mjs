@@ -48,7 +48,7 @@ for (const key of keys) {
   for (const v of variants) {
   await silk((_e, o) => global.__silk.setSpeed(o), SPEEDS[v]);
   const label = variants.length > 1 ? `${key} · ${v}` : key;
-  const res = { key: label, used: variants.length > 1 ? label : used, amount: [0, 0], date: [0, 0], task: [0, 0], clean: [0, 0], fixed: 0, ms: [], quick: [], more: [], tok: [], tps: [], details: [] };
+  const res = { key: label, used: variants.length > 1 ? label : used, amount: [0, 0], date: [0, 0], task: [0, 0], clean: [0, 0], fixed: 0, ms: [], quick: [], more: [], tok: [], tps: [], read: [], write: [], ptok: [], details: [] };
   for (const L of letters) {
     try {
       const r = await silk((_e, t) => global.__silk.analyzeTimed({ title: 'Brief', source: 'text', pages: [t] }), L.text);
@@ -63,7 +63,7 @@ for (const key of keys) {
       if (r.quickMs) res.quick.push(r.quickMs);
       if (r.moreMs) res.more.push(r.moreMs);
       if (r.result.moreError) console.log(`::warning title=Details-Fehler ${label} ${L.name}::${enc(r.result.moreError.slice(0, 600))}`);
-      if (r.gen) { res.tok.push(r.gen.outTokens); if (r.gen.genMs > 0) res.tps.push(r.gen.outTokens / (r.gen.genMs / 1000)); }
+      if (r.gen) { res.read.push(r.gen.firstMs); res.write.push(r.gen.genMs); res.ptok.push(r.gen.promptTokens); res.tok.push(r.gen.outTokens); if (r.gen.genMs > 0) res.tps.push(r.gen.outTokens / (r.gen.genMs / 1000)); }
       res.details.push(d);
       console.log(`  ${label} · ${L.name}: ${(r.ms / 1000).toFixed(1)} s${r.gen ? ` (${r.gen.promptTokens} → ${r.gen.outTokens} Token, erstes nach ${(r.gen.firstMs / 1000).toFixed(1)} s)` : ''}${d.amountMiss ? ` · Betrag fehlt (${d.amountMiss})` : ''}${d.dateMiss ? ` · Frist fehlt (${d.dateMiss})` : ''}${d.taskMiss ? ' · keine Aufgabe' : ''}${d.unsure ? ` · erfunden: ${d.unsure.join(', ')}` : ''}`);
     } catch (e) { res.details.push({ letter: L.name, error: String(e.message || e).slice(0, 200) }); console.log(`  ${key} · ${L.name}: Fehler ${e.message}`); console.log(`::warning title=KI-Test-Fehler ${label} ${L.name}::${enc(String(e.message || e).slice(0, 600))}`); }
@@ -77,10 +77,16 @@ const pct = ([a, b]) => (b ? `${a}/${b}` : '–');
 const worst = (a) => (a.length ? `${(Math.max(...a) / 1000).toFixed(1)} s` : '–');
 const avg = (a) => (a.length ? `${(a.reduce((x, y) => x + y, 0) / a.length / 1000).toFixed(1)} s` : '–');
 const mean = (a, f = (x) => x) => (a.length ? f(a.reduce((x, y) => x + y, 0) / a.length) : '–');
-const table = ['| Modell | Betrag | Frist | Aufgabe | ohne erfundene Zahlen | nachgefragt | Ø Dauer | langsamster | Ø erste Stichpunkte | langsamste | Ø Details (Mehr) | Ø Token | Token/s |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|',
-  ...rows.map((r) => (r.error ? `| ${r.key} | Download fehlgeschlagen | | | | | | | | | | | |` : `| ${r.key}${r.used !== r.key ? ` (→ ${r.used})` : ''} | ${pct(r.amount)} | ${pct(r.date)} | ${pct(r.task)} | ${pct(r.clean)} | ${r.fixed} | ${avg(r.ms)} | ${worst(r.ms)} | ${avg(r.quick)} | ${worst(r.quick)} | ${avg(r.more)} | ${mean(r.tok, Math.round)} | ${mean(r.tps, (x) => x.toFixed(1))} |`))].join('\n');
+const table = ['| Modell | Betrag | Frist | Aufgabe | ohne erfundene Zahlen | nachgefragt | Ø Dauer | langsamster | Ø erste Stichpunkte | langsamste | Ø Details (Mehr) | Ø Einlesen | Ø Schreiben | Ø Token rein | Ø Token raus | Token/s |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
+  ...rows.map((r) => (r.error ? `| ${r.key} | Download fehlgeschlagen | | | | | | | | | | | | | | |` : `| ${r.key}${r.used !== r.key ? ` (→ ${r.used})` : ''} | ${pct(r.amount)} | ${pct(r.date)} | ${pct(r.task)} | ${pct(r.clean)} | ${r.fixed} | ${avg(r.ms)} | ${worst(r.ms)} | ${avg(r.quick)} | ${worst(r.quick)} | ${avg(r.more)} | ${avg(r.read)} | ${avg(r.write)} | ${mean(r.ptok, Math.round)} | ${mean(r.tok, Math.round)} | ${mean(r.tps, (x) => x.toFixed(1))} |`))].join('\n');
 console.log(`\n${table}`);
 fs.writeFileSync(path.join(out, 'bench.json'), JSON.stringify(rows, null, 2));
 fs.writeFileSync(path.join(out, 'bench.md'), `# KI-Test – ${new Date().toISOString().slice(0, 10)}\n\n${table}\n`);
 if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## KI-Test mit ${letters.length} Testbriefen\n\n${table}\n`);
 console.log(`::notice title=KI-Test::${enc(table)}`);
+// Zeit-Protokoll der App: wo bleiben die Sekunden? (Modell laden, Kontext, Einlesen, Schreiben, Prüfen …)
+try {
+  const log = fs.readFileSync(path.join(userData, 'silkreader-errors.log'), 'utf8').split('\n').filter((l) => / Zeit /.test(l)).map((l) => l.slice(11, 19) + l.slice(24));
+  fs.writeFileSync(path.join(out, 'zeiten.log'), log.join('\n'));
+  for (let i = 0; i < log.length; i += 60) console.log(`::notice title=Zeit-Protokoll ${i / 60 + 1}::${enc(log.slice(i, i + 60).join('\n'))}`);
+} catch (e) { console.log(`Zeit-Protokoll: ${e.message}`); }

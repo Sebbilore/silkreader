@@ -62,6 +62,10 @@ const HOTKEY = SHORTCUTS[0].keys;
 
 // Kleine Aussetzer (z. B. ein Timer nach dem Schließen eines Fensters) sollen kein
 // Fehlerfenster aufpoppen lassen – stattdessen in silkreader-errors.log festhalten.
+// Zeitmessung ins Protokoll: „Zeit: …“-Zeilen zeigen, wo beim Lesen die Sekunden bleiben
+const sinceStart = () => Math.round(process.uptime() * 1000);
+const stopwatch = () => { const t0 = Date.now(); let last = t0; const parts = [];
+  return { lap(name) { const n = Date.now(); parts.push(`${name} ${n - last} ms`); last = n; }, done(label) { logLine(`Zeit ${label}: ${Date.now() - t0} ms (${parts.join(', ')})`); } }; };
 function logLine(msg) {
   try {
     const file = path.join(app.getPath('userData'), 'silkreader-errors.log');
@@ -242,6 +246,7 @@ function createBubble() {
   bubbleWin.setIgnoreMouseEvents(true, { forward: true });
   bubbleWin.loadFile(path.join(__dirname, 'bubble.html'));
   bubbleWin.webContents.on('did-finish-load', () => {
+    if (!createBubble.shown) { createBubble.shown = true; logLine(`Zeit Start: Spinne da nach ${sinceStart()} ms seit Programmstart`); }
     bubbleWin.webContents.send('rig-init', { length: loadSettings().rig?.length ?? 90, minLen: RIG.minLen, maxLen: RIG.maxLen, clickMode: clickMode() });
     sendCocoons();
     sendRigState();
@@ -1006,7 +1011,9 @@ async function spiderTake({ autoStart = false, fromHotkey = false, mode = null }
     const wantAnimation = loadSettings().hatchAnimation !== false && bubbleWin?.isVisible();
     const scanned = wantAnimation ? scanSelection(anchor).catch(() => null) : Promise.resolve(null);
     const overlay = wantAnimation ? prepareOverlay(anchor) : null;
+    const tGrab = Date.now();
     const grabbed = await grabSelection({ hotkey: fromHotkey });
+    logLine(`Zeit Markierung lesen: ${Date.now() - tGrab} ms (${grabbed.text ? `${grabbed.text.length} Zeichen` : grabbed.files?.length ? `${grabbed.files.length} Dateien` : 'nichts'})`);
     logLine(`Lesen: Modus ${mode}, Animation ${wantAnimation ? 'an' : 'aus'}, Text ${grabbed.text ? grabbed.text.length : 0} Zeichen, Dateien ${grabbed.files.length}`);
     if (!grabbed.text) overlay?.destroy();
     // Nichts markiert, aber eben ein längerer Text kopiert? Dann den lesen.
@@ -1556,11 +1563,16 @@ async function loadBuiltinModel(key = builtinKey()) {
   if (llamaLoading?.key === key) return llamaLoading.promise;
   const promise = (async () => {
     await unloadBuiltinModel();
+    const sw = stopwatch();
     const { getLlama } = await esmImport('node-llama-cpp');
+    sw.lap('Bibliothek');
     const llama = await getLlama({ gpu: 'auto' }); // nutzt die Grafikkarte, falls möglich, sonst den Prozessor
+    sw.lap('Laufzeit');
     // Schwache eingebaute Grafik kann langsamer sein als der Prozessor – das misst tuneGpu einmal pro Modell
     const cpuOnly = llama.gpu && loadSettings().gpuTune?.[key] === 'cpu';
     const model = await llama.loadModel({ modelPath: modelPathFor(key), ...(cpuOnly ? { gpuLayers: 0 } : {}) });
+    sw.lap('Modelldatei');
+    sw.done(`KI-Modell ${key} laden`);
     logLine(`KI-Modell ${key} geladen (Grafikkarte: ${llama.gpu && !cpuOnly ? llama.gpu : 'keine, Prozessor'})`);
     llamaRuntime = { key, llama, model };
     if (llama.gpu === 'vulkan' && !loadSettings().gpuTune?.[key]) setTimeout(() => tuneGpu(key).catch((e) => logLine(`Grafik-Messung: ${e.message}`)), 3000);
@@ -1773,6 +1785,10 @@ function splitIntoChunks(model, doc, maxTokens) {
 // Kontext + Sequenz anlegen, mit Token-Vorhersage (aus dem Text oder per Hilfsmodell)
 const baseContextSize = (key) => BUILTIN_MODELS[key].chunkTokens + 2600;
 async function makeSequence(model, llama, key, contextSize) {
+  const t0 = Date.now();
+  try { return await makeSequenceInner(model, llama, key, contextSize); } finally { logLine(`Zeit KI-Kontext anlegen (${contextSize} Token): ${Date.now() - t0} ms`); }
+}
+async function makeSequenceInner(model, llama, key, contextSize) {
   const draftFile = path.join(modelDir(), DRAFT_MODELS[`draft-${key}`]?.file || '-');
   const ctx = await model.createContext({ contextSize, flashAttention: 'auto' });
   const { InputLookupTokenPredictor, DraftSequenceTokenPredictor } = await esmImport('node-llama-cpp');
@@ -1830,7 +1846,7 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
       const session = new LlamaChatSession({ contextSequence: cur.seq, systemPrompt });
       if (!grammarCache.has(llama)) grammarCache.set(llama, new Map());
       let grammar = grammarCache.get(llama).get(schema);
-      if (!grammar) { grammar = await llama.createGrammarForJsonSchema(schema); grammarCache.get(llama).set(schema, grammar); }
+      if (!grammar) { const tg = Date.now(); grammar = await llama.createGrammarForJsonSchema(schema); grammarCache.get(llama).set(schema, grammar); logLine(`Zeit KI-Grammatik bauen: ${Date.now() - tg} ms`); }
       const t0 = Date.now();
       let firstAt = 0;
       const tap = typeof stream === 'function' ? stream : stream ? (c) => onProgress(c) : null;
@@ -1840,6 +1856,7 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
           onTextChunk: (c) => { if (!firstAt) firstAt = Date.now(); tap?.(c); },
         });
         lastGen = { promptTokens: model.tokenize(prompt).length, outTokens: model.tokenize(text).length, firstMs: firstAt - t0, genMs: Date.now() - firstAt, totalMs: Date.now() - t0 };
+        logLine(`Zeit KI-Antwort (${key}${stage === 'more' ? ', Details' : ''}): ${lastGen.totalMs} ms – ${lastGen.promptTokens} Token einlesen bis zum ersten Wort ${lastGen.firstMs} ms, ${lastGen.outTokens} Token schreiben ${lastGen.genMs} ms (${(lastGen.outTokens / Math.max(0.001, lastGen.genMs / 1000)).toFixed(1)} Token/s)`);
         return grammar.parse(text);
       } finally {
         session.dispose({ disposeSequence: false });
@@ -2907,6 +2924,7 @@ ipcMain.handle('learn-import', async (e) => {
 
 async function analyzeHandler(event, doc) {
   const t0 = Date.now();
+  const sw = stopwatch();
   try {
     bubbleWin?.webContents.send('rig-task', 'read');
     setBusy(true);
@@ -2926,6 +2944,7 @@ async function analyzeHandler(event, doc) {
         if (early.letter || early.scam) event.sender.send('progress', { early });
       } catch (e) { logLine(`Vorab-Karte: ${e.message}`); }
     }
+    sw.lap(cached ? 'aus dem Notizbuch' : 'Vorab-Karte');
     let result = cached ? { ...cached } : await analyze(doc, (chunk) => {
       if (chunk?.quick || chunk?.notes) { event.sender.send('progress', chunk); return; } // Kurzfassung / Zwischenstand
       if (typeof chunk === 'object') { // Statusmeldung (z. B. „Liest Abschnitt 2 von 5“)
@@ -2940,6 +2959,7 @@ async function analyzeHandler(event, doc) {
       lastSent = now;
       event.sender.send('progress', { chars: text.length, summary: partialField(text, 'summary'), stage });
     });
+    if (!cached) sw.lap('KI');
     // Feste Regeln obendrauf: Zahlen gegen den Originaltext prüfen, Briefe (Rechnung, Bescheid …) erkennen
     try {
       const text = doc.pages.join('\n');
@@ -2950,7 +2970,9 @@ async function analyzeHandler(event, doc) {
       // Selbstkontrolle: falsche Zahlen in den Stichpunkten → einmal nachfragen
       result.selfCheck = { numbers: true, fixed: 0, cached: !!cached };
       if (!cached && result.checks?.unsure?.length) {
+        sw.lap('Prüfung');
         try { const r = await repairNumbers(result, doc); if (r) { result = r.result; result.selfCheck = { numbers: true, fixed: r.fixed }; logLine(`Selbstkontrolle: ${r.fixed} Zahl(en) korrigiert`); } } catch (e) { logLine(`Selbstkontrolle: ${e.message}`); }
+        sw.lap('Nachfragen (Zahlen)');
       }
       result = { ...result, ...letterExtras(doc, letter) };
       result.contract = pro.allowed('contract') ? contract : null; result.contractLocked = !!contract && !pro.allowed('contract');
@@ -2959,9 +2981,12 @@ async function analyzeHandler(event, doc) {
     const prov = loadSettings().provider;
     result.sentBytes = prov === 'claude' && !process.env.SPIDER_MOCK ? Buffer.byteLength(doc.pages.join('\n'), 'utf8') : 0;
     result.readMs = cached ? 0 : Date.now() - t0;
+    sw.lap('Brief-Regeln');
     try { addHistory(doc, result); updateDeadlineBadge(); } catch (e) { console.error('Notizbuch:', e); }
+    sw.lap('Notizbuch');
     try { if (learnOn()) learner().observe(doc.pages.join('\n'), facts.letterFacts(doc.pages.join('\n'))); } catch (e) { logLine(`Lernen: ${e.message}`); }
     countSuccess();
+    sw.done(`Lesen (${doc.pages.join('').length} Zeichen, ${loadSettings().provider})`);
     return { ok: true, result };
   } catch (e) {
     return { ok: false, error: friendlyError(e), needsKey: e.code === 'NO_KEY' || e.code === 'NO_OLLAMA' || e.code === 'NO_MODEL' || Anthropic && e instanceof Anthropic.AuthenticationError };
@@ -2992,6 +3017,7 @@ ipcMain.handle('analyze-more', async (event, doc, base) => {
     analysisRunning++;
     const result = await analyzeMore(doc, base, (c) => { if (c && typeof c === 'object' && c.stage) event.sender.send('progress', { stage: c }); });
     result.moreMs = Date.now() - t0;
+    logLine(`Zeit Details (Mehr aus dem Brief): ${result.moreMs} ms`);
     // Im Notizbuch nachtragen, damit die Details beim nächsten Öffnen schon da sind
     try {
       const list = loadHistory(); const key = doc.pages.join('\n\n').slice(0, 200000);
@@ -3360,6 +3386,8 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
+    const readyAt = sinceStart();
+    setTimeout(() => logLine(`Zeit Start: Electron bereit nach ${readyAt} ms`), 0);
     applyTheme();
     I18N.setLang(uiLang());
     if (process.platform === 'darwin') app.dock?.hide(); // Mac: die Spinne lebt in der Menüleiste, nicht im Dock
