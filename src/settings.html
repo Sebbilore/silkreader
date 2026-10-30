@@ -111,7 +111,9 @@
   <div class="line"><label class="check grow"><input type="checkbox" id="copyHint"> Bei kopiertem Text fragen, ob ich lesen soll</label></div>
   <div class="line"><label class="check grow"><input type="checkbox" id="hideFullscreen"> Bei Vollbild und Präsentationen verstecken</label></div>
   <div class="line"><label class="check grow"><input type="checkbox" id="morning"> Morgens kurz die Fristen der Woche zeigen</label></div>
+  <div class="line"><label class="check grow"><input type="checkbox" id="askBack"> Von selbst nachfragen, wenn es passt</label></div>
 </div>
+<p class="hint hidden" id="askReset"><a id="askResetLink"></a></p>
 
 <h2>Was ich gelernt habe</h2>
 <p class="lead">Ich lerne aus deinen Korrekturen und den Briefen im Notizbuch. Alles bleibt auf diesem PC.</p>
@@ -300,7 +302,7 @@
 
   // ---- Laden ----
   const TOGGLES = { hatch: 'hatchAnimation', copyHint: 'copyHint', hideFullscreen: 'hideFullscreen', privateMode: 'privateMode', pinCopied: 'pinCopied',
-    watchDownloads: 'watchDownloads', hideInShare: 'hideInShare', lowPower: 'lowPower', autostart: 'autostart', learn: 'learn', morning: 'morning' };
+    watchDownloads: 'watchDownloads', hideInShare: 'hideInShare', lowPower: 'lowPower', autostart: 'autostart', learn: 'learn', morning: 'morning', askBack: 'askBack' };
   window.spider.getSettings().then((s) => {
     for (const [id, name] of Object.entries(s.models)) $('model').add(new Option(name, id, false, id === s.model));
     $('lang').value = s.language;
@@ -309,6 +311,7 @@
     $('fontSize').value = s.fontSize || 'normal';
     for (const [id, key] of Object.entries(TOGGLES)) $(id).checked = !!s[key];
     wantedOllama = s.ollamaModel;
+    if (s.askMutedCount) { $('askReset').classList.remove('hidden'); $('askResetLink').textContent = s.askMutedCount === 1 ? T('1 Frage ausgeblendet – wieder anzeigen') : T('{n} Fragen ausgeblendet – wieder anzeigen', { n: s.askMutedCount }); }
     if (s.hasKey) $('key').placeholder = T('•••••••• (gespeichert – leer lassen, um ihn zu behalten)');
     if (s.provider && s.provider !== 'builtin') {
       $('otherAi').classList.remove('hidden'); $('provider').value = s.provider; showProvider(s.provider);
@@ -318,6 +321,7 @@
   });
   for (const [id, key] of Object.entries(TOGGLES)) $(id).addEventListener('change', (e) => save({ [key]: e.target.checked }));
   $('lang').addEventListener('change', (e) => save({ language: e.target.value }));
+  $('askResetLink').addEventListener('click', async () => { await window.spider.askAnswer('*', 'reset'); $('askReset').classList.add('hidden'); });
   $('theme').addEventListener('change', (e) => save({ theme: e.target.value }));
   $('fontSize').addEventListener('change', (e) => save({ fontSize: e.target.value }));
   // App-Sprache wirkt sofort (Fenster lädt in der neuen Sprache neu)

@@ -245,6 +245,8 @@ function createBubble() {
     const c = screen.getCursorScreenPoint();
     const still = lastRaw && lastRaw.x === c.x && lastRaw.y === c.y;
     checkTouchTap(lastRaw, c);
+    // Maus nähert sich der Spinne: KI schon mal laden, dann ist das Ergebnis schneller da
+    if (Date.now() - lastHoverPreload > 30000) { const sp = spiderScreenPos(); if (Math.hypot(c.x - sp.x, c.y - sp.y) < 140) { lastHoverPreload = Date.now(); preloadBuiltinModel(); } }
     lastRaw = c;
     recordCursor(c);
     const [wx, wy] = bubbleWin.getPosition();
@@ -267,6 +269,7 @@ function createBubble() {
 // Dann hat das Fenster den Tipp noch durchgelassen – wir erkennen ihn hier und führen ihn selbst aus:
 // kurz tippen = lesen, lange drücken = Spinnennetz.
 let touchWatch = null;
+let lastHoverPreload = 0;
 function checkTouchTap(prev, c) {
   if (touchWatch || drag || !prev || !bubbleWin?.isVisible()) return;
   const jump = Math.hypot(c.x - prev.x, c.y - prev.y);
@@ -1434,6 +1437,42 @@ const ANALYSIS_SCHEMA = {
   },
 };
 
+// ---------- Bessere KI: erst feste Regeln, dann KI ----------
+// Betrag, Frist, IBAN usw. erkennen feste Regeln sicher. Die KI bekommt sie als geprüfte Fakten
+// und soll sie nur erklären – keine eigenen Zahlen. Dazu eine kurze Anleitung je Briefart.
+const KIND_GUIDE = {
+  mahnung: 'Es ist eine Mahnung. Erkläre: wofür die Forderung ist, wie viel insgesamt zu zahlen ist (mit Gebühren), bis wann, und was passiert, wenn man nicht zahlt. Handlung: konkret „… € bezahlen bis …“ oder bei Geldproblemen „Ratenzahlung anfragen“.',
+  rechnung: 'Es ist eine Rechnung. Erkläre: wofür (Leistung, Zeitraum), Betrag, bis wann zu zahlen ist und ob sich etwas ändert (z. B. ein neuer Abschlag). Handlung: konkret „… € bezahlen bis …“ (oder „nichts tun“, wenn per Lastschrift abgebucht wird).',
+  bescheid: 'Es ist ein Bescheid einer Behörde. Erkläre: was entschieden wurde (bewilligt, abgelehnt, Nachzahlung, Erstattung), kurz warum, welche Frist gilt (Widerspruch/Einspruch) und was der Empfänger tun muss.',
+  vertrag: 'Es ist ein Vertrag. Erkläre: was vereinbart ist, Laufzeit, Kosten, Kündigungsfrist und Besonderheiten (Preiserhöhung, automatische Verlängerung).',
+  kuendigung: 'Es geht um eine Kündigung. Erkläre: wer kündigt wen, zu welchem Datum, und was jetzt zu tun ist.',
+};
+function factsBlock(doc) {
+  try {
+    const text = doc.pages.join('\n');
+    const L = facts.letterFacts(text);
+    const C = facts.contractFacts(text);
+    if (!L && !C) return '';
+    const day = (iso) => (iso ? iso.split('-').reverse().join('.') : '');
+    const f = [];
+    if (L) {
+      f.push(`Art: ${L.label}`);
+      if (L.amount) f.push(`Betrag: ${L.amount.text}${L.amount.label ? ` (${L.amount.label})` : ''}`);
+      const d = L.deadlines.find((x) => !x.relative) || L.deadlines[0];
+      if (d) f.push(`Frist: ${day(d.iso)}`);
+      if (L.iban) f.push(`IBAN: ${L.iban}`);
+      if (L.canObject) f.push(`${L.objection} möglich: ja`);
+    }
+    if (C) {
+      if (C.monthly) f.push(`Kosten: ${C.monthly} pro Monat`);
+      if (C.cancelBy) f.push(`Kündigen spätestens: ${day(C.cancelBy)}`);
+      if (C.end) f.push(`Vertragsende: ${day(C.end)}`);
+    }
+    const guide = KIND_GUIDE[C && (!L || ['vertrag', 'kuendigung'].includes(L.kind)) ? 'vertrag' : L?.kind] || '';
+    return [guide, `Geprüfte Fakten (sicher aus dem Text, genau so verwenden – erfinde keine anderen Beträge oder Daten): ${f.join('; ')}.`].filter(Boolean).join('\n');
+  } catch { return ''; }
+}
+
 function buildPrompt(doc, language, compact = false) {
   const body = doc.pages.length > 1
     ? doc.pages.map((p, i) => `<page number="${i + 1}">\n${p}\n</page>`).join('\n')
@@ -1456,6 +1495,7 @@ function buildPrompt(doc, language, compact = false) {
     ]),
     'Schreib in einfacher, verständlicher Sprache: kurze Sätze, Fachbegriffe kurz erklären.',
     'Erfinde nichts, was nicht im Text steht oder sich daraus ableiten lässt.',
+    ...(factsBlock(doc) ? ['', factsBlock(doc)] : []),
     ...(learnHints(doc) ? ['', learnHints(doc)] : []),
     '',
     '<document>',
@@ -1512,7 +1552,9 @@ const modelDir = () => (TESTING && process.env.SILK_MODEL_DIR) || path.join(app.
 const modelPathFor = (key) => process.env.SILK_MODEL_PATH || path.join(modelDir(), BUILTIN_MODELS[key].file);
 const modelReady = (key) => fs.existsSync(modelPathFor(key));
 // Ohne Auswahl: das gründliche Modell, falls es schon da ist, sonst das schnelle.
+let forceModel = null; // „Nochmal gründlich lesen“: einmalig das gründliche Modell
 const builtinKey = (s = loadSettings()) => {
+  if (forceModel && modelReady(forceModel) && pro.allowed(forceModel)) return forceModel;
   const want = BUILTIN_MODELS[s.builtinModel] ? s.builtinModel : modelReady('quality') ? 'quality' : 'fast';
   return want === 'quality' && !pro.allowed('quality') && modelReady('fast') ? 'fast' : want; // gründliches Modell gehört zu Pro
 };
@@ -1728,6 +1770,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
         `Analysiere das folgende Dokument („${doc.title}“).`,
         'Liefere Titel, Art, als "summary" das Wichtigste in 3 bis 5 kurzen Stichpunkten, bis zu 6 weitere Kernaussagen, bis zu 8 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "value" genau so wie im Text, z. B. „412 Millionen Euro“; "quote" = wörtliche Stelle aus dem Text) und bis zu 5 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
         'Ist es ein Brief, eine Rechnung oder ein Bescheid: Was muss der Empfänger tun? Das gehört als Erkenntnis der Art „Handlung“ dazu (als konkreter Satz).',
+        ...(factsBlock(doc) ? [factsBlock(doc)] : []),
         ...(learnHints(doc) ? [learnHints(doc)] : []),
         '', '<document>', docText, '</document>',
       ].join('\n'), /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(docText) ? SHORT_SCHEMA_NUMBERS : BUILTIN_SHORT_SCHEMA, 2200, (c) => {
@@ -1769,6 +1812,7 @@ async function analyzeBuiltin(doc, s, onProgress) {
     const final = await ask([
       `Hier sind Notizen zu allen ${chunks.length} Abschnitten des Dokuments „${doc.title}“.`,
       'Erstelle daraus Titel, Art des Dokuments, als "summary" das Wichtigste aus dem GANZEN Dokument in 3 bis 5 kurzen Stichpunkten, bis zu 6 Kernaussagen und bis zu 5 echte Erkenntnisse (Risiken, Chancen, Widersprüche, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
+      ...(factsBlock(doc) ? [factsBlock(doc)] : []),
       'Wichtig: Berücksichtige alle Abschnitte gleich, auch den letzten. Aussagen, die nur in EINEM Abschnitt vorkommen (z. B. Rücktritte, Fristen, Kündigungen, Ausnahmen – oft am Ende), sind meist besonders wichtig und gehören in die Stichpunkte oder Kernaussagen. Wiederholungen nur einmal nennen.',
       '', '<notizen>', notes.join('\n\n'), '</notizen>',
     ].join('\n'), BUILTIN_FINAL_SCHEMA, 1300, true);
@@ -2042,6 +2086,7 @@ function toClaudeSchema(schema) {
 // Testantworten (nur mit SPIDER_MOCK)
 async function mockGenerate(instruction, schema, onChunk) {
   const reply = schema?.properties?.answer ? { answer: 'Die Dividende steigt auf 1,10 Euro je Aktie.', quote: 'Dividende von 1,10 Euro je Aktie' }
+    : schema?.properties?.summary && Object.keys(schema.properties).length === 1 ? { summary: ['Rechnung der Stadtwerke über 98,90 € für Strom.', 'Bitte bis zum 15.11.2030 überweisen.'] }
     : schema?.properties?.diff ? { title: 'Vergleich', same: ['Beide nennen 412 Millionen Euro Umsatz.'], diff: ['A erwähnt die Anleihe, B nicht.'], tip: 'A ist ausführlicher.' }
     : 'Dies ist ein Testtext der Spinne. Er wurde vereinfacht.';
   const text = typeof reply === 'string' ? reply : JSON.stringify(reply);
@@ -2091,10 +2136,16 @@ ipcMain.handle('ask', async (event, doc, question) => {
     const s = loadSettings();
     const material = s.provider === 'builtin' ? relevantMaterial(doc, question, 9000) : doc.pages.join('\n\n');
     const { value } = await llmGenerate({
-      instruction: `Beantworte diese Frage zum Text kurz und genau: „${question}“\nWenn der Text keine Antwort enthält, sag das ehrlich. Gib in "quote" die wörtliche Stelle an, die die Antwort belegt.`,
+      instruction: [`Beantworte diese Frage zum Text kurz und genau: „${question}“`, 'Wenn der Text keine Antwort enthält, sag das ehrlich. Gib in "quote" die wörtliche Stelle an, die die Antwort belegt (Zeichen für Zeichen aus dem Text kopiert).', factsBlock(doc)].filter(Boolean).join('\n'),
       material, schema: ASK_SCHEMA, maxTokens: 400,
     });
-    return { ok: true, ...value };
+    // Beleg prüfen: steht die Stelle wirklich im Text? Sonst nicht als Beleg zeigen
+    const norm = (t) => String(t || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    const src = norm(doc.pages.join(' '));
+    const q = norm(value.quote);
+    const words = q.split(' ').filter((w) => w.length > 2);
+    const found = q.length >= 8 && (src.includes(q) || (words.length >= 3 && words.filter((w) => src.includes(w)).length / words.length >= 0.85));
+    return { ok: true, ...value, quoteFound: found };
   } catch (e) { return friendlyErr(e); } finally { setBusy(false); }
 });
 
@@ -2364,7 +2415,7 @@ function remindDeadlines() {
   let changed = false;
   for (const d of collectDeadlines()) {
     const stage = d.days <= 1 ? 2 : d.days <= 3 ? 1 : 0;
-    if (!stage || (st.told[d.key] || 0) >= stage) continue;
+    if (!stage || (st.told[d.key] || 0) >= stage || st.noRemind?.[d.key]) continue;
     st.told[d.key] = stage; changed = true;
     const when = d.days === 0 ? T('heute') : d.days === 1 ? T('morgen') : T('in {n} Tagen', { n: d.days });
     // Mit Knöpfen: gleich abhaken oder den Brief öffnen (Windows-Benachrichtigung)
@@ -2373,6 +2424,7 @@ function remindDeadlines() {
     n.on('click', () => showPopupPayload({ kind: 'deadlines' }));
     n.on('action', (details, idx) => deadlineAction(d, details?.actionIndex ?? idx));
     n.show();
+    if (stage === 2) askPaid(d);
     logLine(`Frist-Erinnerung (${when})`);
   }
   if (changed) saveDeadlineState(st);
@@ -2391,12 +2443,74 @@ function deadlineAction(d, i) {
   bubbleWin?.showInactive();
   showPopupPayload({ kind: 'analyze', doc: { title: h.docTitle, source: 'history', pages: h.pages, path: h.path, mtime: h.mtime }, result: h.result });
 }
+// Frist morgen oder heute: die Spinne fragt direkt, ob es schon erledigt ist (nicht bei Vollbild)
+function askPaid(d) {
+  const s = loadSettings();
+  if (s.askBack === false || (s.askMuted || []).includes('paid') || !bubbleWin?.isVisible() || popupWin?.isVisible()) return false;
+  try { if (winkeys.fullscreenBusy()) return false; } catch {}
+  const h = loadHistory().find((x) => x.id === d.histId);
+  const iban = h ? facts.letterFacts(h.text)?.iban || '' : '';
+  bubbleWin.webContents.send('rig-trick', 'hello');
+  showPopupPayload({ kind: 'paidq', d: { ...d, iban } });
+  return true;
+}
 // Zahl der offenen Fristen der nächsten 7 Tage für das Tray-Menü
 let deadlinesSoon = 0;
 function updateDeadlineBadge() {
   const n = collectDeadlines().filter((d) => d.days <= 7).length;
   if (n !== deadlinesSoon) { deadlinesSoon = n; buildTrayMenu(); }
 }
+// ---------- Die Spinne fragt nach, wenn es passt ----------
+// Höchstens eine Frage pro Ergebnis. „Nicht mehr fragen“ schaltet eine Frage ab; übergeht man sie
+// dreimal, macht sie eine Woche Pause. Alles abschaltbar (Einstellungen → Spinne).
+let thumbsDownRun = 0;
+ipcMain.handle('ask-state', () => {
+  const s = loadSettings();
+  return { enabled: s.askBack !== false, muted: s.askMuted || [], paused: s.askPaused || {}, explainLang: s.explainLang || null, thumbsDownRun,
+    quality: modelReady('quality') && pro.allowed('quality') && builtinKey(s) !== 'quality' && s.provider === 'builtin' };
+});
+ipcMain.handle('ask-answer', (_e, id, answer) => {
+  const s = loadSettings();
+  if (answer === 'mute') s.askMuted = [...new Set([...(s.askMuted || []), id])];
+  if (answer === 'ignored') {
+    s.askIgnored = { ...(s.askIgnored || {}), [id]: ((s.askIgnored || {})[id] || 0) + 1 };
+    if (s.askIgnored[id] >= 3) { s.askPaused = { ...(s.askPaused || {}), [id]: Date.now() + 7 * 864e5 }; s.askIgnored[id] = 0; }
+  } else if (s.askIgnored?.[id]) s.askIgnored[id] = 0;
+  if (answer === 'reset') { s.askMuted = []; s.askPaused = {}; s.askIgnored = {}; }
+  saveSettings(s);
+  logLine(`Frage ${id}: ${answer}`);
+});
+// Erinnerung an diese Frist an/aus (Frage „Soll ich dich 3 Tage vorher erinnern?“)
+ipcMain.handle('ask-remind', (_e, doc, on) => {
+  const text = doc.pages.join('\n\n').slice(0, 200000);
+  const h = loadHistory().find((x) => x.text === text);
+  if (!h) return false;
+  const st = loadDeadlineState();
+  st.noRemind = st.noRemind || {};
+  for (const d of collectDeadlines({ withDone: true }).filter((x) => x.histId === h.id)) { if (on) delete st.noRemind[d.key]; else st.noRemind[d.key] = true; }
+  saveDeadlineState(st);
+  return true;
+});
+// Alle Briefe dieses Absenders in eine Mappe (Frage beim 3. Brief)
+ipcMain.handle('ask-folder', (_e, doc) => {
+  if (!pro.allowed('folders')) return { ok: false };
+  const text = doc.pages.join('\n');
+  const who = facts.senderOf(text);
+  if (!who) return { ok: false };
+  const list = loadHistory();
+  const mine = list.filter((h) => facts.senderOf(h.text)?.key === who.key);
+  const folder = mine.find((h) => h.folder)?.folder || guessFolder(text, mine[0]?.result) || 'Sonstiges';
+  for (const h of mine) h.folder = folder;
+  fs.writeFileSync(historyFile(), JSON.stringify(trimHistory(list)));
+  return { ok: true, folder, n: mine.length };
+});
+ipcMain.handle('learn-thumbs', (_e, good) => { thumbsDownRun = good ? 0 : thumbsDownRun + 1; return thumbsDownRun; });
+// Nochmal mit dem gründlichen Modell lesen (Frage nach zweimal 👎)
+ipcMain.handle('analyze-quality', async (event, doc) => {
+  forceModel = 'quality';
+  try { const r = await analyzeHandler(event, doc); thumbsDownRun = 0; return r; } finally { forceModel = null; }
+});
+
 // ---------- Guten Morgen: einmal am Morgen ein kurzer Überblick über die Fristen dieser Woche ----------
 const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 function maybeMorning({ force = false } = {}) {
@@ -2510,7 +2624,7 @@ function addHistory(doc, result) {
   const before = old.find((h) => h.text === text);
   const list = old.filter((h) => h.text !== text);
   const folder = before?.folder || (pro.allowed('folders') ? guessFolder(text, result) : null);
-  list.unshift({ id: `${Date.now()}`, date: Date.now(), title: result.title || doc.title, docTitle: doc.title, path: doc.path, mtime: doc.mtime, pages: doc.pages.map((p) => p.slice(0, 100000)), text, result, folder });
+  list.unshift({ id: `${Date.now()}`, aiKey: aiKey(), date: Date.now(), title: result.title || doc.title, docTitle: doc.title, path: doc.path, mtime: doc.mtime, pages: doc.pages.map((p) => p.slice(0, 100000)), text, result, folder });
   fs.writeFileSync(historyFile(), JSON.stringify(trimHistory(list)));
 }
 ipcMain.handle('history-folder', (_e, id, folder) => {
@@ -2571,6 +2685,31 @@ ipcMain.handle('history-open', (_e, id) => {
 ipcMain.handle('history-delete', (_e, id) => { fs.writeFileSync(historyFile(), JSON.stringify(loadHistory().filter((h) => h.id !== id))); });
 
 // ---------- IPC ----------
+
+// ---------- Selbstkontrolle: stehen Zahlen aus den Stichpunkten nicht im Text, einmal nachfragen ----------
+const REPAIR_SCHEMA = { type: 'object', additionalProperties: false, required: ['summary'], properties: { summary: { type: 'array', items: { type: 'string', maxLength: 140 }, minItems: 2, maxItems: 5 } } };
+async function repairNumbers(result, doc) {
+  const unsure = result.checks?.unsure || [];
+  if (!unsure.length || (process.env.SPIDER_MOCK && !process.env.SILK_REPAIR)) return null;
+  const text = doc.pages.join('\n');
+  const builtin = loadSettings().provider === 'builtin';
+  const { value } = await llmGenerate({
+    instruction: [`Hier sind Stichpunkte zu einem Text. Diese Zahlen stehen so NICHT im Text: ${unsure.join(', ')}.`,
+      'Schreibe die Stichpunkte neu. Verwende nur Zahlen, die wörtlich im Text stehen (Beträge, Daten und Prozente genau übernehmen). Lass eine Angabe lieber weg, als zu raten.',
+      factsBlock(doc), '', 'Stichpunkte:', result.summary].filter((x) => x !== '').join('\n'),
+    material: builtin ? relevantMaterial(doc, unsure.join(' '), 6000) : text, schema: REPAIR_SCHEMA, maxTokens: 500,
+  });
+  const fixed = facts.verifyResult({ ...result, summary: value.summary.map((b) => `• ${b}`).join('\n') }, text);
+  return fixed.checks.unsure.length < unsure.length ? { result: fixed, fixed: unsure.length - fixed.checks.unsure.length } : null;
+}
+// Schon gelesen (gleicher Text, gleiche KI, gleiche Sprache, gleiche Version): Ergebnis sofort aus dem Notizbuch
+const aiKey = (s = loadSettings()) => `${s.provider}|${s.provider === 'builtin' ? builtinKey(s) : s.provider === 'claude' ? s.model : s.ollamaModel}|${s.language}|${app.getVersion()}`;
+function cachedResult(doc) {
+  if (process.env.SPIDER_MOCK && !process.env.SILK_CACHE) return null;
+  const text = doc.pages.join('\n\n').slice(0, 200000);
+  const h = loadHistory().find((x) => x.text === text && x.aiKey === aiKey() && x.result?.summary);
+  return h ? h.result : null;
+}
 
 // Brief-Hilfe und alles drumherum: Gelerntes anwenden, Absender und Vergleich, Betrug, Unterschrift, Folgen
 function letterExtras(doc, letter) {
@@ -2639,7 +2778,7 @@ ipcMain.handle('learn-import', async (e) => {
   try { learner().importData(fs.readFileSync(r.filePaths[0], 'utf8')); return { ok: true }; } catch (err) { return { ok: false, error: T('Das ist keine Silkreader-Lerndatei.') }; }
 });
 
-ipcMain.handle('analyze', async (event, doc) => {
+async function analyzeHandler(event, doc) {
   try {
     bubbleWin?.webContents.send('rig-task', 'read');
     setBusy(true);
@@ -2648,7 +2787,8 @@ ipcMain.handle('analyze', async (event, doc) => {
     // damit man nicht bis zum Ende warten muss.
     let text = '', lastSent = 0;
     let stage = null;
-    let result = await analyze(doc, (chunk) => {
+    const cached = forceModel ? null : cachedResult(doc);
+    let result = cached ? { ...cached } : await analyze(doc, (chunk) => {
       if (chunk?.quick || chunk?.notes) { event.sender.send('progress', chunk); return; } // Kurzfassung / Zwischenstand
       if (typeof chunk === 'object') { // Statusmeldung (z. B. „Liest Abschnitt 2 von 5“)
         stage = chunk;
@@ -2668,7 +2808,13 @@ ipcMain.handle('analyze', async (event, doc) => {
       const contract = facts.contractFacts(text);
       let letter = facts.letterFacts(text);
       if (contract && letter && ['vertrag', 'kuendigung'].includes(letter.kind)) letter = null; // Verträge bekommen die Vertragskarte
-      result = { ...facts.verifyResult(result, text), ...letterExtras(doc, letter) };
+      result = facts.verifyResult(result, text);
+      // Selbstkontrolle: falsche Zahlen in den Stichpunkten → einmal nachfragen
+      result.selfCheck = { numbers: true, fixed: 0, cached: !!cached };
+      if (!cached && result.checks?.unsure?.length) {
+        try { const r = await repairNumbers(result, doc); if (r) { result = r.result; result.selfCheck = { numbers: true, fixed: r.fixed }; logLine(`Selbstkontrolle: ${r.fixed} Zahl(en) korrigiert`); } } catch (e) { logLine(`Selbstkontrolle: ${e.message}`); }
+      }
+      result = { ...result, ...letterExtras(doc, letter) };
       result.contract = pro.allowed('contract') ? contract : null; result.contractLocked = !!contract && !pro.allowed('contract');
     } catch (e) { logLine(`Prüfung fehlgeschlagen: ${e.message}`); }
     // Wie viel ging dabei ins Internet? Eingebautes Modell und Ollama (lokal): nichts. Claude: der Text selbst.
@@ -2685,7 +2831,8 @@ ipcMain.handle('analyze', async (event, doc) => {
     lastModelUse = Date.now();
     setBusy(false);
   }
-});
+}
+ipcMain.handle('analyze', (event, doc) => analyzeHandler(event, doc));
 
 ipcMain.handle('open-file', (_e, p) => openFile(p));
 ipcMain.handle('pick-file', () => pickFile());
@@ -2795,6 +2942,7 @@ ipcMain.handle('get-settings', () => {
     fontSize: ZOOM[s.fontSize] ? s.fontSize : 'normal',
     learn: s.learn !== false,
     morning: s.morning !== false,
+    askBack: s.askBack !== false, askMutedCount: (s.askMuted || []).length + Object.values(s.askPaused || {}).filter((t) => t > Date.now()).length,
     autostart: app.getLoginItemSettings().openAtLogin,
     clickMode: clickMode(),
     explainLang: s.explainLang || null,
@@ -2816,7 +2964,7 @@ ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await
 ipcMain.handle('ollama-models', async () => {
   try { return { ok: true, models: await ollamaModels() }; } catch { return { ok: false, models: [] }; }
 });
-ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied, copyHint, privateMode, hideFullscreen, hideInShare, watchDownloads, clickMode: cm, theme, fontSize, autostart, learn, morning }) => {
+ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, hatchAnimation, lowPower, pinCopied, copyHint, privateMode, hideFullscreen, hideInShare, watchDownloads, clickMode: cm, theme, fontSize, autostart, learn, morning, askBack }) => {
   if (apiKey) setApiKey(apiKey.trim());
   const s = loadSettings();
   if (['builtin', 'claude', 'ollama'].includes(provider)) s.provider = provider;
@@ -2836,6 +2984,7 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   if (typeof autostart === 'boolean') app.setLoginItemSettings({ openAtLogin: autostart });
   if (typeof learn === 'boolean') s.learn = learn;
   if (typeof morning === 'boolean') s.morning = morning;
+  if (typeof askBack === 'boolean') s.askBack = askBack;
   if (ZOOM[fontSize] && fontSize !== s.fontSize) {
     s.fontSize = fontSize;
     const z = ZOOM[fontSize];
@@ -3086,7 +3235,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 // Nur für automatische Tests: ein paar Funktionen erreichbar machen
-if (TESTING) global.__silk = { watchCrashes, ocrText: (f) => recognizeText(f), offerCrashReport, openBookmark, maybeMorning, remindBookmarks, loadBookmarks, saveBookmarks, remindAt, learner, letterExtras, deadlineAction, showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
+if (TESTING) global.__silk = { askPaid, watchCrashes, ocrText: (f) => recognizeText(f), offerCrashReport, openBookmark, maybeMorning, remindBookmarks, loadBookmarks, saveBookmarks, remindAt, learner, letterExtras, deadlineAction, showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
   get popupWin() { return popupWin; }, get cocoons() { return cocoons; }, get lastScreenSel() { return lastScreenSel; }, set lastScreenSel(v) { lastScreenSel = v; },
   set copiedOffer(v) { copiedOffer = v; },
   get downloadOffer() { return downloadOffer; }, spiderTake, runCrawlOverlay,

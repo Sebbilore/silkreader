@@ -132,6 +132,11 @@
   .keylist { display: flex; flex-direction: column; gap: 2px; } .keylist div { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 12px; background: var(--card); font-size: 13px; }
   .keylist div:first-child { border-radius: var(--r-m) var(--r-m) 0 0; } .keylist div:last-child { border-radius: 0 0 var(--r-m) var(--r-m); }
   .keylist kbd { font: 12px var(--font); background: var(--raised); border: 1px solid var(--control-line); border-radius: var(--r-s); padding: 1px 8px; white-space: nowrap; }
+  .proof { display: flex; gap: 8px; margin-top: 8px; padding: 8px 10px; border-left: 3px solid var(--pink); background: var(--card); border-radius: 0 var(--r-m) var(--r-m) 0; font-size: 12.5px; } .proof .icon { width: 15px; height: 15px; color: var(--muted); flex: none; margin-top: 1px; } .proof0 { margin-top: 6px; font-size: 12px; }
+  .checks { display: flex; flex-direction: column; gap: 3px; margin: 12px 0 0; font-size: 12px; color: var(--muted); } .ck2.ok { color: var(--muted); } .ck2.ok::first-letter { color: var(--ok); }
+  .askq { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 12px; padding: 10px 12px; border-radius: var(--r-l); background: var(--pink-soft); border: 1px solid color-mix(in srgb, var(--pink) 35%, transparent); font-size: 13.5px; }
+  .askq .icon { width: 22px; height: 22px; color: var(--pink); flex: none; } .askq p { margin: 0; } .askq .row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; } .askq .link.dim { margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .askq.done { color: var(--ok); }
   .tipline { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 2px; padding: 9px 10px 9px 12px; border-radius: var(--r-m); background: var(--pink-soft); font-size: 12.5px; color: var(--text); }
   .tipline .icon { width: 16px; height: 16px; color: var(--pink); flex: none; margin-top: 1px; } .tipline span { flex: 1; } .tipline b { font-weight: 600; } .tipline .x { flex: none; width: 22px; height: 22px; }
   .review { margin: 12px 0 2px; padding: 10px 12px; border-radius: var(--r-l); background: var(--card); border: 1px solid var(--line); font-size: 13px; }
@@ -382,6 +387,77 @@
     }
     return `<div class="senders">${rows.join('')}</div>`;
   }
+  // ---------- Die Spinne fragt nach, wenn es passt (höchstens eine Frage pro Ergebnis) ----------
+  const SCAM_HELP = ['Such die Webseite des Absenders selbst (nicht über einen Link oder eine Nummer aus dem Brief).', 'Ruf dort an oder schreib über das Kundenkonto. Frag, ob der Brief echt ist.', 'Hast du schon gezahlt? Sofort deine Bank anrufen – manchmal lässt sich eine Überweisung zurückholen.', 'Melde den Fall der Verbraucherzentrale oder der Polizei (Online-Wache).'];
+  async function pickQuestion(r) {
+    if (P.practice || P.doc?.source === 'history') return null;
+    const st = await window.spider.askState();
+    if (!st.enabled) return null;
+    const ok = (id) => !st.muted.includes(id) && !((st.paused[id] || 0) > Date.now());
+    const L = r.letter;
+    const text = P.doc.pages.join('\n');
+    const dueSoon = (iso, days) => iso && (new Date(`${iso}T00:00:00`) - Date.now()) / 864e5 <= days;
+    const Q = [];
+    if (r.scam) Q.push({ id: 'scam', text: T('Soll ich dir zeigen, wie du den echten Absender erreichst?'), yes: T('Zeigen'), no: T('Nein'), run: () => answerBox(T('So prüfst du, ob der Brief echt ist'), SCAM_HELP.map(T)) });
+    if (L?.canObject && L.deadlines.length) Q.push({ id: 'objection', text: T('Bist du einverstanden? Wenn nicht, schreibe ich dir einen {w}.', { w: objWord(L) }), yes: T('{w} schreiben', { w: objWord(L, true) }), no: T('Passt so'), run: () => replyToLetter(TEMPLATES.objection(L)[1]) });
+    if (r.contract?.cancelBy && !r.contract.cancelPassed && dueSoon(r.contract.cancelBy, 75)) Q.push({ id: 'cancel', text: T('Willst du kündigen? Ich setze die Kündigung für dich auf.'), yes: T('Kündigung schreiben'), no: T('Behalten'), run: () => replyToLetter(TEMPLATES.cancel()[1]) });
+    if (L && /rechnung|mahnung/.test(L.kind) && L.deadlines.length) Q.push({ id: 'remind', text: T('Soll ich dich 3 Tage vorher erinnern?'), yes: T('Ja, erinnern'), no: T('Nein'), run: async () => { await window.spider.askRemind(P.doc, true); return T('Ich erinnere dich 3 Tage vorher und am Tag davor ✓'); }, onNo: () => window.spider.askRemind(P.doc, false) });
+    if (r.sender?.trend && r.sender.trend.to > r.sender.trend.from) Q.push({ id: 'trend', text: T('Der Betrag ist um {p} % gestiegen. Soll ich erklären, was du tun kannst?', { p: r.sender.trend.pct.toLocaleString(I18N.locale) }), yes: T('Ja, erklären'), no: T('Nein'), run: () => ask(T('Der Betrag ist von {a} auf {b} gestiegen. Was kann ich tun? Kann ich widersprechen, den Anbieter wechseln oder kündigen?', { a: r.sender.trend.fromText, b: r.sender.trend.toText })) });
+    if (st.explainLang && /[äöüß]|\b(der|die|und|ist|sie)\b/i.test(text) && L) { const n = { tr: 'Türkisch', ar: 'Arabisch', uk: 'Ukrainisch', ru: 'Russisch', pl: 'Polnisch', ro: 'Rumänisch', en: 'Englisch' }[st.explainLang]; if (n) Q.push({ id: 'explain', text: T('Soll ich dir das wieder auf {l} erklären?', { l: T(n) }), yes: T('Auf {l}', { l: T(n) }), no: T('Nein'), run: () => startExplain(st.explainLang) }); }
+    if (st.thumbsDownRun >= 2 && st.quality) Q.push({ id: 'quality', text: T('Soll ich es mit dem gründlichen Modell nochmal versuchen?'), yes: T('Nochmal gründlich'), no: T('Nein'), run: () => analyzeAgain() });
+    if (r.sender?.nth >= 3) Q.push({ id: 'folder', text: T('Soll ich alle Briefe von {s} in eine Mappe legen?', { s: r.sender.name }), yes: T('Mappe anlegen'), no: T('Nein'), run: async () => { const x = await window.spider.askFolder(P.doc); return x.ok ? T('{n} Briefe liegen jetzt in der Mappe „{f}“ ✓', { n: x.n, f: T(x.folder) }) : T('Mappen gibt es mit Silkreader Pro.'); } });
+    return Q.find((q) => ok(q.id)) || null;
+  }
+  function answerBox(title, lines) {
+    const box = document.createElement('div');
+    box.className = 'answer rise';
+    box.innerHTML = `<div class="q">${esc(title)}</div><ol class="a" style="margin:4px 0 0;padding-left:18px">${lines.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>`;
+    $('answers').appendChild(box); box.scrollIntoView({ block: 'nearest' });
+  }
+  async function showQuestion(r) {
+    const q = await pickQuestion(r);
+    const at = run;
+    if (!q || at !== run || state !== 'done' || !$('askBack')) return false;
+    const el = $('askBack');
+    el.innerHTML = `<div class="askq rise" role="group" aria-label="${T('Frage der Spinne')}">${silkIcon('pro')}<div><p>${esc(q.text)}</p>
+      <div class="row"><button class="btn primary" data-q="yes">${esc(q.yes)}</button><button class="btn" data-q="no">${esc(q.no)}</button></div>
+      <button class="link dim" data-q="mute">${T('Nicht mehr fragen')}</button></div></div>`;
+    let answered = false;
+    el.addEventListener('click', async (e) => {
+      const a = e.target.closest('[data-q]')?.dataset.q; if (!a) return;
+      answered = true;
+      window.spider.askAnswer(q.id, a);
+      if (a === 'yes') { const msg = await q.run(); el.innerHTML = typeof msg === 'string' ? `<div class="askq done">✓ <span>${esc(msg)}</span></div>` : ''; }
+      else { if (a === 'no') q.onNo?.(); el.innerHTML = ''; }
+    });
+    // Übergangen (Blase zu oder anderes Ergebnis, ohne Antwort) → zählt als „ignoriert“
+    const myRun = run;
+    const watch = setInterval(() => { if (answered) return clearInterval(watch); if (run !== myRun || !$('askBack')?.contains(el.firstChild)) { clearInterval(watch); window.spider.askAnswer(q.id, 'ignored'); } }, 1500);
+    return true;
+  }
+  async function analyzeAgain() {
+    const doc = P.doc;
+    $('main').innerHTML = `${weave(T('Die Spinne liest gründlich …'))}`;
+    state = 'running';
+    const res = await window.spider.analyzeQuality(doc);
+    if (res.ok) { result = res.result; P = { kind: 'analyze', doc, result }; showResult(); } else { state = 'done'; $('main').innerHTML = `<p class="error">${esc(res.error)}</p>`; }
+  }
+  function startExplain(code) {
+    const saved = { P, result };
+    setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); });
+    P = { kind: 'transform', mode: `explain:${code}`, text: saved.P.doc.pages.join('\n\n'), title: T('In meiner Sprache') };
+    $('title').textContent = P.title;
+    transform();
+  }
+  // Selbstkontrolle sichtbar machen: Zahlen geprüft, nachgefragt, schon gelesen
+  function checkNote(r) {
+    const c = r.selfCheck; if (!c) return '';
+    const rows = [];
+    if (c.cached) rows.push(['fast', T('Sofort da: Diesen Text hast du schon gelesen.')]);
+    if (c.fixed) rows.push(['ok', c.fixed === 1 ? T('Nachgefragt: Eine Zahl stand nicht im Text – die KI hat sie korrigiert.') : T('Nachgefragt: {n} Zahlen standen nicht im Text – die KI hat sie korrigiert.', { n: c.fixed })]);
+    else if (c.numbers && !r.checks?.unsure?.length && (r.letter || r.figures?.length)) rows.push(['ok', T('Zahlen geprüft: Sie stehen so im Text.')]);
+    return rows.length ? `<div class="checks">${rows.map(([k, t]) => `<div class="ck2 ${k}">${k === 'fast' ? '⚡' : '✓'} <span>${t}</span></div>`).join('')}</div>` : '';
+  }
   // „War das richtig?“ – Korrekturen bleiben auf dem PC und helfen beim nächsten Brief
   const FIX_FIELDS = [['amount', 'Betrag'], ['deadline', 'Frist'], ['sender', 'Absender'], ['kind', 'Briefart'], ['task', 'Aufgabe'], ['summary', 'Zusammenfassung']];
   function fixValue(field) {
@@ -397,6 +473,7 @@
       const b = e.target.closest('[data-fb]'); if (!b) return;
       const good = b.dataset.fb === '1';
       window.spider.learnFeedback(good);
+      window.spider.learnThumbs(good);
       $('fb').querySelectorAll('[data-fb]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
       if (good) { $('fb').innerHTML = `<span>${T('Danke!')}</span>`; return; }
       const fields = FIX_FIELDS.filter(([f]) => result.letter || ['sender', 'summary'].includes(f));
@@ -501,6 +578,7 @@
       ${L ? letterCard(L, r) : r.letterLocked ? lockedCard('Brief-Hilfe mit Pro', 'Was du tun musst, bis wann, und die IBAN zum Kopieren.', 'lPro') : ''}
       ${r.contract ? contractCard(r.contract) : r.contractLocked ? lockedCard('Vertrags-Check mit Pro', 'Kündigen bis wann, Verlängerung und eine Erinnerung, bevor es zu spät ist.', 'cPro') : ''}
       ${senderLines(r.sender)}
+      <div id="askBack"></div>
       ${L || r.contract ? `<div class="h2">${T('Worum es geht')}</div>` : ''}
       <ul class="lead" data-noi18n>${bullets(r.summary).map((b) => `<li>${emphChecked(b)}</li>`).join('')}</ul>
       ${deadlines.map((d, i) => `<div class="dl">${silkIcon('calendar')}<span class="when">${d.date.toLocaleDateString(I18N.locale)}</span><span class="what" data-noi18n title="${esc(d.sentence)}">${esc(d.sentence)}</span><button class="link" data-dl="${i}">${T('In den Kalender')}</button></div>`).join('')}
@@ -514,6 +592,7 @@
       </div>
       <div id="answers"></div>
       ${feedbackRow()}
+      ${checkNote(r)}
       <div class="aiNote">${r.checks?.unsure?.length ? `<span>${T('Gestrichelte Zahlen stehen so nicht im Text – bitte prüfen.')}</span> ` : ''}<span>${T('KI-Ergebnis. Beträge und Fristen bitte im Original prüfen.')}</span>${r.sentBytes === 0 ? `<br><span class="sent">${silkIcon('lock')}<span>${T('0 Bytes ins Internet gesendet')}</span></span>` : r.sentBytes ? `<br><span class="sent cloud">${silkIcon('cloud')}<span>${T('{kb} KB an Claude gesendet', { kb: Math.max(1, Math.round(r.sentBytes / 1024)) })}</span></span>` : ''}</div>`;
     $('moreBtn').addEventListener('click', () => {
       const open = $('details').classList.toggle('open');
@@ -544,7 +623,7 @@
     $('lPro')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); proView('letter'); });
     wireFeedback();
     $('sAll')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); notebook(null, r.sender.name); });
-    maybeAskReview().then((asked) => { if (!asked) maybeTip(); });
+    showQuestion(r).then((asked) => { if (asked) return maybeAskReview(); return maybeAskReview().then((rev) => { if (!rev) maybeTip(); }); });
   }
 
   // ---------- Tipps nach und nach (je einer, jeder nur einmal) ----------
@@ -675,8 +754,11 @@
     const a = box.querySelector('.a');
     if (!res.ok) { a.className = 'a error'; a.textContent = res.error; return; }
     a.className = 'a';
-    a.innerHTML = emph(res.answer) + (res.quote ? ` <button class="link">Stelle zeigen →</button>` : '');
-    a.querySelector('.link')?.addEventListener('click', (e) => toggleLupe(box, { type: 'quote', quote: res.quote }, e.target));
+    // Antwort mit Beleg: die Stelle aus dem Brief (nur wenn sie wirklich im Text steht)
+    a.innerHTML = emph(res.answer) + (res.quote && res.quoteFound !== false
+      ? `<div class="proof">${silkIcon('notebook')}<span><b>${T('Aus dem Text:')}</b> <span data-noi18n>„${esc(res.quote)}“</span> <button class="link">${T('Im Text zeigen')}</button></span></div>`
+      : res.quote ? `<div class="muted proof0">${T('Die passende Stelle habe ich nicht wörtlich gefunden – bitte im Original prüfen.')}</div>` : '');
+    a.querySelector('.proof .link')?.addEventListener('click', (e) => toggleLupe(box, { type: 'quote', quote: res.quote }, e.target));
     box.scrollIntoView({ block: 'nearest' });
   }
 
@@ -876,6 +958,20 @@
       <div class="mlist">${items.map((d) => `<div class="mrow${d.days <= 2 ? ' soon' : ''}"><span data-noi18n>${esc(d.title)}</span><b>${wd(d)}</b></div>`).join('')}</div>
       <p class="muted small1">${T('Kommt einmal am Morgen, wenn Fristen anstehen. Abschaltbar in den Einstellungen.')}</p>`;
     footer({ actions: [['Fristen', () => { setBack(morning); deadlines(); }]] });
+  }
+  // ---------- Frage an der Spinne: Frist morgen – schon bezahlt? ----------
+  function paidQuestion() {
+    state = 'done';
+    const d = P.d;
+    $('title').textContent = T('Frist {w}', { w: d.days === 0 ? T('heute') : T('morgen') });
+    $('main').innerHTML = `<p class="lead1"><b>${T('Hast du das schon erledigt?')}</b></p><p class="muted" data-noi18n>${esc(d.title)}</p><p class="muted" data-noi18n style="font-size:12.5px">${esc(d.sentence)}</p>
+      <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn primary" id="pqYes">${T('Ja, erledigt')}</button><button class="btn" id="pqNo">${T('Noch nicht')}</button>${d.iban ? `<button class="btn" id="pqIban">${T('IBAN kopieren')}</button>` : ''}</div>
+      <button class="link dim" id="pqMute" style="margin-top:8px;font-size:12px;color:var(--muted)">${T('Nicht mehr fragen')}</button>`;
+    $('pqYes').addEventListener('click', async () => { await window.spider.deadlineDone(d.key, true); window.spider.askAnswer('paid', 'yes'); $('main').innerHTML = `<p class="lead1">✓ ${T('Super, abgehakt!')}</p>`; const myRun = run; setTimeout(() => { if (run === myRun && P.kind === 'paidq') close(); }, 1600); });
+    $('pqNo').addEventListener('click', () => { window.spider.askAnswer('paid', 'no'); close(); });
+    $('pqIban')?.addEventListener('click', async (e) => { await navigator.clipboard.writeText(d.iban.replace(/\s+/g, '')); e.target.textContent = T('Kopiert'); });
+    $('pqMute').addEventListener('click', () => { window.spider.askAnswer('paid', 'mute'); close(); });
+    footer({ actions: [['Fristen', () => { setBack(paidQuestion); deadlines(); }]] });
   }
   // ---------- Später lesen: Zeitpunkt wählen ----------
   function laterPicker() {
@@ -1254,6 +1350,7 @@
     else if (P.kind === 'notebook') notebook();
     else if (P.kind === 'deadlines') deadlines();
     else if (P.kind === 'morning') morning();
+    else if (P.kind === 'paidq') paidQuestion();
     else if (P.kind === 'crash') crash();
     else if (P.kind === 'shortcuts') shortcutsView();
     else if (P.kind === 'pro') proView(P.feature || null);
