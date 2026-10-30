@@ -2262,9 +2262,9 @@ ipcMain.handle('add-calendar', async (_e, { title, date, note }) => {
 });
 
 // ---------- Silkreader Pro: Status, Code einlösen, kaufen ----------
-const refreshPro = () => pro.refresh(loadSettings(), { psEnv: require('./psenv').psEnv, log: logLine }).then((st) => {
+const refreshPro = ({ store = true } = {}) => pro.refresh(loadSettings(), { psEnv: require('./psenv').psEnv, log: logLine, store }).then((st) => {
   const s = loadSettings();
-  if (STORE && !!s.proStoreCache !== (st.source === 'store')) { s.proStoreCache = st.source === 'store'; saveSettings(s); } // falls Windows später mal nicht antwortet
+  if (STORE && store && !!s.proStoreCache !== (st.source === 'store')) { s.proStoreCache = st.source === 'store'; saveSettings(s); } // falls Windows später mal nicht antwortet
   buildTrayMenu();
   return st;
 });
@@ -3134,7 +3134,7 @@ async function macUpdateCheck(manual = false) {
 }
 function setupUpdates() {
   if (!app.isPackaged || STORE) return; // nur in der installierten App; Store-Versionen aktualisiert der Store
-  if (process.platform === 'darwin') { setTimeout(() => macUpdateCheck(), 20000); setInterval(() => macUpdateCheck(), 12 * 60 * 60 * 1000); return; }
+  if (process.platform === 'darwin') { setTimeout(() => macUpdateCheck(), 10000); setInterval(() => macUpdateCheck(), 12 * 60 * 60 * 1000); return; }
   if (process.platform === 'win32') {
     defaultVerify = updater().verifyUpdateCodeSignature;
     updater().verifyUpdateCodeSignature = verifyUpdateSignature;
@@ -3172,7 +3172,7 @@ function setupUpdates() {
   });
 
   const check = () => updater().checkForUpdates().catch(() => {});
-  setTimeout(check, 15000);
+  setTimeout(check, 5000);
   setInterval(check, 4 * 60 * 60 * 1000);
 }
 
@@ -3235,13 +3235,16 @@ if (!app.requestSingleInstanceLock()) {
     registerShortcuts(true);
     // Analysefenster unsichtbar vorbereiten, damit es später sofort da ist
     // (Fenster werden erst bei Bedarf erzeugt und nach einer Weile im Hintergrund wieder freigegeben – spart RAM)
-    setupUpdates();
+    // Update-Modul erst nach dem Start laden (allein das Laden kostet ~0,6 s)
+    setTimeout(setupUpdates, 10000);
 
     registerExplorerMenu();
     watchFullscreen();
     watchDeadlines();
     watchCrashes();
-    refreshPro().catch((e) => logLine(`Pro: ${e.message}`));
+    // Store-Lizenz (startet PowerShell) erst nach dem Start abfragen – bis dahin gilt der letzte bekannte Stand
+    refreshPro({ store: false }).catch((e) => logLine(`Pro: ${e.message}`));
+    if (STORE) setTimeout(() => refreshPro().catch((e) => logLine(`Pro: ${e.message}`)), 10000);
     const startFile = fileFromArgs(process.argv);
     if (startFile) setTimeout(() => readFileToBubble(startFile), 1500);
     const s = loadSettings();

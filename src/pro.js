@@ -100,10 +100,11 @@ function checkStoreLicense(psEnv) {
 // ---------- Zustand ----------
 let state = { code: null, store: false };
 /** Beim Start und nach Änderungen: gespeicherten Code prüfen, Store-Lizenz abfragen */
-async function refresh(settings, { psEnv, log = () => {} } = {}) {
+async function refresh(settings, { psEnv, log = () => {}, store = true } = {}) {
   const c = settings.proCode ? checkCode(settings.proCode) : null;
   state.code = c?.ok ? c : null;
-  if (process.windowsStore) {
+  if (process.windowsStore && !store) state.store = !!settings.proStoreCache; // vorerst der letzte bekannte Stand
+  if (process.windowsStore && store) {
     const s = await checkStoreLicense(psEnv);
     if (s && !s.error) state.store = !!s.active;
     else if (s?.error) { log(`Store-Lizenz nicht abfragbar: ${s.error}`); state.store = !!settings.proStoreCache; }
