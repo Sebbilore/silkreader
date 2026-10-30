@@ -169,7 +169,11 @@ function startWindowsHelper() {
 }
 
 // Schickt einen Befehl an den Helfer und wartet auf seine eine Antwortzeile.
+let lastHelperUse = Date.now();
+// Nach 20 Minuten ohne Nutzung beenden – spart Arbeitsspeicher; beim nächsten Bedarf startet er neu
+setInterval(() => { if (helper && Date.now() - lastHelperUse > 20 * 60 * 1000) { log('PowerShell-Helfer pausiert (lange nicht gebraucht)'); try { helper.proc.kill(); } catch {} helper = null; } }, 5 * 60 * 1000).unref?.();
 function helperCommand(cmd, timeoutMs) {
+  lastHelperUse = Date.now();
   return new Promise((resolve) => {
     const h = startWindowsHelper();
     let done = false;
@@ -210,9 +214,11 @@ async function isMouseDown() {
 }
 
 /** Startet den Windows-Helfer vorab, damit der erste Klick nicht warten muss. */
+let warmLogged = false;
 function warmUp() {
   if (process.platform !== 'win32') return;
-  log(winkeys.load() ? 'Tastatur: direkt über Windows (user32)' : `Tastatur: PowerShell-Helfer (user32 nicht ladbar: ${winkeys.load.error?.message || '?'})`);
+  if (helper) return;
+  if (!warmLogged) { warmLogged = true; log(winkeys.load() ? 'Tastatur: direkt über Windows (user32)' : `Tastatur: PowerShell-Helfer (user32 nicht ladbar: ${winkeys.load.error?.message || '?'})`); }
   startWindowsHelper();
 }
 
@@ -261,7 +267,9 @@ const ownClipboardActive = () => Date.now() < ownClipboardUntil;
 /** Zähler, den Windows bei jeder Änderung der Zwischenablage erhöht (sehr billig abzufragen). */
 /** Zustand des PowerShell-Helfers (für die Tests): z. B. "uia=True ps=5.1…" */
 async function helperDiag() {
-  if (process.platform !== 'win32' || !helper?.ready) return null;
+  if (process.platform !== 'win32') return null;
+  if (!helper) startWindowsHelper();
+  if (!helper?.ready) return null;
   return helperCommand('diag', 3000);
 }
 
@@ -274,11 +282,16 @@ async function clipboardSeq() {
 }
 
 /** Markierten Text über UI Automation lesen (kein Strg+C nötig). null = unbekannt/nichts. */
-async function uiaSelectedText() {
+// Hängt der Helfer (Zeitüberschreitung), fragen wir ihn eine Weile nicht mehr und nehmen gleich Strg+C –
+// sonst wartet jeder Klick auf die Spinne unnötig bis zu 1,5 Sekunden.
+let uiaSlowUntil = 0;
+async function uiaSelectedText({ timeout = 600 } = {}) {
   if (process.platform !== 'win32') return null;
-  if (!helper?.ready) { log('UI Automation: Helfer noch nicht bereit'); return null; }
+  if (!helper?.ready) { log('UI Automation: Helfer noch nicht bereit'); if (!helper) startWindowsHelper(); return null; }
+  if (Date.now() < uiaSlowUntil) { log('UI Automation: übersprungen (Helfer war zuletzt zu langsam)'); return null; }
   const t0 = Date.now();
-  const r = await helperCommand('seltext', 1500);
+  const r = await helperCommand('seltext', timeout);
+  if (r === null) uiaSlowUntil = Date.now() + 2 * 60 * 1000;
   log(`UI Automation: ${r === null ? 'Zeitüberschreitung' : r === '-' ? 'keine Markierung gefunden' : r === 'err' ? 'Fehler' : `${r.length} Zeichen (Base64)`} nach ${Date.now() - t0} ms`);
   if (!r || r === '-' || r === 'err') return null;
   try { const t = Buffer.from(r, 'base64').toString('utf8').trim(); return t || null; } catch { return null; }
@@ -318,8 +331,8 @@ async function grabSelection({ hotkey = false, noUia = false } = {}) {
 async function readClipboardFiles() {
   if (process.platform !== 'win32') return [];
   if (helper?.ready) {
-    // schnell über den Helfer (läuft schon)
-    const r = await helperCommand('files', 1500);
+    // schnell über den Helfer (läuft schon); hängt er, nicht lange warten
+    const r = Date.now() < uiaSlowUntil ? null : await helperCommand('files', 700);
     if (r !== null && r !== 'err') return r.split('|').map((x) => x.trim()).filter((p) => p && fs.existsSync(p));
   }
   const out = await run('powershell', ['-NoProfile', '-NonInteractive', '-Command',

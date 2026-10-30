@@ -164,16 +164,21 @@ function loadSettings() {
     provider: 'builtin', model: 'claude-opus-5-5', ollamaModel: 'gemma3:12b',
     language: 'Deutsch', apiKeyEnc: null, bubble: null,
   };
+  // Im Speicher halten: die Datei wird nur neu gelesen, wenn sie sich geändert hat (spart viele Festplattenzugriffe)
   try {
-    return { ...defaults, ...JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) };
+    const m = fs.statSync(settingsFile()).mtimeMs;
+    if (!settingsCache || settingsCache.m !== m) settingsCache = { m, data: JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) };
+    return { ...defaults, ...structuredClone(settingsCache.data) };
   } catch {
     return defaults;
   }
 }
+let settingsCache = null;
 
 function saveSettings(s) {
   fs.mkdirSync(path.dirname(settingsFile()), { recursive: true });
   fs.writeFileSync(settingsFile(), JSON.stringify(s, null, 2));
+  try { settingsCache = { m: fs.statSync(settingsFile()).mtimeMs, data: structuredClone(s) }; } catch { settingsCache = null; }
 }
 
 // Lokales Lernen (nur auf diesem PC): Absender, Beträge, Korrekturen – aus im Privatmodus oder wenn abgeschaltet
@@ -246,7 +251,7 @@ function createBubble() {
     const still = lastRaw && lastRaw.x === c.x && lastRaw.y === c.y;
     checkTouchTap(lastRaw, c);
     // Maus nähert sich der Spinne: KI schon mal laden, dann ist das Ergebnis schneller da
-    if (Date.now() - lastHoverPreload > 30000) { const sp = spiderScreenPos(); if (Math.hypot(c.x - sp.x, c.y - sp.y) < 140) { lastHoverPreload = Date.now(); preloadBuiltinModel(); } }
+    if (Date.now() - lastHoverPreload > 30000) { const sp = spiderScreenPos(); if (Math.hypot(c.x - sp.x, c.y - sp.y) < 140) { lastHoverPreload = Date.now(); warmUpGrab(); preloadBuiltinModel(); } }
     lastRaw = c;
     recordCursor(c);
     const [wx, wy] = bubbleWin.getPosition();
@@ -1469,7 +1474,8 @@ function factsBlock(doc) {
       if (C.end) f.push(`Vertragsende: ${day(C.end)}`);
     }
     const guide = KIND_GUIDE[C && (!L || ['vertrag', 'kuendigung'].includes(L.kind)) ? 'vertrag' : L?.kind] || '';
-    return [guide, `Geprüfte Fakten (sicher aus dem Text, genau so verwenden – erfinde keine anderen Beträge oder Daten): ${f.join('; ')}.`].filter(Boolean).join('\n');
+    return [guide, `Geprüfte Fakten (sicher aus dem Text, genau so verwenden – erfinde keine anderen Beträge oder Daten): ${f.join('; ')}.`,
+      'Nenne Betrag und Frist (mit Datum) aus diesen Fakten in den Stichpunkten und als Handlung.'].filter(Boolean).join('\n');
   } catch { return ''; }
 }
 
@@ -1639,14 +1645,18 @@ const FINAL_SCHEMA = {
 };
 // Eingebautes (kleines) Modell: Stichpunkte als Liste mit 3–5 Einträgen erzwingen (sonst kommt manchmal nur einer),
 // und enthält der Text Zahlen, auch Angaben (es lässt sie sonst gern weg)
-const BULLETS = { type: 'array', items: str(140), minItems: 3, maxItems: 5 };
+const BULLETS = { type: 'array', items: str(130), minItems: 3, maxItems: 4 };
 const BUILTIN_FINAL_SCHEMA = { ...FINAL_SCHEMA, properties: { ...FINAL_SCHEMA.properties, summary: BULLETS } };
 const SHORT_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['title', 'doc_type', 'summary', 'key_points', 'figures', 'findings'],
   properties: { ...FINAL_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, maxItems: 8 } },
 };
-const BUILTIN_SHORT_SCHEMA = { ...SHORT_SCHEMA, properties: { ...SHORT_SCHEMA.properties, summary: BULLETS } };
-const SHORT_SCHEMA_NUMBERS = { ...BUILTIN_SHORT_SCHEMA, properties: { ...BUILTIN_SHORT_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, minItems: 2, maxItems: 8 } } };
+// Eingebautes Modell, kurzer Text: schlank halten – die Blase zeigt 3 Stichpunkte, der Rest steht unter „Mehr“.
+// Weniger Text zu schreiben = deutlich schneller fertig.
+const BUILTIN_SHORT_SCHEMA = { ...SHORT_SCHEMA, properties: { ...SHORT_SCHEMA.properties, summary: BULLETS,
+  key_points: { type: 'array', items: str(150), maxItems: 4 }, findings: { type: 'array', items: FINDING_SCHEMA, maxItems: 3 },
+  figures: { type: 'array', items: FIGURE_SCHEMA, maxItems: 5 } } };
+const SHORT_SCHEMA_NUMBERS = { ...BUILTIN_SHORT_SCHEMA, properties: { ...BUILTIN_SHORT_SCHEMA.properties, figures: { type: 'array', items: FIGURE_SCHEMA, minItems: 2, maxItems: 5 } } };
 
 // Ereignis-Sätze (Rücktritt, Kündigung, Frist, Ablauf … mit Datum oder Jahr) aus dem Originaltext, die im Ergebnis
 // fehlen, als Kernaussage ergänzen – kleine Modelle überlesen solche Einzelsätze gern, sie sind aber oft das Wichtigste.
@@ -1768,12 +1778,12 @@ async function analyzeBuiltin(doc, s, onProgress) {
       let streamed = '', quickSent = false;
       const r = await ask([
         `Analysiere das folgende Dokument („${doc.title}“).`,
-        'Liefere Titel, Art, als "summary" das Wichtigste in 3 bis 5 kurzen Stichpunkten, bis zu 6 weitere Kernaussagen, bis zu 8 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "value" genau so wie im Text, z. B. „412 Millionen Euro“; "quote" = wörtliche Stelle aus dem Text) und bis zu 5 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen; rechne Kennzahlen aus, wo sinnvoll).',
+        'Liefere Titel, Art, als "summary" das Wichtigste in 3 bis 4 kurzen Stichpunkten, bis zu 4 weitere Kernaussagen, bis zu 5 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "value" genau so wie im Text, z. B. „412 Millionen Euro“; "quote" = wörtliche Stelle aus dem Text) und bis zu 3 echte Erkenntnisse (Risiken, nötige Handlungen). Fasse dich kurz.',
         'Ist es ein Brief, eine Rechnung oder ein Bescheid: Was muss der Empfänger tun? Das gehört als Erkenntnis der Art „Handlung“ dazu (als konkreter Satz).',
         ...(factsBlock(doc) ? [factsBlock(doc)] : []),
         ...(learnHints(doc) ? [learnHints(doc)] : []),
         '', '<document>', docText, '</document>',
-      ].join('\n'), /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(docText) ? SHORT_SCHEMA_NUMBERS : BUILTIN_SHORT_SCHEMA, 2200, (c) => {
+      ].join('\n'), /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(docText) ? SHORT_SCHEMA_NUMBERS : BUILTIN_SHORT_SCHEMA, 1500, (c) => {
         onProgress(c);
         if (quickSent) return;
         streamed += c;
@@ -2598,7 +2608,15 @@ function watchDeadlines() {
 
 // ---------- Notizbuch: die letzten 20 Analysen ----------
 const historyFile = () => path.join(app.getPath('userData'), 'history.json');
-function loadHistory() { try { return JSON.parse(fs.readFileSync(historyFile(), 'utf8')); } catch { return []; } }
+// Notizbuch im Speicher halten; neu lesen nur, wenn sich die Datei geändert hat
+let historyCache = null;
+function loadHistory() {
+  try {
+    const st = fs.statSync(historyFile());
+    if (!historyCache || historyCache.m !== st.mtimeMs || historyCache.size !== st.size) historyCache = { m: st.mtimeMs, size: st.size, data: JSON.parse(fs.readFileSync(historyFile(), 'utf8')) };
+    return structuredClone(historyCache.data);
+  } catch { return []; }
+}
 // Mappen (Pro): Briefe nach Thema. Was in einer Mappe liegt, bleibt (bis 200), sonst nur die letzten 20.
 const FOLDERS = ['Steuer', 'Wohnung', 'Verträge', 'Versicherung', 'Gesundheit', 'Arbeit', 'Bank', 'Sonstiges'];
 function guessFolder(text, result) {
@@ -2992,7 +3010,9 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   }
   if (language) { if (language !== s.language) s.languageSet = true; s.language = language; }
   saveSettings(s);
-  preloadBuiltinModel();
+  // Nicht bei jeder Einstellung das große Modell laden – nur ein gewechseltes Modell freigeben,
+  // das neue lädt dann beim nächsten Lesen
+  if (llamaRuntime && llamaRuntime.key !== builtinKey(s)) unloadBuiltinModel();
   return true;
 });
 ipcMain.handle('open-external', (_e, url) => {
@@ -3193,7 +3213,7 @@ if (!app.requestSingleInstanceLock()) {
     ses.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(['clipboard-sanitized-write'].includes(perm) || camOk(wc, perm)));
     ses.defaultSession.setPermissionCheckHandler((wc, perm) => ['clipboard-sanitized-write'].includes(perm) || camOk(wc, perm));
     cocoons = new CocoonStore(path.join(app.getPath('userData'), 'cocoons.json'));
-    setTimeout(warmUpGrab, 2000); // Tastatur-Helfer vorab starten, damit der erste Klick sofort klappt
+    // Der Tastatur-Helfer startet erst, wenn die Maus zur Spinne kommt (spart Arbeitsspeicher und Start-Zeit)
     // Ohne Helfer (nicht Windows oder blockiert) gibt es keine Ablagezone → Spinne bekommt größere Fangfläche
     setTimeout(() => { if (!helperAvailable()) bubbleWin?.webContents.send('drop-zone', 'unavailable'); }, 15000);
     watchCopiedFiles();
