@@ -40,7 +40,7 @@ Windows 10 (1809+) and 11, 64-bit, at least 4 GB of memory (8 GB recommended). S
 
 ## Speed
 
-Two-stage AI (key points and task first, details on demand): about 18 s instead of 30 s per letter with the fast model on the test letters, 90 s instead of 130 s with the thorough model. The model is loaded only when reading is about to start and released after 3 minutes. Idle: about 70 MB of memory and under 1 % CPU. Power-saving mode turns on by itself on PCs with less than 6 GB of memory.
+Two-stage AI (key points and task first, details on demand): about 12 s per letter with the fast model on the test letters (1.22: ~30 s), about 32 s with the thorough model (1.22: ~130 s). The model is loaded only when reading is about to start and released after 3 minutes. Idle: about 70 MB of memory and under 1 % CPU. Power-saving mode turns on by itself on PCs with less than 6 GB of memory.
 
 ## Privacy
 

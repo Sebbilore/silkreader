@@ -1,5 +1,19 @@
 // „Was ist neu?“ – erscheint nach einem Update einmal als Sprechblase an der Spinne.
 module.exports = {
+  '1.24.0': {
+    de: [
+      'Noch schneller: Die Spinne schreibt ihre Antwort jetzt kompakter – das Ergebnis steht beim schnellen Modell rund ein Fünftel früher da, beim gründlichen Modell sogar in gut der Hälfte der Zeit.',
+      'Kleinerer Download: etwa ein Viertel weniger für Installer, Store und Mac.',
+      'Sparsamer im Hintergrund: Die KI gibt ihren Arbeitsspeicher zuverlässig wieder frei, wenn du gerade nichts liest.',
+      'Die Spinne reagiert nur noch dicht bei sich auf Klicks und abgelegte Dateien – darunter kannst du wieder ganz normal Text markieren.',
+    ],
+    en: [
+      'Even faster: the spider now writes its answer more compactly – with the fast model the result is ready about a fifth sooner, with the thorough model in little more than half the time.',
+      'Smaller download: about a quarter less for the installer, the Store and Mac.',
+      'Lighter in the background: the AI reliably frees its memory when you are not reading.',
+      'The spider only reacts to clicks and dropped files close to itself – below it you can select text as usual again.',
+    ],
+  },
   '1.23.0': {
     de: [
       'Deutlich schneller: Die eingebaute KI liest einen Brief jetzt in etwa der Hälfte der Zeit. Betrag, Frist und IBAN stehen sofort oben, die Stichpunkte folgen – die Details schreibt die Spinne erst, wenn du „Mehr aus dem Brief“ öffnest.',

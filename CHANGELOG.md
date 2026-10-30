@@ -3,6 +3,13 @@
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
 
+## 1.24.0
+- **Faster AI:** compact JSON (no line breaks/indentation in the AI's answer) and exactly 3 key points. Measured on the test letters (same machine, alternating): fast model 15.1 s → 11.8 s, slowest letter 22.4 s → 14.2 s, 17.8 → 23.6 tokens/s; thorough model 51 s → 32 s, details 125 s → 63 s – same accuracy.
+- **Smaller download:** Setup.exe 163 → 115 MB, Store 229 → 172 MB, Mac 159/175 → 113/129 MB (llama.cpp source bundle, unused Chromium locales, WebGPU shader compiler and library sources removed; maximum installer compression).
+- **Idle:** the AI model is released reliably (1 minute after a mere hover preload, 3 minutes after reading); preloading only when the mouse rests on the spider.
+- **Tap and drop zone** tighter, especially below the spider (tap zone 56 → 40 px; drop zone only down to just below the spider/web).
+- AI library never tries to compile llama.cpp itself; “Zeit” timing lines in the log; KI-Test and size workflow for measuring.
+
 ## 1.23.0
 - **About twice as fast:** the built-in AI writes the key points and the task first; the details (key points, figures, insights) only when you open “More from the letter”. Measured on the test letters: fast model 30 s → 18.5 s per letter, thorough model 133 s → 90 s – with the same or better accuracy.
 - **Instant letter card:** amount, deadline, IBAN and scam warnings appear after 0.2 s, while the AI is still reading.

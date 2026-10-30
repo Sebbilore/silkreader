@@ -1,4 +1,4 @@
-# Microsoft Store – Texte für Silkreader 1.23.0
+# Microsoft Store – Texte für Silkreader 1.24.0
 
 Zum Kopieren ins Partner Center (Store-Einträge → Deutsch / Englisch).
 
@@ -53,13 +53,13 @@ Hinweis: KI kann sich irren. Wichtige Angaben wie Beträge und Fristen bitte im 
 
 ### Neuerungen in dieser Version (What's new, max. 1500 Zeichen)
 
-Version 1.23 – doppelt so schnell und aufgeräumt
-• Deutlich schneller: Die eingebaute KI liest einen Brief in etwa der Hälfte der Zeit. Betrag, Frist und IBAN stehen sofort oben, die Stichpunkte folgen kurz danach.
-• Aufgeräumt: Oben nur noch die Aufgabe und die 3 wichtigsten Punkte – alles Weitere unter „Mehr aus dem Brief“.
-• „Meine Briefe“: Notizbuch, Fristen und „Später lesen“ an einem Ort.
-• Neues Spinnennetz-Menü mit den 6 wichtigsten Aktionen: Lesen, In meiner Sprache, Antworten, Meine Briefe, Foto, Mehr.
-• Startet schneller und braucht im Leerlauf weniger Leistung; Sparmodus schaltet sich auf PCs mit wenig Arbeitsspeicher von selbst ein.
-• Unter jedem Ergebnis steht, wie lange das Lesen gedauert hat.
+Version 1.24 – noch schneller, kleiner, sparsamer
+• Noch schneller: Das Ergebnis steht beim schnellen KI-Modell rund ein Fünftel früher da, beim gründlichen in gut der Hälfte der Zeit.
+• Kleinerer Download: etwa ein Viertel weniger.
+• Sparsamer im Hintergrund: Die KI gibt ihren Arbeitsspeicher zuverlässig frei, wenn du nichts liest.
+• Die Spinne reagiert nur noch dicht bei sich auf Klicks und abgelegte Dateien – darunter kannst du wieder ganz normal Text markieren.
+
+Aus Version 1.23: doppelt so schnell, Betrag/Frist/IBAN sofort oben, „Meine Briefe“, neues Spinnennetz-Menü, Lesezeit unter jedem Ergebnis.
 
 ### Produktfeatures (Product features, je max. 200 Zeichen)
 
@@ -129,13 +129,13 @@ Note: AI can make mistakes. Please check important details such as amounts and d
 
 ### What's new in this version
 
-Version 1.23 – twice as fast and tidier
-• Much faster: the built-in AI reads a letter in about half the time. Amount, deadline and IBAN appear right away, the key points follow shortly after.
-• Tidier: just the task and the 3 most important points at the top – everything else under “More from the letter”.
-• “My letters”: notebook, deadlines and “Read later” in one place.
-• New spider-web menu with the 6 most important actions: Read, In my language, Reply, My letters, Photo, More.
-• Starts faster and uses less power when idle; power-saving mode turns on by itself on PCs with little memory.
-• Every result shows how long reading took.
+Version 1.24 – even faster, smaller, lighter
+• Even faster: with the fast AI model the result is ready about a fifth sooner, with the thorough model in little more than half the time.
+• Smaller download: about a quarter less.
+• Lighter in the background: the AI reliably frees its memory when you are not reading.
+• The spider only reacts to clicks and dropped files close to itself – below it you can select text as usual again.
+
+From version 1.23: twice as fast, amount/deadline/IBAN right at the top, “My letters”, new spider-web menu, reading time below every result.
 
 ### Product features
 

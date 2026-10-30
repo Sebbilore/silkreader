@@ -44,9 +44,9 @@ Tastenkürzel (einstellbar): **Strg+Alt+A** lesen · **S** an die Spinne geben �
 
 ## Tempo und Sparsamkeit
 
-- Die eingebaute KI arbeitet in zwei Stufen: erst Stichpunkte und Aufgabe, die Details erst bei „Mehr“. Im KI-Test mit den Testbriefen: schnelles Modell ~18 s statt ~30 s pro Brief, gründliches ~90 s statt ~130 s.
+- Die eingebaute KI arbeitet in zwei Stufen: erst Stichpunkte und Aufgabe, die Details erst bei „Mehr“. Im KI-Test mit den Testbriefen: schnelles Modell ~12 s pro Brief (1.22: ~30 s), gründliches ~32 s (1.22: ~130 s).
 - Das Modell wird erst geladen, wenn sich ein Lesen anbahnt (Maus über der Spinne), und nach 3 Minuten Ruhe wieder freigegeben. Grafikkarte oder Prozessor – die App misst einmal, was auf diesem PC schneller ist.
-- Im Leerlauf: rund 70 MB Arbeitsspeicher und unter 1 % Prozessor (Windows-Task-Manager). Auf PCs mit weniger als 6 GB Arbeitsspeicher schaltet sich der Sparmodus von selbst ein.
+- Im Leerlauf (Modell freigegeben): rund 70 MB Arbeitsspeicher und unter 1 % Prozessor (Windows-Task-Manager). Auf PCs mit weniger als 6 GB Arbeitsspeicher schaltet sich der Sparmodus von selbst ein.
 - Unter jedem Ergebnis steht klein, wie lange das Lesen gedauert hat.
 
 ## Sprache, Datenschutz, Lizenzen
