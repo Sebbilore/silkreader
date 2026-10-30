@@ -283,9 +283,9 @@ async function clipboardSeq() {
 
 /** Markierten Text über UI Automation lesen (kein Strg+C nötig). null = unbekannt/nichts. */
 // Hängt der Helfer (Zeitüberschreitung), fragen wir ihn eine Weile nicht mehr und nehmen gleich Strg+C –
-// sonst wartet jeder Klick auf die Spinne unnötig bis zu 1,5 Sekunden.
+// sonst wartet jeder weitere Klick auf die Spinne unnötig 1,5 Sekunden.
 let uiaSlowUntil = 0;
-async function uiaSelectedText({ timeout = 600 } = {}) {
+async function uiaSelectedText({ timeout = 1500 } = {}) {
   if (process.platform !== 'win32') return null;
   if (!helper?.ready) { log('UI Automation: Helfer noch nicht bereit'); if (!helper) startWindowsHelper(); return null; }
   if (Date.now() < uiaSlowUntil) { log('UI Automation: übersprungen (Helfer war zuletzt zu langsam)'); return null; }
@@ -332,7 +332,7 @@ async function readClipboardFiles() {
   if (process.platform !== 'win32') return [];
   if (helper?.ready) {
     // schnell über den Helfer (läuft schon); hängt er, nicht lange warten
-    const r = Date.now() < uiaSlowUntil ? null : await helperCommand('files', 700);
+    const r = Date.now() < uiaSlowUntil ? null : await helperCommand('files', 1500);
     if (r !== null && r !== 'err') return r.split('|').map((x) => x.trim()).filter((p) => p && fs.existsSync(p));
   }
   const out = await run('powershell', ['-NoProfile', '-NonInteractive', '-Command',
