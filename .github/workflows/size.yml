@@ -1,0 +1,57 @@
+# Paketgrößen messen: baut Installer, Store-Paket und Mac-DMG wie beim Veröffentlichen (mit Codeschutz),
+# meldet nur die Größen – nichts wird hochgeladen oder veröffentlicht. Dazu ein kurzer Start der gebauten App.
+name: Paketgrößen
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node build/protect.js
+      - name: Installer und Store-Paket bauen (ohne Signatur)
+        shell: pwsh
+        run: |
+          npx electron-builder --win nsis --x64 --publish never -c.win.signtoolOptions=null 2>&1 | Out-Null
+          npm run dist:store 2>&1 | Out-Null
+          $exe = Get-ChildItem dist -Filter *.exe | Where-Object Name -like 'Silkreader-Setup*' | Select-Object -First 1
+          $appx = Get-ChildItem dist -Filter *.appx | Select-Object -First 1
+          $unpacked = (Get-ChildItem dist/win-unpacked -Recurse | Measure-Object Length -Sum).Sum
+          $big = Get-ChildItem dist/win-unpacked -Recurse -File | Sort-Object Length -Descending | Select-Object -First 15 | ForEach-Object { "{0,7:N1} MB  {1}" -f ($_.Length/1MB), $_.FullName.Replace((Resolve-Path dist/win-unpacked).Path, '') }
+          Write-Output "::notice title=Paketgrößen Windows::Setup.exe $([math]::Round($exe.Length/1MB,1)) MB · Store $([math]::Round($appx.Length/1MB,1)) MB · entpackt $([math]::Round($unpacked/1MB,1)) MB"
+          Write-Output "::notice title=Größte Dateien (Windows)::$($big -join '%0A')"
+      - name: Gebaute App kurz starten
+        shell: pwsh
+        run: |
+          $p = Start-Process dist/win-unpacked/Silkreader.exe -PassThru
+          Start-Sleep 15
+          $log = Get-ChildItem "$env:APPDATA\Silkreader" -Filter silkreader-errors.log -ErrorAction SilentlyContinue | Select-Object -First 1
+          $text = if ($log) { (Get-Content $log.FullName -Tail 12) -join '%0A' } else { 'kein Protokoll' }
+          if (Get-Process Silkreader -ErrorAction SilentlyContinue) { Write-Output "::notice title=Gebaute App läuft::$text" } else { Write-Output "::error title=Gebaute App läuft nicht::$text"; exit 1 }
+          Get-Process Silkreader -ErrorAction SilentlyContinue | Stop-Process -Force
+
+  mac:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node build/protect.js
+      - name: DMG bauen (arm64)
+        run: |
+          npx electron-builder --mac dmg --arm64 --publish never -c.mac.identity=- > /dev/null 2>&1
+          f=$(find dist -name '*.dmg' | head -1)
+          echo "::notice title=Paketgröße Mac arm64::$(basename "$f") $(du -m "$f" | cut -f1) MB"

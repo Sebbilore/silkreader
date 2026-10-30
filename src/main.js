@@ -1591,7 +1591,8 @@ async function loadBuiltinModel(key = builtinKey()) {
     const sw = stopwatch();
     const { getLlama } = await esmImport('node-llama-cpp');
     sw.lap('Bibliothek');
-    const llama = await getLlama({ gpu: 'auto' }); // nutzt die Grafikkarte, falls möglich, sonst den Prozessor
+    // nutzt die Grafikkarte, falls möglich, sonst den Prozessor; nie selbst kompilieren (fertige Binärdateien sind dabei)
+    const llama = await getLlama({ gpu: 'auto', build: 'never' });
     sw.lap('Laufzeit');
     // Schwache eingebaute Grafik kann langsamer sein als der Prozessor – das misst tuneGpu einmal pro Modell
     const cpuOnly = llama.gpu && loadSettings().gpuTune?.[key] === 'cpu';

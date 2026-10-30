@@ -29,7 +29,13 @@
       "!node_modules/koffi/vendor/**",
       "!node_modules/**/*.{md,markdown,map,d.ts,d.mts,d.cts}",
       "!node_modules/**/{test,tests,__tests__,example,examples,.github}/**",
-      "!node_modules/**/{CHANGELOG,HISTORY,AUTHORS,CONTRIBUTING}*"
+      "!node_modules/**/{CHANGELOG,HISTORY,AUTHORS,CONTRIBUTING}*",
+      "!node_modules/node-llama-cpp/llama/gitRelease.bundle",
+      "!node_modules/koffi/build/koffi/win32_{ia32,arm64}/**",
+      "!node_modules/@anthropic-ai/sdk/src/**",
+      "!node_modules/@anthropic-ai/sdk/**/*.mjs",
+      "!node_modules/zod/src/**",
+      "!node_modules/**/*.{ts,mts,cts}"
     ],
     "icon": "build/icon.png",
     "nsis": {
@@ -97,7 +103,12 @@
     },
     "dmg": {
       "title": "Silkreader ${version}"
-    }
+    },
+    "electronLanguages": [
+      "de",
+      "en-US"
+    ],
+    "compression": "maximum"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.1.0",
