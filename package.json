@@ -108,7 +108,8 @@
       "de",
       "en-US"
     ],
-    "compression": "maximum"
+    "compression": "maximum",
+    "afterPack": "build/afterPack.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.1.0",

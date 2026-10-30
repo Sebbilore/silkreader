@@ -22,7 +22,9 @@ jobs:
       - name: Installer und Store-Paket bauen (ohne Signatur)
         shell: pwsh
         run: |
-          npx electron-builder --win nsis --x64 --publish never -c.win.signtoolOptions=null 2>&1 | Out-Null
+          $env:CSC_IDENTITY_AUTO_DISCOVERY = 'false'
+          npx electron-builder --win nsis --x64 --publish never 2>&1 | Tee-Object -FilePath build.log | Out-Null
+          if (-not (Get-ChildItem dist -Filter 'Silkreader-Setup*.exe')) { Write-Output "::warning title=Installer nicht gebaut::$((Get-Content build.log -Tail 25) -join '%0A')" }
           npm run dist:store 2>&1 | Out-Null
           $exe = Get-ChildItem dist -Filter *.exe | Where-Object Name -like 'Silkreader-Setup*' | Select-Object -First 1
           $appx = Get-ChildItem dist -Filter *.appx | Select-Object -First 1

@@ -1559,7 +1559,7 @@ let llamaRuntime = null; // { key, llama, model, ctx, seq } – bleibt geladen, 
 // twoStage = erst nur Stichpunkte und Aufgabe, die Details schreibt die KI, wenn jemand „Mehr“ öffnet
 // compact = JSON ohne Zeilenumbrüche/Einrückung (weniger Token zu schreiben); threads = Zahl der Rechen-Threads (0 = Standard)
 // short = genau 3 Stichpunkte (oben stehen ohnehin 3)
-const SPEED = { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: 0, short: false }; // lookup + draft: im KI-Test auf dem Prozessor langsamer – aus
+const SPEED = { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: 0, short: true }; // lookup + draft: im KI-Test auf dem Prozessor langsamer – aus
 let lastGen = null; // Messwerte der letzten Antwort (für den KI-Test)
 const grammarCache = new WeakMap(); // je KI-Laufzeit und Schema einmal bauen (nach einem Modellwechsel neu)
 // JSON-Grammatik: node-llama-cpp erlaubt nach jedem Element Zeilenumbruch + Einrückung – das Modell schreibt dann
