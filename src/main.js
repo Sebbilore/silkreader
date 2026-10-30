@@ -466,7 +466,9 @@ function createPopup() {
   });
   popupWin.setAlwaysOnTop(true, 'floating');
   protectFromCapture(popupWin);
+  const t0 = Date.now();
   popupWin.loadFile(path.join(__dirname, 'popup.html'));
+  popupWin.webContents.once('did-finish-load', () => logLine(`Zeit Sprechblase laden: ${Date.now() - t0} ms`));
   popupWin.on('closed', () => { popupWin = null; });
   popupWin.on('hide', () => scheduleFree(popupWin, 90 * 1000));
   popupWin.on('show', () => clearTimeout(popupWin.__freeTimer));
