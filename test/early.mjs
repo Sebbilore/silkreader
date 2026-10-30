@@ -1,0 +1,22 @@
+// Brief-Karte sofort: Betrag und Frist stehen da, bevor die KI fertig ist (mit Test-Antworten)
+import { _electron as electron } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import fs from 'fs';
+const [out, home] = process.argv.slice(2);
+fs.mkdirSync(`${home}/.config/Silkreader`, { recursive: true });
+fs.writeFileSync(`${home}/.config/Silkreader/settings.json`, JSON.stringify({ onboarded: true, uses: 1, askBack: false, tipsSeen: ['ring','drop','more','deadlines','explorer','font'], lastVersion: JSON.parse(fs.readFileSync('package.json','utf8')).version }));
+const app = await electron.launch({ executablePath: './node_modules/electron/dist/electron', args: ['--no-sandbox', '.'], env: { ...process.env, SPIDER_MOCK: 'test/mock.json', HOME: home, SILK_MODEL_PATH: '/nonexistent' } });
+const errs = []; const hook = (w) => { w.on('pageerror', (e) => errs.push(String(e))); w.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); }); }; app.windows().forEach(hook); app.on('window', hook);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const find = async (p) => { for (let i = 0; i < 80; i++) { const w = app.windows().find((x) => x.url().includes(p)); if (w) return w; await sleep(100); } };
+await sleep(3000);
+await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter((w) => /settings|welcome/.test(w.webContents.getURL())).forEach((w) => w.close()));
+const t = fs.readFileSync('test/letters/inkasso.txt', 'utf8').replace(/2026/g, '2030');
+const t0 = Date.now();
+await app.evaluate((_e, t) => global.__silk.showPopupPayload({ kind: 'analyze', doc: { title: 'Brief', source: 'selection', pages: [t] }, autoStart: true }), t);
+const pop = await find('popup.html');
+await pop.waitForSelector('.early .big', { timeout: 10000 }); const tCard = Date.now() - t0; console.log('Karte nach', tCard, 'ms');
+await pop.screenshot({ path: `${out}/early.png` });
+await pop.waitForSelector('#moreBtn', { timeout: 30000 }); const tDone = Date.now() - t0; console.log('fertig nach', tDone, 'ms');
+const ok = tCard < tDone && errs.length === 0; console.log(ok ? 'alles gut' : `FEHL Karte ${tCard} ms, fertig ${tDone} ms, Fehler: ${errs.join(' | ')}`);
+await app.close();
+process.exit(ok ? 0 : 1);

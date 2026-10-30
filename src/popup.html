@@ -127,7 +127,7 @@
   .lead1 { margin: 2px 0 10px; } .mlist { display: flex; flex-direction: column; gap: 2px; } .mrow { display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px; background: var(--card); font-size: 13px; }
   .mrow:first-child { border-radius: var(--r-m) var(--r-m) 0 0; } .mrow:last-child { border-radius: 0 0 var(--r-m) var(--r-m); } .mrow:only-child { border-radius: var(--r-m); } .mrow b { font-weight: 600; white-space: nowrap; } .mrow.soon b { color: var(--warn); } .small1 { font-size: 12px; margin-top: 10px; }
   .alldone { display: flex; flex-direction: column; gap: 2px; padding: 14px; border-radius: var(--r-l); background: var(--pink-soft); } .alldone b { font-size: 16px; font-weight: 600; }
-  .bm { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; } .bm > span { flex: 1; min-width: 0; } .bm .icon { width: 15px; height: 15px; color: var(--pink); flex: none; } .bm .x { width: 26px; height: 26px; } .mytop { margin-bottom: 8px; } .mytop .bm { cursor: pointer; border-radius: var(--r-s); padding: 6px 4px; } .mytop .bm:hover { background: var(--hover, color-mix(in srgb, var(--ink) 6%, transparent)); } .bm.soon b { color: var(--pink); }
+  .bm { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; } .bm > span { flex: 1; min-width: 0; } .bm .icon { width: 15px; height: 15px; color: var(--pink); flex: none; } .bm .x { width: 26px; height: 26px; } .mytop { margin-bottom: 8px; } .mytop .bm { cursor: pointer; border-radius: var(--r-s); padding: 6px 4px; } .mytop .bm:hover { background: var(--hover, color-mix(in srgb, var(--ink) 6%, transparent)); } .bm.soon b { color: var(--pink); } .early button:disabled { opacity: .45; cursor: default; }
   .readalong { margin: 0 0 12px; padding: 12px 12px 8px; border-radius: var(--r-l); background: var(--card); }
   .readalong .rtext { font-size: 15.5px; line-height: 1.7; max-height: 170px; overflow: auto; } .readalong .rtext span.now { background: var(--pink); color: #1b1b1b; border-radius: 3px; box-shadow: 0 0 0 2px var(--pink); }
   .readalong .rbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; } .rprog { flex: 1; height: 4px; border-radius: 2px; background: var(--line-2); overflow: hidden; } .rprog i { display: block; height: 100%; width: 0; background: var(--pink); transition: width .2s; }
@@ -274,6 +274,7 @@
     const myRun = ++run;
     $('foot').classList.add('hidden');
     P.quickShown = false;
+    P.early = '';
     $('main').innerHTML = `${weave('Die Spinne liest …')}<div id="live"></div>`;
     const res = await window.spider.analyze(P.doc);
     if (myRun !== run) return;
@@ -282,13 +283,22 @@
     showResult();
   }
 
-  window.spider.onProgress(({ summary, stage, quick, notes }) => {
+  window.spider.onProgress(({ summary, stage, quick, notes, early }) => {
     if (state !== 'running' || !$('stage')) return;
+    if (early) {
+      // Was feste Regeln schon wissen, steht sofort oben (Aufgabe, Frist, Betrugswarnung) – die KI liest weiter
+      const r = { ...early, findings: [], figures: [], summary: [] };
+      P.early = `<div class="early">${early.scam ? scamCard(early.scam) : ''}${early.letter && !early.scam ? letterCard(early.letter, r) : ''}</div>`;
+      $('main').insertAdjacentHTML('afterbegin', P.early);
+      $('main').querySelectorAll('.early button').forEach((b) => { b.disabled = true; });
+      return;
+    }
     if (quick) {
       // Kurzfassung steht – Details kommen darunter
       P.quickShown = true;
       if (quick.title) $('title').textContent = quick.title;
-      $('main').innerHTML = `<ul class="lead" data-noi18n>${bullets(quick.summary).map((b) => `<li>${emph(b)}</li>`).join('')}</ul>${weave('Sucht Zahlen, Fristen und Details …')}<div id="live"></div>`;
+      $('main').innerHTML = `${P.early || ''}<ul class="lead" data-noi18n>${bullets(quick.summary).map((b) => `<li>${emph(b)}</li>`).join('')}</ul>${weave('Sucht Zahlen, Fristen und Details …')}<div id="live"></div>`;
+      $('main').querySelectorAll('.early button').forEach((b) => { b.disabled = true; });
       return;
     }
     if (notes?.length) {

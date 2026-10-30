@@ -2801,6 +2801,16 @@ async function analyzeHandler(event, doc) {
     let text = '', lastSent = 0;
     let stage = null;
     const cached = forceModel ? null : cachedResult(doc);
+    // Sofort zeigen, was feste Regeln schon wissen (Betrag, Frist, IBAN, Betrugsverdacht) – die KI schreibt danach
+    if (!cached) {
+      try {
+        const t = doc.pages.join('\n');
+        let letter = facts.letterFacts(t);
+        if (letter && facts.contractFacts(t) && ['vertrag', 'kuendigung'].includes(letter.kind)) letter = null;
+        const early = letterExtras(doc, letter);
+        if (early.letter || early.scam) event.sender.send('progress', { early });
+      } catch (e) { logLine(`Vorab-Karte: ${e.message}`); }
+    }
     let result = cached ? { ...cached } : await analyze(doc, (chunk) => {
       if (chunk?.quick || chunk?.notes) { event.sender.send('progress', chunk); return; } // Kurzfassung / Zwischenstand
       if (typeof chunk === 'object') { // Statusmeldung (z. B. „Liest Abschnitt 2 von 5“)
