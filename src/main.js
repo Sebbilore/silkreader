@@ -725,9 +725,24 @@ function offerCrashReport(reason) {
   showPopupPayload({ kind: 'crash', reason, detail: `Silkreader ${app.getVersion()} · ${process.platform} ${require('os').release()}\n${last.slice(0, 300)}` });
 }
 function watchCrashes() {
-  let unclean = false;
-  try { unclean = fs.existsSync(runFlag()); fs.writeFileSync(runFlag(), String(Date.now())); } catch {}
-  if (unclean && !TESTING) { logLine('Absturz: letzter Lauf nicht sauber beendet'); setTimeout(() => offerCrashReport('last-run'), 8000); }
+  // Lebenszeichen alle 5 Minuten. Beim Start: Gab es ein altes Lebenszeichen und ist der PC seitdem NICHT neu
+  // gestartet worden, ist Silkreader wirklich abgestürzt. Herunterfahren/Abmelden ist kein Absturz.
+  let lastBeat = 0;
+  try { if (fs.existsSync(runFlag())) lastBeat = Number(fs.readFileSync(runFlag(), 'utf8')) || fs.statSync(runFlag()).mtimeMs; } catch {}
+  const beat = () => { try { fs.writeFileSync(runFlag(), String(Date.now())); } catch {} };
+  beat();
+  setInterval(beat, 5 * 60 * 1000).unref?.();
+  const bootTime = Date.now() - require('os').uptime() * 1000;
+  if (lastBeat && !TESTING) {
+    if (bootTime > lastBeat - 60 * 1000) logLine('Letzter Lauf endete mit dem Herunterfahren oder Neustart des PCs – kein Absturz');
+    else { logLine('Absturz: letzter Lauf nicht sauber beendet'); setTimeout(() => offerCrashReport('last-run'), 8000); }
+  }
+  // Windows fährt herunter oder meldet ab: Lebenszeichen löschen, damit der nächste Start nicht von einem Absturz ausgeht
+  const ending = (why) => { try { fs.unlinkSync(runFlag()); } catch {} logLine(`Windows beendet Silkreader (${why})`); };
+  const watchWin = (w) => { w.on('query-session-end', () => ending('Abmelden/Herunterfahren')); w.on('session-end', () => ending('Sitzungsende')); };
+  BrowserWindow.getAllWindows().forEach(watchWin);
+  app.on('browser-window-created', (_e, w) => watchWin(w));
+  try { require('electron').powerMonitor.on('shutdown', () => ending('Herunterfahren')); } catch {}
   app.on('render-process-gone', (_e, wc, d) => {
     if (d.reason === 'clean-exit') return;
     logLine(`Absturz: Fenster gone (${d.reason}, ${d.exitCode}) ${wc.getURL().split('/').pop()}`);
@@ -3071,7 +3086,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 // Nur für automatische Tests: ein paar Funktionen erreichbar machen
-if (TESTING) global.__silk = { ocrText: (f) => recognizeText(f), offerCrashReport, openBookmark, maybeMorning, remindBookmarks, loadBookmarks, saveBookmarks, remindAt, learner, letterExtras, deadlineAction, showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
+if (TESTING) global.__silk = { watchCrashes, ocrText: (f) => recognizeText(f), offerCrashReport, openBookmark, maybeMorning, remindBookmarks, loadBookmarks, saveBookmarks, remindAt, learner, letterExtras, deadlineAction, showPopupPayload, showNotebook, showHome, openRing, closeRing, runRingAction, readCocoon, addHistory, compareCocoons,
   get popupWin() { return popupWin; }, get cocoons() { return cocoons; }, get lastScreenSel() { return lastScreenSel; }, set lastScreenSel(v) { lastScreenSel = v; },
   set copiedOffer(v) { copiedOffer = v; },
   get downloadOffer() { return downloadOffer; }, spiderTake, runCrawlOverlay,

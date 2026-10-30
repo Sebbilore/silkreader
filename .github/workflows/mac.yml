@@ -63,6 +63,16 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npx electron-builder --mac dmg zip --${{ matrix.arch }} --publish never -c.mac.identity=-
 
+      # Die fertige App so testen, wie Nutzer sie bekommen: aus der DMG installieren und starten
+      - name: Gebaute App aus der DMG testen
+        run: |
+          dmg=$(ls dist/*.dmg | head -1)
+          hdiutil attach "$dmg" -nobrowse -mountpoint /Volumes/silk
+          cp -R /Volumes/silk/Silkreader.app /Applications/
+          hdiutil detach /Volumes/silk
+          codesign --verify --deep --verbose=1 /Applications/Silkreader.app || echo "::warning::Signaturprüfung (ad hoc) meldet etwas"
+          MAC_APP=/Applications/Silkreader.app/Contents/MacOS/Silkreader node test/mac.mjs mac-test/app
+
       - name: Ergebnisse
         if: always()
         uses: actions/upload-artifact@v6
@@ -71,7 +81,14 @@ jobs:
           path: |
             dist/*.dmg
             dist/*.zip
-            mac-test/*.png
+          if-no-files-found: ignore
+
+      - name: Bildschirmfotos
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: screens-mac-${{ matrix.arch }}
+          path: mac-test/
           if-no-files-found: ignore
 
   publish:

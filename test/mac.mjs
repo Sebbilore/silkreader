@@ -22,7 +22,13 @@ const check = (name, ok, detail = '') => { console.log(`${ok ? '✅' : '❌'} ${
 
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'silk-mac-'));
 fs.writeFileSync(path.join(userData, 'settings.json'), JSON.stringify({ onboarded: 'test', uiLang: 'de', language: 'Deutsch', lastVersion: JSON.parse(fs.readFileSync('package.json', 'utf8')).version }));
-const app = await electron.launch({ executablePath: electronPath, args: ['.'], env: { ...process.env, SPIDER_MOCK: 'test/mock.json', SILK_USERDATA: userData } });
+// MAC_APP gesetzt: die fertig gebaute App aus der DMG testen (so wie Nutzer sie bekommen)
+const packaged = process.env.MAC_APP;
+const app = await electron.launch({ executablePath: packaged || electronPath, args: packaged ? [] : ['.'], env: { ...process.env, SPIDER_MOCK: path.resolve('test/mock.json'), SILK_USERDATA: userData } });
+console.log(packaged ? `Teste die gebaute App: ${packaged}` : 'Teste den Quellcode');
+// Bildschirmfoto vom ganzen Mac-Bildschirm (zeigt auch Menüleiste und Spinne)
+const { execFileSync } = await import('child_process');
+const screen = (name) => { try { execFileSync('screencapture', ['-x', path.join(out, `screen-${name}.png`)]); } catch (e) { console.log(`Bildschirmfoto ${name}: ${e.message}`); } };
 const errs = [];
 const hook = (w) => { w.on('pageerror', (e) => errs.push(String(e))); w.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); }); };
 app.windows().forEach(hook); app.on('window', hook);
@@ -30,6 +36,14 @@ const find = async (part) => { for (let i = 0; i < 100; i++) { const w = app.win
 await sleep(3500);
 
 check('Spinne läuft', !!(await find('bubble.html')));
+screen('1-start');
+const diag = await app.evaluate(() => global.__silk.diag());
+check('Symbol in der Menüleiste', diag.tray, JSON.stringify(diag));
+if (packaged) {
+  const asar = require('@electron/asar');
+  const files = asar.listPackage(path.join(packaged, '..', '..', 'Resources', 'app.asar')).map((f) => f.replace(/\\/g, '/'));
+  check('Geschützter Code (Bytecode) im Paket', files.includes('/src/main.jsc') && files.includes('/src/pro.jsc'), files.filter((f) => /\/src\/[a-z]+\.jsc?$/i.test(f)).join(' '));
+}
 check('Plattform ist macOS', (await app.evaluate(() => process.platform)) === 'darwin');
 const brief = 'Stadtwerke Musterstadt GmbH\nMusterstadt, 20. Oktober 2026\n\nSehr geehrte Frau Beispiel,\n\nRechnungsbetrag: 98,90 €\nBitte überweisen Sie den Betrag bis zum 15.11.2030.\nIBAN: DE89 3704 0044 0532 0130 00\n\nMit freundlichen Grüßen\nIhre Stadtwerke';
 await app.evaluate((_e, t) => global.__silk.showPopupPayload({ kind: 'analyze', doc: { title: 'Brief', source: 'selection', pages: [t] }, autoStart: true }), brief);
@@ -39,6 +53,18 @@ await sleep(600);
 check('Brief gelesen (Ergebnis-Blase)', !!(await pop.$('#moreBtn')));
 check('Feedback „War das richtig?“', !!(await pop.$('#fb')));
 await pop.screenshot({ path: path.join(out, 'mac-ergebnis.png') });
+screen('2-ergebnis');
+// Spinnennetz-Ring und Einstellungen
+await app.evaluate(() => global.__silk.openRing({ at: { x: 700, y: 300 } }));
+await sleep(900);
+check('Spinnennetz-Ring öffnet', !!(await find('ring.html')));
+screen('3-ring');
+await app.evaluate(() => global.__silk.closeRing());
+await pop.evaluate(() => window.spider.openSettings());
+const st = await find('settings.html'); await sleep(1500);
+check('Einstellungen öffnen', !!st && /Beim Anmelden starten/.test(await st.evaluate(() => document.body.innerText)), 'Mac-Beschriftung „Beim Anmelden starten“');
+screen('4-einstellungen');
+await st?.close();
 
 // Texterkennung: ein Bild mit Text im Programm erzeugen und mit Apples Vision lesen
 const png = path.join(out, 'ocr-probe.png');
