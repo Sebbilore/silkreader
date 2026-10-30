@@ -8,6 +8,8 @@ if (!key) { console.error('PRO_SIGNING_KEY fehlt'); process.exit(1); }
 // Ungefährliche Beschreibung des eingetragenen Schlüssels (ohne Inhalt), falls er nicht passt
 const body = key.replace(/-----(BEGIN|END)[^-]*-----/g, '').replace(/[^A-Za-z0-9+/=]/g, '');
 if (body.length < 40) {
+  const lines = key.split(/\r?\n/).map((l) => { const c = [...l]; const other = c.filter((x) => !/[A-Za-z0-9+/=\- ]/.test(x)); return `${c.length} Zeichen, davon ${c.filter((x) => /[A-Za-z0-9]/.test(x)).length} Buchstaben/Ziffern, andere: ${[...new Set(other.map((x) => `U+${x.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}`))].slice(0, 6).join(' ') || '–'}`; });
+  console.error(`Zeilen: ${lines.join(' | ')}`);
   console.error(`Schlüssel unbrauchbar: ${key.length} Zeichen, ${key.split(/\r?\n/).length} Zeile(n), Kopfzeile ${/BEGIN PRIVATE KEY/.test(key) ? 'ja' : 'nein'}, Schlüsselteil ${body.length} Zeichen (erwartet 64)`);
   process.exit(1);
 }
