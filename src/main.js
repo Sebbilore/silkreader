@@ -319,7 +319,9 @@ function checkTouchTap(prev, c) {
 // zur Ablagefläche – man muss die schaukelnde Spinne nicht mehr genau treffen.
 let dropZone = false, btnPending = false, lastBtnCheck = 0;
 function checkDropZone(x, y) {
-  const near = x > -60 && x < RIG.width + 60 && y > -20 && y < RIG.height + 60;
+  // Nur nah an Spinne und Netz – nicht im ganzen Fenster bis weit darunter (sonst stört es beim Markieren darunter)
+  const bottom = Math.max((loadSettings().rig?.length ?? 90) + 20, 130) + 60;
+  const near = x > -40 && x < RIG.width + 40 && y > -20 && y < Math.min(RIG.height, bottom);
   if (!near) { if (dropZone) setDropZone(false); return; }
   const now = Date.now();
   if (btnPending || now - lastBtnCheck < 120) return;

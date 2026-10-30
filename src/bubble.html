@@ -594,7 +594,9 @@
   function tapZone(now) {
     trail.push({ x: spiderPos.x, y: spiderPos.y, t: now });
     while (trail.length && now - trail[0].t > 180) trail.shift();
-    const d = Math.min(...trail.map((p) => Math.hypot(cursor.x - p.x, cursor.y - p.y)));
+    // Unterhalb der Spinne zählt der Abstand stärker (Faktor 1,4): die Zone reicht nach unten weniger weit
+    const dist = (p) => { const dy = cursor.y - p.y; return Math.hypot(cursor.x - p.x, dy > 0 ? dy * 1.4 : dy); };
+    const d = Math.min(...trail.map(dist));
     const first = trail[0], last = trail[trail.length - 1];
     const speed = trail.length > 1 ? Math.hypot(last.x - first.x, last.y - first.y) / Math.max(0.03, (last.t - first.t) / 1000) : 0;
     let approach = 0;
@@ -799,6 +801,7 @@
     $('count').style.left = `${HOLD.cx + 16}px`;
     g.classList.toggle('zone', dropZone);
     $('zoneGlow').style.display = dropZone ? 'block' : 'none';
+    if (dropZone) $('zoneGlow').style.bottom = `${H - zoneRect().h}px`; // nur so weit nach unten wie die Ablagefläche
     $('zoneHint').style.display = dropZone ? 'block' : 'none';
     $('zoneHint').style.top = `${HOLD.cy + HOLD.r + 4}px`;
   }
@@ -846,7 +849,8 @@
     if (on === 'unavailable') { noZoneHelper = true; return; }
     dropZone = on; catching = on; if (on) wake(); updateHoldWeb(); kick();
   });
-  const zoneRect = () => (dropZone ? { x: 0, y: 0, w: W, h: H } : null);
+  // Ablagefläche: oben bis knapp unter Spinne bzw. Netz – darunter klickt man durch
+  const zoneRect = () => (dropZone ? { x: 0, y: 0, w: W, h: Math.min(H, Math.max(spiderPos.y, HOLD.cy + HOLD.r) + 60) } : null);
   const onWeb = (p) => itemIds.length > 0 && webIsOpen() && Math.hypot(p.x - HOLD.cx, (p.y - HOLD.cy) / 0.92) < HOLD.r + 6;
 
 
