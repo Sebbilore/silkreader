@@ -266,7 +266,7 @@
     'Vorlesen: Was du tun musst': 'Read aloud: what you need to do',
     'Impressum': 'Legal notice',
     'Darf ich das Problem melden? Gesendet wird nur das Protokoll (Fehlermeldung, Systemversion) – kein Brief und kein Text.': 'May I report the problem? Only the log is sent (error message, system version) – no letter and no text.',
-    'Beim Anmelden starten': 'Start at login', 'Silkreader ist auf dem neuesten Stand.': 'Silkreader is up to date.', 'Silkreader {v} ist da.': 'Silkreader {v} is available.',
+    'Beim Anmelden starten': 'Start at login', 'Wie macOS': 'Like macOS', 'Silkreader ist auf dem neuesten Stand.': 'Silkreader is up to date.', 'Silkreader {v} ist da.': 'Silkreader {v} is available.',
     'Lade die neue Mac-Version herunter und ersetze die alte im Programme-Ordner.': 'Download the new Mac version and replace the old one in the Applications folder.',
     'Keine Kamera gefunden oder der Zugriff ist gesperrt (Systemeinstellungen → Datenschutz & Sicherheit → Kamera).': 'No camera found or access is blocked (System Settings → Privacy & Security → Camera).',
     'Auf dem Mac:': 'On the Mac:', 'Damit ich markierten Text lesen kann, erlaube mir „Bedienungshilfen“.': 'So that I can read selected text, allow me “Accessibility”.', 'Systemeinstellungen öffnen': 'Open System Settings',

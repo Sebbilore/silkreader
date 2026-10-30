@@ -293,7 +293,10 @@
   window.addEventListener('focus', loadLearn);
 
   // Mac: „Beim Anmelden starten“ statt „Mit Windows starten“
-  if (window.spider.platform === 'darwin') { const l = $('autostart').parentElement; l.lastChild.textContent = ' ' + T('Beim Anmelden starten'); }
+  if (window.spider.platform === 'darwin') {
+    const l = $('autostart').parentElement; l.lastChild.textContent = ' ' + T('Beim Anmelden starten');
+    $('theme').querySelector('[value="system"]').textContent = T('Wie macOS');
+  }
 
   // ---- Laden ----
   const TOGGLES = { hatch: 'hatchAnimation', copyHint: 'copyHint', hideFullscreen: 'hideFullscreen', privateMode: 'privateMode', pinCopied: 'pinCopied',
