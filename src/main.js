@@ -2906,6 +2906,7 @@ async function analyzeHandler(event, doc) {
     sw.lap('Notizbuch');
     try { if (learnOn()) learner().observe(doc.pages.join('\n'), facts.letterFacts(doc.pages.join('\n'))); } catch (e) { logLine(`Lernen: ${e.message}`); }
     countSuccess();
+    reactToResult(result);
     sw.done(`Lesen (${doc.pages.join('').length} Zeichen, ${loadSettings().provider})`);
     return { ok: true, result };
   } catch (e) {
@@ -2917,6 +2918,23 @@ async function analyzeHandler(event, doc) {
   }
 }
 ipcMain.handle('analyze', (event, doc) => analyzeHandler(event, doc));
+
+// Die kleine Spinne reagiert auf das Ergebnis: Betrugsverdacht → erschrickt kurz; Frist in ≤ 3 Tagen → Schild „Frist bald!“
+function reactToResult(result) {
+  try {
+    if (!bubbleWin || bubbleWin.isDestroyed() || !bubbleWin.isVisible()) return;
+    if (result.scam) {
+      bubbleWin.webContents.send('rig-trick', 'scared');
+      setTimeout(() => { if (!bubbleWin.isDestroyed()) bubbleWin.webContents.send('rig-trick', 'return'); }, 1100);
+      return;
+    }
+    const d = result.letter?.deadlines?.[0];
+    if (d?.iso) {
+      const days = Math.round((new Date(`${d.iso}T00:00:00`) - new Date(new Date().toDateString())) / 864e5);
+      if (days >= 0 && days <= 3) bubbleWin.webContents.send('rig-sign', days === 0 ? T('Frist heute!') : days === 1 ? T('Frist morgen!') : T('Frist in {n} Tagen', { n: days }));
+    }
+  } catch (e) { logLine(`Reaktion: ${e.message}`); }
+}
 
 // Zweite Stufe: Details (Kernaussagen, Angaben, Erkenntnisse) erst, wenn jemand „Mehr aus dem Brief“ öffnet
 async function analyzeMore(doc, base, onProgress = () => {}) {

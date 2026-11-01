@@ -114,6 +114,7 @@
   #modeTip { position: absolute; transform: translateX(-50%); font: 600 11px var(--font); color: var(--text); background: var(--surface);
     border: 1px solid var(--line-2); padding: 2px 9px; border-radius: var(--r-s); white-space: nowrap; pointer-events: none; opacity: 0;
     transition: opacity var(--t-mid) var(--ease-out); box-shadow: var(--shadow); }
+  #modeTip.warn { background: var(--pink); color: #fff; border-color: transparent; } /* Schild „Frist bald!“ */
   #modeTip.on { opacity: 1; }
 </style>
 </head>
@@ -933,6 +934,14 @@
     clearTimeout(tipTimer);
     tipTimer = setTimeout(() => tip.classList.remove('on'), ms);
   }
+  // Frist sehr bald: die Spinne winkt und hält kurz ein Schild hoch
+  window.spider.onRigSign((t) => {
+    wake(); lastNear = performance.now();
+    if (!trick) doTrick('wave');
+    $('modeTip').classList.add('warn');
+    showTip(t, 5000);
+    setTimeout(() => $('modeTip').classList.remove('warn'), 5300);
+  });
   // Längerer Text kopiert: kleiner Hinweis, die Spinne winkt
   window.spider.onRigHint((t) => {
     if (!t) { $('modeTip').classList.remove('on'); return; }
