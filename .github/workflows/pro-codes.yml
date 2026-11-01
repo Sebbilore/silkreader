@@ -26,15 +26,19 @@ jobs:
     steps:
       - name: Nur privat oder verschlüsselt
         if: ${{ !github.event.repository.private && inputs.empfaenger == '' }}
+        env:
+          PW: ${{ secrets.PRO_CODES_PASSWORD }}
         run: |
-          echo "::error title=Repo ist öffentlich::Codes werden nur erzeugt, wenn das Repo privat ist oder ein Empfänger-Schlüssel angegeben ist (sonst könnte sie jeder sehen)."
-          exit 1
+          if [ -z "$PW" ]; then
+            echo "::error title=Repo ist öffentlich::Codes werden nur erzeugt, wenn das Repo privat ist, das Secret PRO_CODES_PASSWORD gesetzt ist oder ein Empfänger-Schlüssel angegeben ist (sonst könnte sie jeder sehen)."
+            exit 1
+          fi
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: Codes erzeugen
-        if: ${{ inputs.empfaenger == '' }}
+        if: ${{ inputs.empfaenger == '' && github.event.repository.private }}
         env:
           PRO_SIGNING_KEY: ${{ secrets.PRO_SIGNING_KEY }}
           ANZAHL: ${{ inputs.anzahl }}
@@ -62,3 +66,26 @@ jobs:
           " 2> err.txt) || { echo "::error title=Verschlüsseln fehlgeschlagen::$(tr '\n' ' ' < err.txt | cut -c1-600)"; exit 1; }
           rm codes.txt
           echo "::notice title=Pro-Codes (verschlüsselt)::$enc"
+      # Öffentliches Repo: Codes mit deinem Passwort (Secret PRO_CODES_PASSWORD) verschlüsseln.
+      # Entschlüsseln: docs/pro-codes-entschluesseln.html im Browser öffnen – läuft nur bei dir, nichts wird gesendet.
+      - name: Codes erzeugen (mit Passwort verschlüsselt)
+        if: ${{ inputs.empfaenger == '' && !github.event.repository.private }}
+        env:
+          PRO_SIGNING_KEY: ${{ secrets.PRO_SIGNING_KEY }}
+          PW: ${{ secrets.PRO_CODES_PASSWORD }}
+          ANZAHL: ${{ inputs.anzahl }}
+          MONATE: ${{ inputs.monate }}
+          NOTIZ: ${{ inputs.notiz }}
+        run: |
+          node scripts/pro-codes.mjs "$ANZAHL" "$MONATE" "$NOTIZ" > codes.txt 2> err.txt || { echo "::error title=Code-Erzeugung fehlgeschlagen::$(tr '\n' ' ' < err.txt)"; exit 1; }
+          enc=$(node -e "
+            const c = require('crypto'), fs = require('fs');
+            const salt = c.randomBytes(16), iv = c.randomBytes(12);
+            const key = c.pbkdf2Sync(process.env.PW, salt, 250000, 32, 'sha256');
+            const ci = c.createCipheriv('aes-256-gcm', key, iv);
+            const data = Buffer.concat([ci.update(fs.readFileSync('codes.txt')), ci.final(), ci.getAuthTag()]);
+            console.log('SPW1.' + [salt, iv, data].map((b) => b.toString('base64')).join('.'));
+          ")
+          rm codes.txt
+          echo "::notice title=Pro-Codes (mit deinem Passwort verschlüsselt)::$enc"
+          { echo '## Pro-Codes (verschlüsselt)'; echo; echo 'In docs/pro-codes-entschluesseln.html einfügen und mit deinem Passwort öffnen:'; echo; echo '```'; echo "$enc"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

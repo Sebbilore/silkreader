@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pro-Codes entschlüsseln</title>
+<style>
+  :root { --bg: #f6f6f8; --card: #fff; --ink: #1d1d27; --muted: #6b6b7a; --pink: #c2185b; --line: #e3e3ea; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #111117; --card: #1b1b24; --ink: #ececf2; --muted: #9a9aab; --line: #2c2c38; } }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 640px; margin: 32px auto; padding: 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+  h1 { font-size: 20px; margin: 0 0 4px; } p { color: var(--muted); margin: 0 0 16px; }
+  label { display: block; font-weight: 600; margin: 12px 0 4px; }
+  textarea, input { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: 13px ui-monospace, Consolas, monospace; }
+  textarea { height: 90px; }
+  button { margin-top: 16px; background: var(--pink); color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font-weight: 600; cursor: pointer; }
+  pre { white-space: pre-wrap; word-break: break-all; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-height: 20px; }
+  .err { color: #d33; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>Pro-Codes entschlüsseln</h1>
+    <p>Alles passiert nur hier in deinem Browser – nichts wird gesendet. Den verschlüsselten Text findest du im Lauf „Pro-Codes“ unter Actions (Zusammenfassung).</p>
+    <label for="enc">Verschlüsselter Text (beginnt mit SPW1.)</label>
+    <textarea id="enc" spellcheck="false"></textarea>
+    <label for="pw">Dein Passwort (Secret PRO_CODES_PASSWORD)</label>
+    <input id="pw" type="password" autocomplete="off">
+    <button id="go">Entschlüsseln</button>
+    <label>Codes</label>
+    <pre id="out"></pre>
+  </div>
+</main>
+<script>
+  const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  document.getElementById('go').addEventListener('click', async () => {
+    const out = document.getElementById('out');
+    out.className = ''; out.textContent = '…';
+    try {
+      const parts = document.getElementById('enc').value.trim().split('.');
+      if (parts[0] !== 'SPW1' || parts.length !== 4) throw new Error('Das ist kein gültiger Text (muss mit SPW1. beginnen).');
+      const [salt, iv, data] = parts.slice(1).map(b64);
+      const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(document.getElementById('pw').value), 'PBKDF2', false, ['deriveKey']);
+      const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+      const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+      out.textContent = new TextDecoder().decode(plain).replace(/```/g, '').replace(/^## .*\n/m, '').trim();
+    } catch (e) {
+      out.className = 'err';
+      out.textContent = e.name === 'OperationError' ? 'Passwort falsch oder Text unvollständig.' : e.message;
+    }
+  });
+</script>
+</body>
+</html>
