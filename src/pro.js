@@ -66,7 +66,8 @@ function checkCode(code, now = Date.now()) {
 // Schlüssel so annehmen, wie er eingefügt wurde: mit oder ohne Zeilenumbrüche, mit Leerzeichen/Anführungszeichen
 // oder nur der Mittelteil (Base64) – daraus wieder eine saubere PEM-Datei machen
 function normalizePem(text) {
-  const body = String(text).replace(/-----(BEGIN|END)[^-]*-----/g, '').replace(/[^A-Za-z0-9+/=]/g, '');
+  let body = String(text).replace(/-----(BEGIN|END)[^-]*-----/g, '').replace(/[^A-Za-z0-9+/=]/g, '');
+  if (/^[0-9a-fA-F]{96}$/.test(body)) body = Buffer.from(body, 'hex').toString('base64'); // als Hex eingefügt
   return `-----BEGIN PRIVATE KEY-----\n${body.match(/.{1,64}/g).join('\n')}\n-----END PRIVATE KEY-----\n`;
 }
 /** Code erzeugen (nur mit privatem Schlüssel, z. B. im GitHub-Workflow) */
