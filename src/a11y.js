@@ -1,13 +1,14 @@
 // Bedienung ohne Maus: Klickbare Elemente (Ergebnis-Einträge, Notizbuch, Auswahlkarten …) bekommen
 // Tastaturfokus und eine Rolle für Bildschirmleser; Enter oder Leertaste lösen sie aus.
 (function () {
-  const SEL = '.jump, .entry, .clip, .opt, [data-click]';
+  const SEL = '.jump, .clip, .opt, [data-click]';
   const prep = (root) => {
     if (root.nodeType !== 1) return;
     const list = root.matches?.(SEL) ? [root, ...root.querySelectorAll(SEL)] : root.querySelectorAll(SEL);
     for (const el of list) {
       if (el.tabIndex < 0 || !el.hasAttribute('tabindex')) el.tabIndex = 0;
-      if (!el.getAttribute('role')) el.setAttribute('role', 'button');
+      // Listeneinträge bleiben Listeneinträge (sonst liest ein Bildschirmleser die Liste nicht mehr als Liste)
+      if (!el.getAttribute('role') && el.tagName !== 'LI') el.setAttribute('role', 'button');
     }
   };
   const start = () => {

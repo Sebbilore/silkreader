@@ -222,7 +222,7 @@
   .entry small { color: var(--muted); font-size: 11px; }
 
   .entry .del { background: none; border: none; color: var(--muted); cursor: pointer; visibility: hidden; padding: 0 2px; }
-  .entry:hover .del { visibility: visible; } .entry .del:hover { color: var(--bad); }
+  .entry:hover .del { visibility: visible; } .entry .del:hover { color: var(--bad); } .entry:focus-within .del { visibility: visible; }
   /* Einstellungen in der Blase */
   .set { margin: 0 0 12px; } .set > .h { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
   .set select { background: var(--raised); color: var(--text); border: 1px solid var(--control-line); border-radius: var(--r-s); font: inherit; font-size: 13px; height: 30px; padding: 0 8px; }
@@ -991,9 +991,10 @@
   }
 
   // ---------- Notizbuch ----------
-  const entryHtml = (h) => `<div class="entry" data-id="${esc(h.id)}"><div class="t"><b>${esc(h.title || h.docTitle)}</b><span>${esc(bullets(h.summary)[0] || '')}</span></div>
+  // Klickbar ist der Textteil (ein Knopf); „+ Mappe“ und „✕“ sind eigene Knöpfe daneben – nicht ineinander
+  const entryHtml = (h) => `<div class="entry" data-id="${esc(h.id)}"><div class="t" data-click><b>${esc(h.title || h.docTitle)}</b><span>${esc(bullets(h.summary)[0] || '')}</span></div>
     ${h.folder !== undefined ? `<button class="fold${h.folder ? ' on' : ''}" title="${T('In eine Mappe legen')}" aria-label="${T('In eine Mappe legen')}">${h.folder ? esc(T(h.folder)) : `+ ${T('Mappe')}`}</button>` : ''}
-    <small>${new Date(h.date).toLocaleDateString(I18N.locale, { day: '2-digit', month: '2-digit' })}</small><button class="del" title="Löschen">✕</button></div>`;
+    <small>${new Date(h.date).toLocaleDateString(I18N.locale, { day: '2-digit', month: '2-digit' })}</small><button class="del" title="${T('Löschen')}" aria-label="${T('Löschen')}">✕</button></div>`;
   function bindEntries(box, backTo) {
     box.querySelectorAll('.entry').forEach((el) => el.addEventListener('click', async (e) => {
       if (e.target.classList.contains('del')) { await window.spider.historyDelete(el.dataset.id); el.remove(); return; }
