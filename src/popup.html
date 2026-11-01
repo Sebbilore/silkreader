@@ -632,6 +632,8 @@
       $('moreBtn').setAttribute('aria-expanded', String(open));
       if (open && result.more === 'pending') loadMore();
     });
+    // Maus über „Mehr“: Details schon mal anfordern – beim Klick sind sie dann früher da
+    $('moreBtn').addEventListener('pointerenter', () => { if (result.more === 'pending' && !moreFetch) moreFetch = { run, p: window.spider.analyzeMore(P.doc, result) }; });
     const reopen = P.openMore;
     if (reopen) { P.openMore = false; $('moreBtn').click(); }
     $('main').querySelectorAll('.jump').forEach((row) => row.addEventListener('click', () =>
@@ -664,13 +666,15 @@
   }
 
   // Zweite Stufe: Details erst schreiben lassen, wenn jemand „Mehr“ öffnet
-  let moreRun = 0;
+  let moreRun = 0, moreFetch = null;
   async function loadMore() {
     const box = $('morePending'); if (!box || box.dataset.busy) return;
     box.dataset.busy = '1';
     const my = ++moreRun, at = run;
     box.innerHTML = weave(T('Die Spinne liest die Details …'));
-    const res = await window.spider.analyzeMore(P.doc, result);
+    const pre = moreFetch?.run === run ? moreFetch.p : null;
+    moreFetch = null;
+    const res = await (pre || window.spider.analyzeMore(P.doc, result));
     if (my !== moreRun || at !== run || state !== 'done') return;
     if (!res.ok) { box.innerHTML = `<p class="error">${esc(res.error)}</p>`; delete box.dataset.busy; return; }
     const keep = { readMs: result.readMs, sentBytes: result.sentBytes };
