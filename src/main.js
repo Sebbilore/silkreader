@@ -3138,6 +3138,11 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
 ipcMain.handle('open-external', (_e, url) => {
   if (url.startsWith('https://')) shell.openExternal(url);
 });
+// Antwort-Entwurf als neue E-Mail öffnen (nur Text; Empfänger trägt man selbst ein)
+ipcMain.handle('open-mail', (_e, { subject = '', body = '' } = {}) => {
+  const q = (t, max) => encodeURIComponent(String(t).slice(0, max)).replace(/%20/g, '%20');
+  return shell.openExternal(`mailto:?subject=${q(subject, 150)}&body=${q(body, 1800)}`).then(() => true, () => false);
+});
 
 ipcMain.on('bubble-menu', () => openRing({ at: spiderScreenPos() }));
 // Kleine Überraschungen aus den Fenstern (Konami-Code, Fragen an die Spinne, Info-Seite)

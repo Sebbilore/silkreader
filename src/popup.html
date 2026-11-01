@@ -845,7 +845,7 @@
       ['Kopieren', async () => { await navigator.clipboard.writeText(res.text); flash('Kopieren', 'Kopiert'); }],
       ...(P.mode === 'reply' ? [] : [readAloud]),
       ['Kürzer', again('Fasse dich deutlich kürzer.')],
-      ...(P.mode === 'reply' ? [['Förmlicher', again('Schreibe förmlicher (Sie-Form).')], ['Lockerer', again('Schreibe lockerer und persönlicher.')], readAloud] : []),
+      ...(P.mode === 'reply' ? [['Als E-Mail öffnen', () => window.spider.openMail({ subject: T('Antwort'), body: res.text })], ['Förmlicher', again('Schreibe förmlicher (Sie-Form).')], ['Lockerer', again('Schreibe lockerer und persönlicher.')], readAloud] : []),
     ] });
     maybeAskReview();
   }
@@ -1344,7 +1344,7 @@
     });
     f.classList.remove('hidden');
   }
-  const ACTION_ICONS = { 'Alle Änderungen': 'notebook', 'Im Browser öffnen': 'send', 'Protokoll öffnen': 'file', 'Über': 'info', Vorlesen: 'speak', Kürzer: 'shorter', Förmlicher: 'tone', Lockerer: 'tone', Kopieren: 'copy', Festhalten: 'keep', 'Später lesen': 'bookmark', 'Als PDF speichern': 'file', Drucken: 'file', Lesemodus: 'reader', Sprache: 'translate', 'In meiner Sprache': 'translate', Fristen: 'calendar', Notizbuch: 'notebook', 'Meine Briefe': 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Alle Einstellungen …': 'settings', 'Erneut versuchen': 'send' };
+  const ACTION_ICONS = { 'Alle Änderungen': 'notebook', 'Im Browser öffnen': 'send', 'Protokoll öffnen': 'file', 'Über': 'info', Vorlesen: 'speak', Kürzer: 'shorter', Förmlicher: 'tone', Lockerer: 'tone', Kopieren: 'copy', Festhalten: 'keep', 'Später lesen': 'bookmark', 'Als PDF speichern': 'file', Drucken: 'file', Lesemodus: 'reader', Sprache: 'translate', 'In meiner Sprache': 'translate', 'Als E-Mail öffnen': 'send', Fristen: 'calendar', Notizbuch: 'notebook', 'Meine Briefe': 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Alle Einstellungen …': 'settings', 'Erneut versuchen': 'send' };
   function flash(label, text) { const b = $('foot').querySelector(`[data-a="${label}"] span`); if (!b) return; b.textContent = T(text); setTimeout(() => (b.textContent = T(label)), 1300); }
   function showError(res, retry) {
     state = 'error';
