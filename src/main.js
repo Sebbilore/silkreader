@@ -497,6 +497,7 @@ function showPopupPayload(payload) {
   win.setBounds({ x, y, width: W, height: Math.min(H, area.y + area.height - y) });
   const arrow = Math.round(Math.min(Math.max(sp.x - x, 34 * z), W - 34 * z) / z);
   const send = () => {
+    win.__kind = payload.kind;
     win.webContents.send('popup-doc', { ...payload, arrow });
     win.show();
     win.focus();
@@ -999,7 +1000,9 @@ async function spiderTake({ autoStart = false, fromHotkey = false, mode = null }
   try {
     preloadBuiltinModel();
     const tGrab = Date.now();
-    const grabbed = await grabSelection({ hotkey: fromHotkey });
+    // Dauert das Holen der Markierung spürbar, geht die Sprechblase schon mal auf (keine Pause ohne Rückmeldung)
+    const waitTimer = setTimeout(() => showPopupPayload({ kind: 'wait' }), 150);
+    const grabbed = await grabSelection({ hotkey: fromHotkey }).finally(() => clearTimeout(waitTimer));
     logLine(`Zeit Markierung lesen: ${Date.now() - tGrab} ms (${grabbed.text ? `${grabbed.text.length} Zeichen` : grabbed.files?.length ? `${grabbed.files.length} Dateien` : 'nichts'})`);
     logLine(`Lesen: Modus ${mode}, Text ${grabbed.text ? grabbed.text.length : 0} Zeichen, Dateien ${grabbed.files.length}`);
     // Nichts markiert, aber eben ein längerer Text kopiert? Dann den lesen.
@@ -1012,6 +1015,7 @@ async function spiderTake({ autoStart = false, fromHotkey = false, mode = null }
     }
     // Analysiert wird nur markierter Text. Markierte Dateien werden festgehalten.
     if (!grabbed.text && grabbed.files.length) {
+      if (popupWin?.isVisible() && popupWin.__kind === 'wait') popupWin.hide(); // nur Dateien: keine Blase nötig
       grabbed.files.slice(0, 6).forEach((f) => cocoons.addFile(f));
       bubbleWin?.webContents.send('rig-trick', 'wrap');
       sendCocoons();
