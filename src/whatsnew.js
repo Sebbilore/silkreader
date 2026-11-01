@@ -1,5 +1,19 @@
 // „Was ist neu?“ – erscheint nach einem Update einmal als Sprechblase an der Spinne.
 module.exports = {
+  '1.25.0': {
+    de: [
+      'Sofort da: Ein Klick auf die Spinne öffnet die Sprechblase jetzt ohne Wartezeit – Betrag und Frist stehen nach einem Augenblick oben.',
+      'Fotos, Bildschirmbereiche und gescannte PDFs werden schneller gelesen.',
+      'Die Spinne hält bei einer nahen Frist ein Schild hoch, erschrickt bei Betrugsverdacht und freut sich, wenn du eine Frist abhakst.',
+      'Neu: alle Fristen auf einmal in den Kalender, Antworten direkt als E-Mail öffnen.',
+    ],
+    en: [
+      'Instant: a click on the spider now opens the speech bubble right away – amount and deadline appear a moment later.',
+      'Photos, screen regions and scanned PDFs are read faster.',
+      'The spider holds up a sign when a deadline is near, gets a fright on suspected scams and celebrates when you tick off a deadline.',
+      'New: add all deadlines to your calendar at once, open replies directly as an e-mail.',
+    ],
+  },
   '1.24.0': {
     de: [
       'Noch schneller: Die Spinne schreibt ihre Antwort jetzt kompakter – das Ergebnis steht beim schnellen Modell rund ein Fünftel früher da, beim gründlichen Modell sogar in gut der Hälfte der Zeit.',

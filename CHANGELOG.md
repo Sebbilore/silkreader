@@ -3,6 +3,13 @@
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
 
+## 1.25.0 (vorbereitet, noch nicht veröffentlicht)
+- **Big spider removed:** the screen overlay never worked reliably. Clicking the spider now opens the speech bubble right away (measured: 5.3 s → 0.11 s; first content 5.4 s → 0.26 s). No more screenshot of the selection.
+- **Faster:** text recognition (photo, region, scanned PDF) runs in the already running helper (photo ~70 ms instead of ~500 ms, scanned PDF 1.2 s → 0.8 s); the AI skips imprint/footer lines; speech bubble preloaded while the mouse rests on the spider; details start loading when hovering “More from the letter”.
+- **Easier:** download the AI model right in the bubble instead of a red error; deadlines “in 3 months / 4 years”; “+ Folder”; “Add all deadlines to calendar”; reply drafts “Open as e-mail”.
+- **Spider:** holds up a “Due tomorrow!” sign for deadlines within 3 days, gets a fright on suspected scams, does a flip when you tick off a deadline; key points appear one after another.
+- **Security:** `SILK_PRO` no longer unlocks Pro in the installed app. Pro code generator: works with an encrypted output on a public repo (own password) and accepts the signing key in any format.
+
 ## 1.24.0
 - **Faster AI:** compact JSON (no line breaks/indentation in the AI's answer) and exactly 3 key points. Measured on the test letters (same machine, alternating): fast model 15.1 s → 11.8 s, slowest letter 22.4 s → 14.2 s, 17.8 → 23.6 tokens/s; thorough model 51 s → 32 s, details 125 s → 63 s – same accuracy.
 - **Smaller download:** Setup.exe 163 → 115 MB, Store 229 → 172 MB, Mac 159/175 → 113/129 MB (llama.cpp source bundle, unused Chromium locales, WebGPU shader compiler and library sources removed; maximum installer compression).
