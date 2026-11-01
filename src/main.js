@@ -2469,7 +2469,8 @@ ipcMain.handle('deadline-done', (_e, key, done = true) => {
   if (done) st.done[key] = Date.now(); else delete st.done[key];
   saveDeadlineState(st);
   updateDeadlineBadge();
-  celebrateIfAllDone(before);
+  // Abgehakt: kleiner Salto als Belohnung (die letzte Frist bekommt Konfetti)
+  if (!celebrateIfAllDone(before) && done && bubbleWin?.isVisible()) bubbleWin.webContents.send('rig-trick', 'flip');
 });
 // Kleiner Erfolg: die letzte offene Frist ist erledigt → Konfetti
 function celebrateIfAllDone(before) {
