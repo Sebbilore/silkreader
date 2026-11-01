@@ -144,6 +144,7 @@
   .keylist kbd { font: 12px var(--font); background: var(--raised); border: 1px solid var(--control-line); border-radius: var(--r-s); padding: 1px 8px; white-space: nowrap; }
   .proof { display: flex; gap: 8px; margin-top: 8px; padding: 8px 10px; border-left: 3px solid var(--pink); background: var(--card); border-radius: 0 var(--r-m) var(--r-m) 0; font-size: 12.5px; } .proof .icon { width: 15px; height: 15px; color: var(--muted); flex: none; margin-top: 1px; } .proof0 { margin-top: 6px; font-size: 12px; }
   .checks { display: flex; flex-direction: column; gap: 3px; margin: 12px 0 0; font-size: 12px; color: var(--muted); } .ck2.ok { color: var(--muted); } .ck2.ok::first-letter { color: var(--ok); }
+  .calall { display: inline-flex; align-items: center; gap: 6px; margin: 8px 0 4px; } .calall .icon { width: 15px; height: 15px; }
   .setup { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid var(--line); border-radius: var(--r-m); } .setup > .icon { width: 22px; height: 22px; color: var(--pink); flex: none; margin-top: 2px; } .setup p { margin: 4px 0 10px; } .dlbar { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--ink) 10%, transparent); overflow: hidden; margin: 4px 0 6px; } .dlbar > span { display: block; height: 100%; width: 0; background: var(--pink); transition: width .3s; }
   .askq { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 12px; padding: 10px 12px; border-radius: var(--r-l); background: var(--pink-soft); border: 1px solid color-mix(in srgb, var(--pink) 35%, transparent); font-size: 13.5px; }
   .askq .icon { width: 22px; height: 22px; color: var(--pink); flex: none; } .askq p { margin: 0; } .askq .row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; } .askq .link.dim { margin-top: 6px; font-size: 12px; color: var(--muted); }
@@ -1066,7 +1067,9 @@
       + (open.length ? open.map((d) => row(d, all.indexOf(d))).join('')
       : done.length ? `<div class="alldone rise"><b>${T('Alle Fristen erledigt 🎉')}</b><span>${month > 1 ? T('Du hast diesen Monat {n} Briefe geschafft.', { n: month }) : T('Gut gemacht!')}</span></div>`
       : `<div class="muted">${T('Keine offenen Fristen. Lies einen Brief, eine Rechnung oder einen Bescheid – die Spinne sammelt die Fristen hier und erinnert dich rechtzeitig.')}</div>`)
+      + (open.length > 1 ? `<button class="link calall" id="calAll">${silkIcon('calendar')}${T('Alle {n} Fristen in den Kalender', { n: open.length })}</button>` : '')
       + (done.length ? `<details class="sec"><summary class="h">${T('Erledigt ({n})', { n: done.length })}</summary>${done.map((d) => row(d, all.indexOf(d))).join('')}</details>` : '');
+    $('calAll')?.addEventListener('click', async (e) => { const n = await window.spider.addCalendarAll(); e.currentTarget.lastChild.textContent = n ? T('✓ {n} Termine geöffnet', { n }) : T('nicht möglich'); });
     $('main').querySelectorAll('[data-bm]').forEach((row) => row.addEventListener('click', async (e) => {
       if (e.target.closest('[data-bmx]')) { await window.spider.bookmarkRemove(row.dataset.bm); deadlines(); }
       else if (e.target.closest('[data-bmo]')) window.spider.bookmarkOpen(row.dataset.bm);

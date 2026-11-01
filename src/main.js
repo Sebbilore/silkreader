@@ -2300,20 +2300,33 @@ ipcMain.handle('compare', async (event, a, b) => {
 });
 
 // Termin als Kalenderdatei öffnen (Outlook/Windows-Kalender übernehmen ihn mit einem Klick)
-ipcMain.handle('add-calendar', async (_e, { title, date, note }) => {
-  const d = date.replace(/-/g, '');
-  const next = new Date(`${date}T00:00:00`); next.setDate(next.getDate() + 1);
-  const d2 = next.toISOString().slice(0, 10).replace(/-/g, '');
+// Kalender-Termin (.ics) für eine oder mehrere Fristen – mit Erinnerung einen Tag vorher
+function icsEvents(items) {
   const esc = (t) => String(t || '').replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');
-  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Silkreader//DE', 'BEGIN:VEVENT',
-    `UID:${Date.now()}@silkreader`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
-    `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${d2}`, `SUMMARY:${esc(title)}`, `DESCRIPTION:${esc(note)}`,
-    'BEGIN:VALARM', 'TRIGGER:-P1D', 'ACTION:DISPLAY', `DESCRIPTION:${esc(title)}`, 'END:VALARM',
-    'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
-  const file = path.join(app.getPath('temp'), `Silkreader-Frist-${d}.ics`);
-  fs.writeFileSync(file, ics);
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Silkreader//DE', ...items.flatMap(({ title, date, note }, i) => {
+    const d = date.replace(/-/g, '');
+    const next = new Date(`${date}T00:00:00`); next.setDate(next.getDate() + 1);
+    const d2 = next.toISOString().slice(0, 10).replace(/-/g, '');
+    return ['BEGIN:VEVENT', `UID:${Date.now()}-${i}@silkreader`, `DTSTAMP:${stamp}Z`,
+      `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${d2}`, `SUMMARY:${esc(title)}`, `DESCRIPTION:${esc(note)}`,
+      'BEGIN:VALARM', 'TRIGGER:-P1D', 'ACTION:DISPLAY', `DESCRIPTION:${esc(title)}`, 'END:VALARM', 'END:VEVENT'];
+  }), 'END:VCALENDAR'].join('\r\n');
+}
+ipcMain.handle('add-calendar', async (_e, { title, date, note }) => {
+  const file = path.join(app.getPath('temp'), `Silkreader-Frist-${date.replace(/-/g, '')}.ics`);
+  fs.writeFileSync(file, icsEvents([{ title, date, note }]));
   const err = await shell.openPath(file);
   return !err;
+});
+// Alle offenen Fristen auf einmal in den Kalender
+ipcMain.handle('add-calendar-all', async () => {
+  const open = collectDeadlines().filter((d) => !d.done && d.iso);
+  if (!open.length) return 0;
+  const file = path.join(app.getPath('temp'), 'Silkreader-Fristen.ics');
+  fs.writeFileSync(file, icsEvents(open.map((d) => ({ title: `${T('Frist')}: ${d.title}`, date: d.iso, note: d.sentence }))));
+  const err = await shell.openPath(file);
+  return err ? 0 : open.length;
 });
 
 // ---------- Silkreader Pro: Status, Code einlösen, kaufen ----------

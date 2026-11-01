@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('spider', {
   transform: (mode, text, extra) => ipcRenderer.invoke('transform', mode, text, extra),
   compare: (a, b) => ipcRenderer.invoke('compare', a, b),
   addCalendar: (ev) => ipcRenderer.invoke('add-calendar', ev),
+  addCalendarAll: () => ipcRenderer.invoke('add-calendar-all'),
   reviewState: () => ipcRenderer.invoke('review-state'),
   nextTip: () => ipcRenderer.invoke('next-tip'),
   learnCorrect: (doc, field, wrong, right) => ipcRenderer.invoke('learn-correct', doc, field, wrong, right),
