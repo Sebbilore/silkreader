@@ -131,6 +131,10 @@ function SilkOcrInit() {
     $null = [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType = WindowsRuntime]
     $null = [Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics, ContentType = WindowsRuntime]
     $script:ocrEngine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
+    $script:asAction = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncAction' })[0]
+    $null = [Windows.Data.Pdf.PdfDocument, Windows.Data.Pdf, ContentType = WindowsRuntime]
+    $null = [Windows.Data.Pdf.PdfPageRenderOptions, Windows.Data.Pdf, ContentType = WindowsRuntime]
+    $null = [Windows.Storage.Streams.InMemoryRandomAccessStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
     $script:ocrReady = $true
   }
 }
@@ -147,6 +151,28 @@ function SilkOcr([string]$path) {
   $text = ($result.Lines | ForEach-Object { $_.Text }) -join [char]10
   return 'T' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($text))
 }
+# Gescannte PDF: jede Seite als Bild berechnen und erkennen; Seiten als Base64, durch | getrennt
+function SilkOcrPdf([string]$path, [int]$max) {
+  SilkOcrInit
+  $aw = { param($op, [Type]$type) $t = $script:asTask.MakeGenericMethod($type).Invoke($null, @($op)); $t.Wait(-1) | Out-Null; $t.Result }
+  $file = & $aw ([Windows.Storage.StorageFile]::GetFileFromPathAsync($path)) ([Windows.Storage.StorageFile])
+  $pdf = & $aw ([Windows.Data.Pdf.PdfDocument]::LoadFromFileAsync($file)) ([Windows.Data.Pdf.PdfDocument])
+  $n = [Math]::Min([int]$pdf.PageCount, $max)
+  $pages = @()
+  for ($i = 0; $i -lt $n; $i++) {
+    $page = $pdf.GetPage([uint32]$i)
+    $opts = New-Object Windows.Data.Pdf.PdfPageRenderOptions
+    $opts.DestinationWidth = [uint32][Math]::Min(2400, [Math]::Max(1200, $page.Size.Width * 2.5))
+    $ms = New-Object Windows.Storage.Streams.InMemoryRandomAccessStream
+    $t = $script:asAction.Invoke($null, @($page.RenderToStreamAsync($ms, $opts))); $t.Wait(-1) | Out-Null
+    $decoder = & $aw ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($ms)) ([Windows.Graphics.Imaging.BitmapDecoder])
+    $bitmap = & $aw ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
+    $result = & $aw ($script:ocrEngine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
+    $ms.Dispose()
+    $pages += [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((($result.Lines | ForEach-Object { $_.Text }) -join [char]10)))
+  }
+  return 'P' + ($pages -join '|')
+}
 [Console]::Out.WriteLine('ready')
 while ($true) {
   $line = [Console]::In.ReadLine()
@@ -160,6 +186,7 @@ while ($true) {
     elseif ($line -eq 'files') { $l = [System.Windows.Forms.Clipboard]::GetFileDropList(); [Console]::Out.WriteLine((@($l) -join '|')) }
     elseif ($line -eq 'rects') { if ($uia) { [Console]::Out.WriteLine([SilkText]::Selection(160)) } else { [Console]::Out.WriteLine('{}') } }
     elseif ($line -eq 'ocrwarm') { SilkOcrInit; [Console]::Out.WriteLine('ok') }
+    elseif ($line.StartsWith('ocrpdf ')) { $a = $line.Substring(7).Split(' '); [Console]::Out.WriteLine((SilkOcrPdf ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($a[0]))) ([int]$a[1]))) }
     elseif ($line.StartsWith('ocr ')) { [Console]::Out.WriteLine((SilkOcr ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($line.Substring(4)))))) }
     elseif ($line -eq 'btn') { if ([SilkKeys]::LeftDown()) { [Console]::Out.WriteLine('down') } else { [Console]::Out.WriteLine('up') } }
     else { [Console]::Out.WriteLine('ok') }
@@ -391,7 +418,15 @@ async function helperOcr(file, timeoutMs = 30000) {
   try { return Buffer.from(r.slice(1), 'base64').toString('utf8').trim(); } catch { return null; }
 }
 
+/** Gescannte PDF über den Helfer: Seitentexte, oder null (dann eigene PowerShell). */
+async function helperOcrPdf(file, maxPages = 30, timeoutMs = 180000) {
+  if (process.platform !== 'win32' || !helper?.ready) return null;
+  const r = await helperCommand(`ocrpdf ${Buffer.from(file, 'utf8').toString('base64')} ${maxPages}`, timeoutMs);
+  if (!r || r[0] !== 'P') return null;
+  try { return r.slice(1).split('|').map((p) => Buffer.from(p, 'base64').toString('utf8').trim()); } catch { return null; }
+}
+
 /** Texterkennung vorbereiten (Bibliotheken laden), wenn sie gleich gebraucht wird – Bereich wählen, Kamera */
 function warmOcr() { if (process.platform === 'win32' && helper?.ready) helperCommand('ocrwarm', 10000); }
 
-module.exports = { helperOcr, warmOcr, setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable: () => process.platform === 'win32' && (!!winkeys.load() || !!helper?.ready) };
+module.exports = { helperOcr, helperOcrPdf, warmOcr, setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable: () => process.platform === 'win32' && (!!winkeys.load() || !!helper?.ready) };

@@ -99,8 +99,14 @@ for ($i = 0; $i -lt $n; $i++) {
 `;
 
 /** Liest eine gescannte PDF per Texterkennung. Liefert eine Liste von Seitentexten (leer, wenn nicht möglich). */
-function recognizePdf(file, maxPages = 30) {
-  if (process.platform !== 'win32') return Promise.resolve([]);
+async function recognizePdf(file, maxPages = 30) {
+  if (process.platform !== 'win32') return [];
+  // Läuft der PowerShell-Helfer schon: dort erkennen (spart den Start einer eigenen PowerShell)
+  const fast = await require('./grab').helperOcrPdf(file, maxPages);
+  if (fast && fast.some(Boolean)) return fast;
+  return recognizePdfSpawn(file, maxPages);
+}
+function recognizePdfSpawn(file, maxPages) {
   const encoded = Buffer.from(PDF_SCRIPT(file, maxPages), 'utf16le').toString('base64');
   return new Promise((resolve) => {
     execFile('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded],

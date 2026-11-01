@@ -271,7 +271,7 @@ function createBubble() {
     // (nur wenn die Maus bei der Spinne verweilt – nicht bei jedem Vorbeiwischen oben am Bildschirm)
     if (Date.now() - lastHoverPreload > 30000) {
       const sp = spiderScreenPos();
-      if (Math.hypot(c.x - sp.x, c.y - sp.y) < 90) { hoverSince ||= Date.now(); if (Date.now() - hoverSince > 400) { lastHoverPreload = Date.now(); warmUpGrab(); preloadBuiltinModel(); } } else hoverSince = 0;
+      if (Math.hypot(c.x - sp.x, c.y - sp.y) < 90) { hoverSince ||= Date.now(); if (Date.now() - hoverSince > 400) { lastHoverPreload = Date.now(); warmUpGrab(); preloadBuiltinModel(); prewarmPopup(); } } else hoverSince = 0;
     }
     lastRaw = c;
     const [wx, wy] = bubbleWin.getPosition();
@@ -471,6 +471,13 @@ function createPopup() {
   popupWin.on('hide', () => scheduleFree(popupWin, 90 * 1000));
   popupWin.on('show', () => clearTimeout(popupWin.__freeTimer));
   return popupWin;
+}
+
+// Sprechblase vorab laden (Maus verweilt an der Spinne); ungenutzt nach 1 Minute wieder freigeben
+function prewarmPopup() {
+  if (popupWin && !popupWin.isDestroyed()) return;
+  const win = createPopup();
+  win.__freeTimer = setTimeout(() => { if (!win.isDestroyed() && !win.isVisible()) win.destroy(); }, 60 * 1000);
 }
 
 function showPopup(doc, { autoStart = false } = {}) {
