@@ -2167,7 +2167,7 @@ const TRANSFORMS = {
   reply: { title: 'Antwort-Entwurf', instruction: 'Der folgende Text ist eine E-Mail, Nachricht oder ein Brief. Schreibe einen kurzen, freundlichen Antwortentwurf in derselben Sprache und im passenden Ton (Du oder Sie wie im Text). Bei einem Brief (z. B. von einer Firma oder Behörde): mit Anrede und Grußformel, nenne den Bezug (Aktenzeichen, Kunden- oder Rechnungsnummer, Datum des Schreibens) und setze fehlende persönliche Angaben als [Platzhalter]. Gib nur den Entwurf aus, ohne Betreffzeile.' },
 };
 
-const friendlyErr = (e) => ({ ok: false, error: friendlyError(e), needsKey: ['NO_KEY', 'NO_OLLAMA', 'NO_MODEL'].includes(e.code) });
+const friendlyErr = (e) => ({ ok: false, error: friendlyError(e), needsKey: ['NO_KEY', 'NO_OLLAMA', 'NO_MODEL'].includes(e.code), noModel: e.code === 'NO_MODEL' });
 
 ipcMain.handle('ask', async (event, doc, question) => {
   try {
@@ -2892,7 +2892,7 @@ async function analyzeHandler(event, doc) {
     sw.done(`Lesen (${doc.pages.join('').length} Zeichen, ${loadSettings().provider})`);
     return { ok: true, result };
   } catch (e) {
-    return { ok: false, error: friendlyError(e), needsKey: e.code === 'NO_KEY' || e.code === 'NO_OLLAMA' || e.code === 'NO_MODEL' || Anthropic && e instanceof Anthropic.AuthenticationError };
+    return { ok: false, error: friendlyError(e), needsKey: e.code === 'NO_KEY' || e.code === 'NO_OLLAMA' || e.code === 'NO_MODEL' || Anthropic && e instanceof Anthropic.AuthenticationError, noModel: e.code === 'NO_MODEL' };
   } finally {
     analysisRunning--;
     lastModelUse = Date.now();
