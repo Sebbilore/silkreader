@@ -1427,7 +1427,7 @@ let llamaRuntime = null; // { key, llama, model, ctx, seq } – bleibt geladen, 
 // twoStage = erst nur Stichpunkte und Aufgabe, die Details schreibt die KI, wenn jemand „Mehr“ öffnet
 // compact = JSON ohne Zeilenumbrüche/Einrückung (weniger Token zu schreiben); threads = Zahl der Rechen-Threads (0 = Standard)
 // short = genau 3 Stichpunkte (oben stehen ohnehin 3)
-const SPEED = { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: 0, short: true }; // lookup + draft: im KI-Test auf dem Prozessor langsamer – aus
+const SPEED = { lookup: false, keep: true, lean: true, twoStage: true, draft: false, compact: true, threads: 0, short: true, trim: true }; // lookup + draft: im KI-Test auf dem Prozessor langsamer – aus
 let lastGen = null; // Messwerte der letzten Antwort (für den KI-Test)
 const grammarCache = new WeakMap(); // je KI-Laufzeit und Schema einmal bauen (nach einem Modellwechsel neu)
 // JSON-Grammatik: node-llama-cpp erlaubt nach jedem Element Zeilenumbruch + Einrückung – das Modell schreibt dann
@@ -1717,6 +1717,14 @@ function warmContext(rt) {
     .finally(() => { rt.warming = null; });
 }
 
+// Zeilen, die in Briefen nur Impressum/Kontakt sind – kosten Einlesezeit, helfen der Zusammenfassung nicht
+const FOOTER_LINE = /^\s*(sitz der gesellschaft\b|sitz\s*:|(geschäftsführ\w*|vorstand|aufsichtsrat\w*|vorsitzende[r]? des aufsichtsrat\w*)\s*:|(amts|register)gericht\b.*\bhr[ab]\b|handelsregister\b.*\d|hr[ab]\s*\d|ust\.?\s*-?\s*id\w*\b|umsatzsteuer-?id\w*|steuer-?nr\.?\s*:?\s*\d|st\.?-?nr\.?\s*:?\s*\d|gläubiger-?id\w*|(telefon|tel\.?|telefax|fax)\s*[:+0-9(]|e-?mail\s*:|(internet|web)\s*:|www\.\S+$|https?:\/\/\S+$|seite\s+\d+\s+(von|\/)\s+\d+\s*$|bic\s*:|swift\s*:)/i;
+function trimForAI(text) {
+  if (!SPEED.trim) return text;
+  const out = String(text).split('\n').filter((l) => !FOOTER_LINE.test(l)).join('\n').replace(/\n{3,}/g, '\n\n');
+  return out.trim().length > 40 ? out : text; // nie fast alles wegschneiden
+}
+
 async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null } = {}) {
   const key = builtinKey(s);
   const info = BUILTIN_MODELS[key];
@@ -1728,7 +1736,9 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
   onProgress({ stage: 'Modell wird geladen …' });
   const { llama, model } = await loadBuiltinModel(key);
 
-  const chunks = splitIntoChunks(model, doc, info.chunkTokens);
+  // Für die KI: Impressums- und Fußzeilen weglassen (Betrag, Frist, IBAN holen die festen Regeln aus dem vollen Text)
+  const aiDoc = { ...doc, pages: doc.pages.map(trimForAI) };
+  const chunks = splitIntoChunks(model, aiDoc, info.chunkTokens);
   const systemPrompt = `Du bist ein sorgfältiger Analyst. Antworte auf ${s.language} in einfacher, verständlicher Sprache, kurz und präzise, ausschließlich mit JSON nach dem Schema.`;
   const newSequence = (contextSize) => makeSequence(model, llama, key, contextSize);
   // Der Standard-Kontext bleibt mit dem Modell geladen (wird mit ihm freigegeben)
