@@ -140,7 +140,7 @@
 <script>
   const $ = (id) => document.getElementById(id);
   $('iLock').outerHTML = silkIcon('lock');
-  let step = 1, prefs = { hatchAnimation: true, pinCopied: false, copyHint: false };
+  let step = 1, prefs = { pinCopied: false, copyHint: false };
   const LAST = 3;
   // Übungsbrief (in der Sprache der Oberfläche) – die Spinne erkennt ihn und zeigt ohne KI ein Beispiel-Ergebnis
   $('practice').textContent = I18N.lang === 'en'
@@ -181,7 +181,7 @@
     $('dlLater').classList.add('hidden'); $('loadLine').classList.add('hidden');
   }
   window.spider.welcomeState().then(async (st) => {
-    prefs = { hatchAnimation: st.hatchAnimation, pinCopied: st.pinCopied, copyHint: st.copyHint };
+    prefs = { pinCopied: st.pinCopied, copyHint: st.copyHint };
     // Wer schon Claude nutzt, braucht keinen Download
     if (st.provider === 'claude' && st.hasKey) { $('dlCard').classList.add('hidden'); return; }
     if (st.modelReady) return ready();

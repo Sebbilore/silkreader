@@ -15,7 +15,7 @@ const SRC = path.join(root, 'src');
 const Obf = require(path.join(root, 'node_modules', 'javascript-obfuscator'));
 
 // Hauptprozess-Module: verschleiert und dann als Bytecode (nur im Hauptprozess geladen)
-const BYTECODE = ['main.js', 'pro.js', 'learn.js', 'grab.js', 'ocr.js', 'cocoons.js', 'selectionScan.js', 'winkeys.js', 'psenv.js', 'whatsnew.js'];
+const BYTECODE = ['main.js', 'pro.js', 'learn.js', 'grab.js', 'ocr.js', 'cocoons.js', 'winkeys.js', 'psenv.js', 'whatsnew.js'];
 // Nicht anfassen: Vorladeskript (läuft in jedem Fenster sehr früh, muss klein und robust bleiben)
 const SKIP = ['preload.js'];
 

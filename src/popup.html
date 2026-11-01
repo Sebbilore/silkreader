@@ -912,13 +912,8 @@
     const row = document.createElement('div');
     row.className = 'row';
     // Die Lupe zeigt Dokumenttext (nie übersetzen) – ihre Knöpfe deshalb direkt übersetzt einsetzen
-    if (src && P.doc.screenAt) row.innerHTML += `<button class="link" data-l="screen">${T('Auf dem Bildschirm zeigen')}</button>`;
     row.innerHTML += `<button class="link" data-l="reader">${T('Im Lesemodus')}</button>`;
     box.appendChild(row);
-    row.querySelector('[data-l="screen"]')?.addEventListener('click', async (e) => {
-      const ok = await window.spider.showOnScreen({ screenAt: P.doc.screenAt, start: src.start, end: src.end });
-      if (!ok) e.target.textContent = T('nicht mehr auf dem Bildschirm');
-    });
     row.querySelector('[data-l="reader"]').addEventListener('click', () => window.spider.openReader(P.doc, result, focus));
     (afterEl ? afterEl.closest('.answer') || anchor : anchor).after(box);
     box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -1164,7 +1159,6 @@
       <div class="set"><div class="h">Ergebnisse auf</div><select id="lang">${['Deutsch', 'Englisch', 'Französisch', 'Spanisch', 'Italienisch'].map((l) => `<option value="${l}"${l === s.language ? ' selected' : ''}>${l}</option>`).join('')}
         <option value="der Sprache des Dokuments"${s.language === 'der Sprache des Dokuments' ? ' selected' : ''}>Wie das Dokument</option></select></div>
       <div class="set"><div class="h">Schriftgröße</div>${chips('fontSize', [['normal', 'Normal'], ['large', 'Groß'], ['xlarge', 'Sehr groß']], s.fontSize || 'normal')}</div>
-      <label class="tog"><input type="checkbox" id="hatch"${s.hatchAnimation ? ' checked' : ''}> Große Spinne beim Lesen zeigen</label>
       <label class="tog"><input type="checkbox" id="copyHint"${s.copyHint ? ' checked' : ''}> Bei kopiertem Text fragen, ob ich lesen soll</label>
       <label class="tog"><input type="checkbox" id="hideFullscreen"${s.hideFullscreen ? ' checked' : ''}> Bei Vollbild und Präsentationen verstecken</label>`;
     $('sPro').addEventListener('click', () => { setBack(settings); proView(); });
@@ -1181,8 +1175,8 @@
       settings(); // Blase in der neuen Sprache neu aufbauen
     });
     $('lang').addEventListener('change', (e) => window.spider.saveSettings({ language: e.target.value }));
-    for (const id of ['hatch', 'copyHint', 'hideFullscreen']) {
-      $(id).addEventListener('change', (e) => window.spider.saveSettings({ [id === 'hatch' ? 'hatchAnimation' : id]: e.target.checked }));
+    for (const id of ['copyHint', 'hideFullscreen']) {
+      $(id).addEventListener('change', (e) => window.spider.saveSettings({ [id]: e.target.checked }));
     }
     footer({ actions: [['Alle Einstellungen …', () => window.spider.openSettings()], ['Über', () => { setBack(settings); about(); }]] });
   }

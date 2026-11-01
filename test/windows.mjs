@@ -127,14 +127,16 @@ try {
   shot('2-kuerzel-uebersetzung');
   await hidePopup();
 
-  // 4) Spinne anklicken (echter Mausklick) → große Spinne + Zusammenfassung
+  // 4) Spinne anklicken (echter Mausklick) → Sprechblase sofort (ohne große Spinne)
   await focusNotepad();
   await press(VK.CTRL, VK.A);
   const sp = await silk(() => global.__silk.spiderPos());
+  const tClick = Date.now();
   await click(Math.round(sp.x), Math.round(sp.y));
-  const overlay = await waitFor(() => visible('overlay.html'), 8000);
-  check('Klick auf die Spinne → große Spinne läuft über den Text', overlay, '', false);
-  shot('3-grosse-spinne');
+  const bubbleUp = await waitFor(() => visible('popup.html'), 8000);
+  check('Klick auf die Spinne → Sprechblase erscheint', bubbleUp, `nach ${Date.now() - tClick} ms`, false);
+  check('Keine große Spinne mehr', !(await visible('overlay.html')), '', false);
+  shot('3-sprechblase');
   const t2 = await waitFor(async () => { const t = await popupTitle(); return (await visible('popup.html')) && t && !['Silkreader', 'Übersetzung', 'Markierter Text'].includes(t) ? t : null; }, 25000);
   check('… danach Ergebnis in der Sprechblase', !!t2, t2 || 'keine Blase');
   shot('4-ergebnis');
@@ -154,22 +156,6 @@ try {
   check('Ring: halten, Richtung wählen, loslassen → Notizbuch', t3, '', false);
   await hidePopup();
   await silk(() => global.__silk.closeRing());
-
-  // 6) Große Spinne bleibt beim Scrollen auf dem Text
-  await focusNotepad();
-  await press(VK.CTRL, VK.HOME);
-  for (let i = 0; i < 15; i++) await press(VK.DOWN);
-  down(VK.SHIFT); for (let i = 0; i < 3; i++) { keybd(VK.DOWN, 0, 0, 0); keybd(VK.DOWN, 0, 2, 0); await sleep(40); } up(VK.SHIFT);
-  await sleep(300);
-  setCursor(600, 500);
-  const shifts0 = await silk(() => global.__silk.shiftCount);
-  const crawl = silk(() => global.__silk.crawlSelection());
-  await sleep(1200);
-  for (let i = 0; i < 2; i++) { wheel(-120); await sleep(600); }
-  const found = await crawl;
-  const shifts = (await silk(() => global.__silk.shiftCount)) - shifts0;
-  check('Mitwandern beim Scrollen (Spinne folgt dem Text)', shifts > 0, `${shifts} Verschiebungen; UI Automation fand ${found?.words ?? 0} Wörter, ${found?.lines ?? 0} Zeilen`, false);
-  shot('6-scrollen');
 
   // 6b) Browser: Chrome und Edge – Text auf einer Webseite markieren und lesen
   const html = path.join(os.tmpdir(), 'silkreader-browsertest.html');
@@ -204,8 +190,6 @@ try {
     check(`${name}: Markierung über UI Automation (optional)`, true, u && u.includes('Nordlicht') ? `${u.length} Zeichen` : 'nicht verfügbar – Strg+C übernimmt', false);
     const g = await silk(() => global.__silk.grab({ noUia: true }));
     check(`${name}: Markierung über Strg+C`, g.text && g.text.includes('Nordlicht'), g.text ? `${g.text.length} Zeichen` : 'nichts', false);
-    const boxes = await silk((_e, p) => global.__silk.scan(p), { x: 700, y: 400 });
-    check(`${name}: markierte Wörter auf dem Bildschirm gefunden`, (boxes?.length || 0) > 10, `${boxes?.length || 0} Wortkästen`, false);
     // Wie ein Mensch: erst zur Spinne fahren (sie hält dann still), dann klicken
     let sp = await silk(() => global.__silk.spiderPos());
     setCursor(Math.round(sp.x), Math.round(sp.y) + 30); await sleep(700);

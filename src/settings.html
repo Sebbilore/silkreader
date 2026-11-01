@@ -107,7 +107,6 @@
 
 <h2>Spinne</h2>
 <div class="grp">
-  <div class="line"><label class="check grow"><input type="checkbox" id="hatch"> Große Spinne beim Lesen zeigen</label></div>
   <div class="line"><label class="check grow"><input type="checkbox" id="copyHint"> Bei kopiertem Text fragen, ob ich lesen soll</label></div>
   <div class="line"><label class="check grow"><input type="checkbox" id="hideFullscreen"> Bei Vollbild und Präsentationen verstecken</label></div>
   <div class="line"><label class="check grow"><input type="checkbox" id="morning"> Morgens kurz die Fristen der Woche zeigen</label></div>
@@ -300,7 +299,7 @@
   }
 
   // ---- Laden ----
-  const TOGGLES = { hatch: 'hatchAnimation', copyHint: 'copyHint', hideFullscreen: 'hideFullscreen', privateMode: 'privateMode', pinCopied: 'pinCopied',
+  const TOGGLES = { copyHint: 'copyHint', hideFullscreen: 'hideFullscreen', privateMode: 'privateMode', pinCopied: 'pinCopied',
     hideInShare: 'hideInShare', lowPower: 'lowPower', autostart: 'autostart', learn: 'learn', morning: 'morning', askBack: 'askBack' };
   window.spider.getSettings().then((s) => {
     for (const [id, name] of Object.entries(s.models)) $('model').add(new Option(name, id, false, id === s.model));

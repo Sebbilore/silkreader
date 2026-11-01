@@ -85,18 +85,12 @@ await sleep(600);
 await pop.waitForSelector('#moreBtn', { timeout: 20000 });
 console.log('Netz-Dokument gelesen:', await pop.textContent('#title'));
 
-// 6) Auf dem Bildschirm zeigen
-await app.evaluate((_e, t) => { global.__silk.lastScreenSel = { text: t, words: Array.from({ length: 100 }, (_, i) => [100 + (i % 10) * 60, 200 + Math.floor(i / 10) * 30, 50, 20]), time: global.__T = Date.now() }; }, text);
-const T = await app.evaluate(() => global.__T);
-await app.evaluate((_e, [t, at]) => global.__silk.showPopupPayload({ kind: 'analyze', doc: { title: 'Markierter Text', source: 'selection', pages: [t], screenAt: at }, autoStart: true }), [text, T]);
+// 6) Lupe: „Auf dem Bildschirm zeigen“ gibt es nicht mehr (große Spinne entfernt)
+await app.evaluate((_e, t) => global.__silk.showPopupPayload({ kind: 'analyze', doc: { title: 'Markierter Text', source: 'selection', pages: [t] }, autoStart: true }), text);
 await pop.waitForSelector('#moreBtn', { timeout: 20000 });
 await pop.click('#moreBtn');
 await pop.click('.jump[data-type="point"][data-index="1"]');
-console.log('Knopf „Auf dem Bildschirm zeigen“:', await pop.evaluate(() => !!document.querySelector('[data-l="screen"]')));
-const onScreen = pop.evaluate(() => window.spider.showOnScreen({ screenAt: P.doc.screenAt, start: 300, end: 400 }));
-let seen = false;
-for (let i = 0; i < 40 && !seen; i++) { seen = await visible('overlay.html'); await sleep(100); }
-console.log('große Spinne läuft auf dem Bildschirm:', seen, '| Ergebnis:', await onScreen);
+console.log('Lupe offen, ohne „Auf dem Bildschirm zeigen“:', await pop.evaluate(() => !!document.querySelector('.lupe') && !document.querySelector('[data-l="screen"]')));
 
 // 7) Accessoire zeigt die laufende Aufgabe
 const send = (ch, v) => app.evaluate(({ BrowserWindow }, [ch, v]) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('bubble')).webContents.send(ch, v), [ch, v]);
@@ -128,13 +122,5 @@ await pop.click('[data-a="Förmlicher"]');
 await pop.waitForSelector('[data-a="Kürzer"]', { timeout: 20000 });
 console.log('nachgeschärft:', await pop.evaluate(() => P.extra));
 
-// 11) Große Spinne wandert beim Scrollen mit dem Text mit
-const crawl = app.evaluate(() => global.__silk.runCrawlOverlay({ x: 300, y: 300 }, { words: [[200, 300, 60, 20], [270, 300, 60, 20], [340, 300, 60, 20]], dip: true }));
-const ov = await find('overlay.html');
-await sleep(900);
-await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('overlay')).webContents.send('overlay-shift', { dx: 0, dy: -120 }));
-await sleep(400);
-console.log('Overlay verschoben:', await ov.evaluate(() => document.getElementById('stage').style.transform));
-await crawl;
 console.log('errors:', errs);
 await app.close();

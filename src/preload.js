@@ -94,8 +94,6 @@ contextBridge.exposeInMainWorld('spider', {
   onCocoonCopied: (cb) => ipcRenderer.on('cocoon-copied', (_e, id) => cb(id)),
   onRigTrick: (cb) => ipcRenderer.on('rig-trick', (_e, t) => cb(t)),
   easterEgg: (name) => ipcRenderer.send('easter-egg', name),
-  onOverlayStart: (cb) => ipcRenderer.on('overlay-start', (_e, d) => cb(d)),
-  overlayDone: () => ipcRenderer.send('overlay-done'),
   analyzeText: (text) => ipcRenderer.invoke('analyze-text', text),
   openSettings: () => ipcRenderer.invoke('open-settings'),
   openMain: () => ipcRenderer.invoke('open-main'),
@@ -134,7 +132,6 @@ contextBridge.exposeInMainWorld('spider', {
   openCamera: () => ipcRenderer.invoke('open-camera'),
   cameraDone: (png) => ipcRenderer.send('camera-done', png),
   openReader: (doc, result, focus) => ipcRenderer.invoke('open-reader', doc, result, focus),
-  showOnScreen: (range) => ipcRenderer.invoke('show-on-screen', range),
   cocoonRead: (id) => ipcRenderer.invoke('cocoon-read', id),
   setClickMode: (mode) => ipcRenderer.invoke('set-click-mode', mode),
   onClickMode: (cb) => ipcRenderer.on('click-mode', (_e, m) => cb(m)),
@@ -152,6 +149,5 @@ contextBridge.exposeInMainWorld('spider', {
   openLog: () => ipcRenderer.invoke('open-log'),
   appInfo: () => ipcRenderer.invoke('app-info'),
   reportProblem: (r) => ipcRenderer.invoke('report-problem', r),
-  onOverlayShift: (cb) => ipcRenderer.on('overlay-shift', (_e, d) => cb(d)),
   onProgress: (cb) => ipcRenderer.on('progress', (_e, n) => cb(n)),
 });
