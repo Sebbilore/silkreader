@@ -29,8 +29,7 @@ export class Spider {
     // Verläufe für Glanz und Beine (Aussehen in theme.css)
     const defs = document.createElementNS(SVG_NS, 'defs');
     defs.innerHTML = `
-      <radialGradient id="sbBody" cx="35%" cy="25%" r="85%"><stop offset="0" stop-color="#4a4a5c"/><stop offset=".4" stop-color="#191922"/><stop offset="1" stop-color="#07070a"/></radialGradient>
-      <linearGradient id="sbLeg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff2d8a"/><stop offset="1" stop-color="#ff6aa9"/></linearGradient>`;
+      <radialGradient id="sbBody" cx="35%" cy="25%" r="85%"><stop offset="0" stop-color="#4a4a5c"/><stop offset=".4" stop-color="#191922"/><stop offset="1" stop-color="#07070a"/></radialGradient>`;
     this.svg.appendChild(defs);
     // Schatten auf dem Untergrund
     this.shadow = document.createElementNS(SVG_NS, 'ellipse');

@@ -455,6 +455,7 @@
     '{n} Korrekturen': '{n} corrections',
     'Morgens kurz die Fristen der Woche zeigen': 'Show this week’s deadlines briefly in the morning',
     'Hoher Kontrast': 'High contrast',
+    'Hell · Grau': 'Light · Grey',
     'Unterschrift nötig auf': 'Signature needed on',
     'In diesem Bereich hat die Windows-Texterkennung keinen Text gefunden. Tipp: einen größeren Bereich wählen oder näher heranzoomen.': 'Windows text recognition found no text in this area. Tip: choose a larger area or zoom in.',
     'Tipp:': 'Tip:', 'Rechtsklick auf die Spinne (oder lange drücken) öffnet das Spinnennetz mit allen Funktionen.': 'Right-click the spider (or long press) to open the spider web with all functions.',

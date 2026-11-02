@@ -76,14 +76,14 @@
   .w { border-radius: 2px; transition: background-color .4s; }
   .w.touched { animation: touched 3.2s ease-out forwards; }
   @keyframes touched {
-    0% { box-shadow: 0 0 0 1.5px var(--pink); background: rgba(255,45,138,.12); }
+    0% { box-shadow: 0 0 0 1.5px var(--pink); background: var(--pink-soft); }
     55% { box-shadow: 0 0 0 1.5px var(--pink); }
-    100% { box-shadow: 0 0 0 1px rgba(255,45,138,0); }
+    100% { box-shadow: 0 0 0 1px transparent; }
   }
-  .w.scan { background: rgba(255,45,138,.14); }
-  .w.hit { background: rgba(255,45,138,.28); box-shadow: 0 0 0 1.5px var(--pink); }
+  .w.scan { background: var(--pink-soft); }
+  .w.hit { background: var(--pink-glow); box-shadow: 0 0 0 1.5px var(--pink); }
   .w.hit.flash { animation: flash 1s ease-out; }
-  @keyframes flash { 0% { background: var(--pink); color: #fff; } 100% { background: rgba(255,45,138,.28); } }
+  @keyframes flash { 0% { background: var(--pink); color: var(--on-primary); } 100% { background: var(--pink-glow); } }
 
 
   /* Ergebnispanel */

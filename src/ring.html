@@ -34,7 +34,7 @@
   .slot[data-id="pro"] .ic { stroke: var(--pink); }
   .icons { opacity: 0; animation: fade .2s .12s forwards; } @keyframes fade { to { opacity: 1; } }
   /* Mitte: die kleine Spinne */
-  #center .bd { fill: #2b2b2b; stroke: var(--pink); stroke-width: 1.2; }
+  #center .bd { fill: #2b2b2b; stroke: var(--spider); stroke-width: 1.2; }
   #center .shine { fill: transparent; }
   #center .eye { fill: #fff; stroke: var(--line-2); stroke-width: .4; } #center .pu { fill: #111; } #center .gl { fill: #fff; }
   #root { transform-origin: 150px 150px; animation: silk-pop var(--t-mid) var(--ease-spring); }
@@ -72,7 +72,6 @@
     const defs = mk('defs', {}, root);
     defs.innerHTML = `
       <radialGradient id="gDisc" cx="40%" cy="30%" r="75%"><stop offset="0" stop-color="#2a2a38" stop-opacity=".96"/><stop offset="1" stop-color="#0c0c11" stop-opacity=".95"/></radialGradient>
-      <radialGradient id="gHl" cx="${C}" cy="${C}" r="${R}" gradientUnits="userSpaceOnUse"><stop offset=".2" stop-color="#ff2d8a" stop-opacity="0"/><stop offset="1" stop-color="#ff2d8a" stop-opacity=".32"/></radialGradient>
       <radialGradient id="gBody" cx="35%" cy="28%" r="80%"><stop offset="0" stop-color="#4a4a5c"/><stop offset=".35" stop-color="#1d1d27"/><stop offset="1" stop-color="#08080c"/></radialGradient>`;
     mk('circle', { cx: C, cy: C + 4, r: R + 4, fill: 'rgba(0,0,0,.25)', style: 'filter:blur(8px)' }, root);
     mk('circle', { class: 'disc', cx: C, cy: C, r: R + 4 }, root);

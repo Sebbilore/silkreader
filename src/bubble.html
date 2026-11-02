@@ -14,17 +14,17 @@
   #thread { stroke: var(--silk); stroke-width: 1; }
   #growWeb line, #growWeb path { stroke: var(--silk); stroke-width: .7; fill: none; opacity: .55; }
   #note .paper { fill: #f4f1ea; stroke: #bdb7aa; stroke-width: .6; } #note .fold { fill: #dcd5c6; stroke: #bdb7aa; stroke-width: .5; } #note .lines { stroke: #bdb7aa; stroke-width: .8; }
-  #note .clip { fill: var(--pink); } #note text { font: 700 8px var(--font); fill: var(--pink); }
+  #note .clip { fill: var(--spider); } #note text { font: 700 8px var(--font); fill: var(--spider); }
   #threadShadow { stroke: rgba(10,10,18,.5); stroke-width: 2.4; }
   #web { transition: opacity 4s; }
   /* Das Netz, das die Spinne baut: fein und zurückhaltend */
   #web line, #web polyline { fill: none; stroke: var(--silk); stroke-width: .6; stroke-linecap: round; stroke-linejoin: round; opacity: .7; }
   /* Beine mit Gelenken: Oberschenkel kräftig, Unterschenkel feiner, Gelenke als kleine Knöpfe */
-  /* Die ruhige Spinne: einfarbige Beine, flacher dunkler Körper mit pinkem Rand, kein Glanz */
-  .femur { stroke: var(--pink); stroke-width: 2.4; fill: none; stroke-linecap: round; }
-  .tibia { stroke: var(--pink); stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  /* Die ruhige Spinne: einfarbige Beine, flacher dunkler Körper mit farbigem Rand (--spider: Pink oder Grau), kein Glanz */
+  .femur { stroke: var(--spider); stroke-width: 2.4; fill: none; stroke-linecap: round; }
+  .tibia { stroke: var(--spider); stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
   .joint { display: none; }
-  #body { fill: #2b2b2b; stroke: var(--pink); stroke-width: 1.2; }
+  #body { fill: #2b2b2b; stroke: var(--spider); stroke-width: 1.2; }
   #shine, #shine2 { display: none; }
   .catch #body { stroke: #fff; stroke-width: 2; }
   .eye { fill: #fff; }
@@ -33,44 +33,44 @@
   .cheek { display: none; }
   .brow { stroke: #f1f1f6; stroke-width: 1.1; fill: none; stroke-linecap: round; opacity: 0; transition: opacity .2s; }
   .happyEye { stroke: #fff; stroke-width: 1.5; fill: none; stroke-linecap: round; opacity: 0; }
-  #mouth { stroke: var(--pink); stroke-width: 1.3; fill: none; stroke-linecap: round; }
+  #mouth { stroke: var(--spider); stroke-width: 1.3; fill: none; stroke-linecap: round; }
   #sparkle { fill: #fff; opacity: 0; }
   /* Accessoires je Klick-Modus */
   #acc > g { opacity: 0; transition: opacity .3s; }
   #acc > g.on { opacity: 1; }
   .glasses circle { fill: rgba(255,255,255,.1); stroke: #fff; stroke-width: .9; }
   .glasses path { stroke: #fff; stroke-width: .9; fill: none; stroke-linecap: round; }
-  .beanie .cap { fill: var(--pink); stroke: #c41c69; stroke-width: .5; }
+  .beanie .cap { fill: var(--spider); stroke: color-mix(in srgb, var(--spider) 70%, #000); stroke-width: .5; }
   .beanie .band { fill: #fff; }
   .beanie .globe { fill: none; stroke: #fff; stroke-width: .6; }
   .beanie .pom { fill: #fff; }
-  .bulb .glass { fill: #fff; filter: drop-shadow(0 0 3px rgba(255,255,255,.9)) drop-shadow(0 0 6px var(--pink-glow)); }
+  .bulb .glass { fill: #fff; filter: drop-shadow(0 0 3px rgba(255,255,255,.9)) drop-shadow(0 0 6px var(--spider-glow)); }
   .bulb .base { fill: #9494a6; }
   .bulb .ray { stroke: #fff; stroke-width: .8; stroke-linecap: round; }
   .letter .env { fill: #fff; stroke: #c9c9d6; stroke-width: .4; }
-  .letter .flap { fill: none; stroke: var(--pink); stroke-width: .8; stroke-linejoin: round; }
-  .letter .heart { fill: var(--pink); }
+  .letter .flap { fill: none; stroke: var(--spider); stroke-width: .8; stroke-linejoin: round; }
+  .letter .heart { fill: var(--spider); }
   /* Saison-Hüte (Halloween, Weihnachten, Neujahr) */
-  .witch .brim, .witch .crown { fill: #2b2b2b; stroke: #555; stroke-width: .4; } .witch .band2 { fill: var(--pink); }
+  .witch .brim, .witch .crown { fill: #2b2b2b; stroke: #555; stroke-width: .4; } .witch .band2 { fill: var(--spider); }
   .santa .cap { fill: #d6243a; } .santa .fur, .santa .pom { fill: #fff; }
-  .partyhat .cone { fill: var(--pink); } .partyhat .dot, .partyhat .pom { fill: #fff; }
+  .partyhat .cone { fill: var(--spider); } .partyhat .dot, .partyhat .pom { fill: #fff; }
   #fx { font: 600 10px var(--font); fill: var(--text); paint-order: stroke; stroke: var(--surface); stroke-width: 2.6px; text-anchor: middle; pointer-events: none; }
   #confetti rect { pointer-events: none; }
   #spider { cursor: grab; }
   #spider.grabbing { cursor: grabbing; }
   #fly .wing { fill: rgba(220,235,255,.85); stroke: rgba(40,40,60,.6); stroke-width: .4; }
   #fly .fbody { fill: #2b2b33; }
-  #zzz { font: 700 11px var(--font); fill: var(--pink); paint-order: stroke; stroke: rgba(255,255,255,.85); stroke-width: 2.4px; }
+  #zzz { font: 700 11px var(--font); fill: var(--spider); paint-order: stroke; stroke: rgba(255,255,255,.85); stroke-width: 2.4px; }
   /* Ablage-Netz: festgehaltene Dokumente kleben als kleine Karten im Spinnennetz */
   #holdWeb { transition: opacity .4s; }
   #holdWeb .silk { fill: none; stroke: var(--silk); stroke-width: .75; stroke-linecap: round;
     filter: drop-shadow(0 0 .8px rgba(15,15,25,.85)); }
   #holdWeb .dew { fill: var(--dew); filter: drop-shadow(0 0 1.5px rgba(255,255,255,.9)); animation: dew-glint 3s ease-in-out infinite; }
-  #holdWeb.zone .silk { stroke: var(--pink); stroke-width: 1; }
+  #holdWeb.zone .silk { stroke: var(--spider); stroke-width: 1; }
   /* Leuchtende Ablagefläche – zugleich nötig, damit Windows auch zwischen den Fäden ablegen lässt */
-  #zoneGlow { position: absolute; inset: 0; background: rgba(255,45,138,.025); display: none; }
+  #zoneGlow { position: absolute; inset: 0; background: color-mix(in srgb, var(--spider-glow) 9%, transparent); display: none; }
   #zoneGlow::before { content: ''; position: absolute; left: calc(50% - 82px); top: -18px; width: 164px; height: 164px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(255,45,138,.28), rgba(255,45,138,.06) 62%, transparent 72%); animation: breathe 1.2s ease-in-out infinite; }
+    background: radial-gradient(circle, var(--spider-glow), color-mix(in srgb, var(--spider-glow) 22%, transparent) 62%, transparent 72%); animation: breathe 1.2s ease-in-out infinite; }
   @keyframes breathe { 50% { transform: scale(1.08); } }
   /* Dokumente hängen als eingesponnene Kokons im Netz; das echte Symbol schaut oben heraus */
   .item { position: absolute; width: 36px; height: 50px; margin: -16px 0 0 -18px; cursor: grab; }
@@ -86,19 +86,19 @@
   .item .strands { position: absolute; inset: 0; width: 28px; height: 36px; pointer-events: none; }
   .item .strands path { fill: none; stroke: rgba(255,255,255,.95); stroke-width: 1.1; stroke-linecap: round;
     filter: drop-shadow(0 .5px .4px rgba(0,0,0,.25)); }
-  .item.text .coc { background: radial-gradient(60% 50% at 35% 28%, #fff, #ffe9f3 60%, #f3c9dc); }
+  .item.text .coc { background: radial-gradient(60% 50% at 35% 28%, #fff, color-mix(in srgb, var(--spider) 10%, #fff) 60%, color-mix(in srgb, var(--spider) 24%, #fff)); }
   .item.missing .coc { opacity: .45; filter: grayscale(1); }
-  .item .ext { position: absolute; right: -2px; top: 24px; font: 800 7px var(--font); color: #fff; background: var(--ink); border: 1px solid var(--pink);
+  .item .ext { position: absolute; right: -2px; top: 24px; font: 800 7px var(--font); color: var(--text); background: var(--ink); border: 1px solid var(--pink);
     padding: 0 3px; border-radius: 4px; line-height: 10px; z-index: 2; }
   .item .nm { position: absolute; top: 39px; left: 50%; transform: translateX(-50%); max-width: 50px; overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; font: 600 8px var(--font); color: #fff; text-shadow: 0 0 2px #000, 0 0 3px #000, 0 1px 2px #000; }
   .item:hover .sway { animation-play-state: paused; transform: scale(1.3) translateY(2px); z-index: 3; }
-  .item b { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); font: 700 9px var(--font); color: #fff;
+  .item b { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); font: 700 9px var(--font); color: var(--text);
     background: var(--ink); border: 1px solid var(--pink); padding: 1px 5px; border-radius: 6px; white-space: nowrap; animation: pop 1.2s forwards; z-index: 4; }
   .item.new { animation: stick .6s var(--ease-spring); }
   @keyframes stick { 0% { transform: translateY(40px) scale(.3) rotate(-40deg); opacity: 0; } 60% { opacity: 1; } 100% { transform: none; } }
   @keyframes pop { 0% { opacity: 0; transform: translate(-50%, 4px); } 20%, 70% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
-  #zoneHint { position: absolute; left: 50%; transform: translateX(-50%); font: 700 10px var(--font); color: #fff; background: var(--ink); border: 1px solid var(--pink);
+  #zoneHint { position: absolute; left: 50%; transform: translateX(-50%); font: 700 10px var(--font); color: var(--text); background: var(--ink); border: 1px solid var(--pink);
     padding: 3px 9px; border-radius: 10px; white-space: nowrap; display: none; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
   body.faded #svg, body.faded #items, body.faded #webSvg, body.faded #count { opacity: .4; }
   #svg, #items, #webSvg, #count { transition: opacity .8s; }
@@ -114,7 +114,7 @@
   #modeTip { position: absolute; transform: translateX(-50%); font: 600 11px var(--font); color: var(--text); background: var(--surface);
     border: 1px solid var(--line-2); padding: 2px 9px; border-radius: var(--r-s); white-space: nowrap; pointer-events: none; opacity: 0;
     transition: opacity var(--t-mid) var(--ease-out); box-shadow: var(--shadow); }
-  #modeTip.warn { background: var(--pink); color: #fff; border-color: transparent; } /* Schild „Frist bald!“ */
+  #modeTip.warn { background: var(--primary); color: var(--on-primary); border-color: transparent; } /* Schild „Frist bald!“ */
   #modeTip.on { opacity: 1; }
 </style>
 </head>
@@ -126,7 +126,6 @@
       <stop offset="0" stop-color="#4a4a5c"/><stop offset=".35" stop-color="#1d1d27"/><stop offset="1" stop-color="#08080c"/>
     </radialGradient>
     <radialGradient id="gEye" cx="40%" cy="30%" r="75%"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#dcdce8"/></radialGradient>
-    <linearGradient id="gLeg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff2d8a"/><stop offset="1" stop-color="#ff6aa9"/></linearGradient>
   </defs>
   <g id="web" opacity="0"></g>
   <line id="threadShadow" x1="0" y1="0" x2="0" y2="0"/>
@@ -680,7 +679,9 @@
   let bits = [];
   function confetti(n = 36) {
     const g = $('confetti');
-    const cols = ['#ff5c9d', '#ffffff', '#ffd166', '#7ad1ff', '#c42b67'];
+    const sp = getComputedStyle(document.documentElement).getPropertyValue('--spider').trim() || '#ff5c9d';
+    const gray = document.documentElement.dataset.accent === 'gray';
+    const cols = gray ? [sp, '#ffffff', '#b5b5b5', '#2b2b2b', '#e0e0e0'] : [sp, '#ffffff', '#ffd166', '#7ad1ff', '#c42b67'];
     for (let i = 0; i < n; i++) {
       const r = document.createElementNS(NS, 'rect');
       r.setAttribute('width', '3'); r.setAttribute('height', '1.8'); r.setAttribute('fill', cols[i % cols.length]);

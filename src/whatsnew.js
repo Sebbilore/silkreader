@@ -6,12 +6,14 @@ module.exports = {
       'Fotos, Bildschirmbereiche und gescannte PDFs werden schneller gelesen.',
       'Die Spinne hält bei einer nahen Frist ein Schild hoch, erschrickt bei Betrugsverdacht und freut sich, wenn du eine Frist abhakst.',
       'Neu: alle Fristen auf einmal in den Kalender, Antworten direkt als E-Mail öffnen.',
+      'Neue Darstellung „Hell · Grau“: ruhiges Graphit statt Pink – auch die Spinne und das Symbol in der Taskleiste.',
     ],
     en: [
       'Instant: a click on the spider now opens the speech bubble right away – amount and deadline appear a moment later.',
       'Photos, screen regions and scanned PDFs are read faster.',
       'The spider holds up a sign when a deadline is near, gets a fright on suspected scams and celebrates when you tick off a deadline.',
       'New: add all deadlines to your calendar at once, open replies directly as an e-mail.',
+      'New “Light · Grey” appearance: calm graphite instead of pink – including the spider and the taskbar icon.',
     ],
   },
   '1.24.0': {

@@ -2,8 +2,15 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 // Hell oder dunkel: als Attribut am Dokument (theme.css), folgt Windows bzw. der Einstellung „Darstellung“
 let themeDark = ipcRenderer.sendSync('theme-dark');
-// mode: 'dark' | 'light' | 'contrast' (ältere Hauptprozesse schicken true/false)
-const setTheme = (mode) => { themeDark = mode; if (document.documentElement) document.documentElement.dataset.theme = mode === true ? 'dark' : mode === false ? 'light' : mode; };
+// mode: 'dark' | 'light' | 'graphite' | 'contrast' (ältere Hauptprozesse schicken true/false)
+// „graphite“ = Hell · Grau: data-theme="light" plus data-accent="gray" (Graphit statt Pink, theme.css)
+const setTheme = (mode) => {
+  themeDark = mode;
+  const root = document.documentElement;
+  if (!root) return;
+  root.dataset.theme = mode === true ? 'dark' : mode === false || mode === 'graphite' ? 'light' : mode;
+  if (mode === 'graphite') root.dataset.accent = 'gray'; else delete root.dataset.accent;
+};
 // Das Vorladeskript läuft, bevor es <html> gibt: setzen, sobald das Element da ist (kein Aufblitzen)
 if (document.documentElement) setTheme(themeDark);
 else new MutationObserver((_m, obs) => { if (document.documentElement) { obs.disconnect(); setTheme(themeDark); } }).observe(document, { childList: true });

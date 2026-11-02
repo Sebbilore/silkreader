@@ -353,17 +353,25 @@ function setBusy(busy) {
 function applyTheme(t = loadSettings().theme) {
   const { nativeTheme } = require('electron');
   // „Hoher Kontrast“ ist dunkel mit eigenen Farben (Schwarz, Weiß, Gelb)
-  nativeTheme.themeSource = t === 'contrast' ? 'dark' : ['light', 'dark'].includes(t) ? t : 'system';
+  // „Hell · Grau“ (graphite) ist hell mit Graphit statt Pink
+  nativeTheme.themeSource = t === 'contrast' ? 'dark' : t === 'graphite' ? 'light' : ['light', 'dark'].includes(t) ? t : 'system';
   setImmediate(broadcastTheme);
+  setImmediate(updateTrayIcon);
 }
-// dark | light | contrast – auch, wenn Windows selbst auf hohen Kontrast steht
+// dark | light | graphite | contrast – auch, wenn Windows selbst auf hohen Kontrast steht
 function themeMode() {
   const { nativeTheme } = require('electron');
   const t = loadSettings().theme;
+  if (t === 'graphite') return 'graphite';
   if (t === 'contrast' || (t !== 'light' && t !== 'dark' && nativeTheme.shouldUseHighContrastColors)) return 'contrast';
   return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
 }
-const winBg = () => ({ contrast: '#000000', dark: '#1c1c1c', light: '#f3f3f3' })[themeMode()];
+const winBg = () => ({ contrast: '#000000', dark: '#1c1c1c', light: '#f3f3f3', graphite: '#f3f3f3' })[themeMode()];
+// Symbol im Infobereich: graue Spinne in „Hell · Grau“, sonst die pinke
+const trayIconPath = () => path.join(__dirname, 'assets', themeMode() === 'graphite' ? 'tray-gray.png' : 'tray.png');
+function updateTrayIcon() {
+  if (tray && !tray.isDestroyed()) tray.setImage(nativeImage.createFromPath(trayIconPath()));
+}
 // Fenster mit festem Hintergrund (alle anderen sind durchsichtig)
 const OPAQUE_PAGES = /\/(index|settings|welcome|camera|privacy|licenses)\.html|\/legal\//;
 ipcMain.on('theme-dark', (e) => { e.returnValue = themeMode(); });
@@ -3047,7 +3055,7 @@ ipcMain.on('cocoon-drag', (e, id) => {
     fs.writeFileSync(file, it.text);
   }
   if (!file || !fs.existsSync(file)) return;
-  e.sender.startDrag({ file, icon: nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png')) });
+  e.sender.startDrag({ file, icon: nativeImage.createFromPath(trayIconPath()) });
 });
 // Mac: Strg → ⌘, Alt → ⌥, Umschalt → ⇧ (die Kürzel selbst sind CommandOrControl/Alt)
 const keyLabel = (l) => (process.platform === 'darwin' ? String(l).replace(/Strg\+?/g, '⌘').replace(/Alt\+?/g, '⌥').replace(/Umschalt\+?/g, '⇧').replace(/Leertaste/g, 'Space') : l);
@@ -3078,7 +3086,7 @@ ipcMain.handle('get-settings', () => {
     hideFullscreen: s.hideFullscreen !== false,
     hideInShare: s.hideInShare !== false,
     watchDownloads: s.watchDownloads === true,
-    theme: ['light', 'dark', 'contrast'].includes(s.theme) ? s.theme : 'system',
+    theme: ['light', 'graphite', 'dark', 'contrast'].includes(s.theme) ? s.theme : 'system',
     fontSize: ZOOM[s.fontSize] ? s.fontSize : 'normal',
     learn: s.learn !== false,
     morning: s.morning === true,
@@ -3116,7 +3124,7 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   if (typeof privateMode === 'boolean') s.privateMode = privateMode;
   if (typeof hideFullscreen === 'boolean') s.hideFullscreen = hideFullscreen;
   if (typeof watchDownloads === 'boolean') s.watchDownloads = watchDownloads;
-  if (['system', 'light', 'dark', 'contrast'].includes(theme)) { s.theme = theme; saveSettings(s); applyTheme(theme); }
+  if (['system', 'light', 'graphite', 'dark', 'contrast'].includes(theme)) { s.theme = theme; saveSettings(s); applyTheme(theme); }
   if (typeof hideInShare === 'boolean') { s.hideInShare = hideInShare; setImmediate(() => [bubbleWin, popupWin, ringWin].forEach(protectFromCapture)); }
   if (CLICK_MODES.includes(cm)) { s.clickMode = cm; bubbleWin?.webContents.send('click-mode', cm); }
   if (model && MODELS[model]) s.model = model;
@@ -3347,8 +3355,7 @@ if (!app.requestSingleInstanceLock()) {
     watchCopiedFiles();
     createBubble();
 
-    const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png'));
-    tray = new Tray(icon);
+    tray = new Tray(nativeImage.createFromPath(trayIconPath()));
     tray.setToolTip(`Silkreader ${app.getVersion()}`);
     buildTrayMenu();
     tray.on('click', () => bubbleWin.show());

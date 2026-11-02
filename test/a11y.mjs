@@ -1,11 +1,11 @@
-// Barrierefreiheit (WCAG 2.1 AA) mit axe-core: Ergebnis-Blase, Start-Blase, Meine Briefe, Einstellungen, Spinnennetz – hell und dunkel
+// Barrierefreiheit (WCAG 2.1 AA) mit axe-core: Ergebnis-Blase, Start-Blase, Meine Briefe, Einstellungen, Spinnennetz – hell, hell·grau und dunkel
 // Aufruf: node test/a11y.mjs <Ausgabeordner> <Home>
 import { _electron as electron } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 import fs from 'fs';
 const [, home] = process.argv.slice(2);
 const axe = fs.readFileSync('node_modules/axe-core/axe.min.js', 'utf8');
 let total = 0;
-for (const theme of ['light', 'dark']) {
+for (const theme of ['light', 'graphite', 'dark']) {
 fs.mkdirSync(`${home}/${theme}/.config/Silkreader`, { recursive: true });
 fs.writeFileSync(`${home}/${theme}/.config/Silkreader/settings.json`, JSON.stringify({ onboarded: true, uses: 3, theme, askBack: true, tipsSeen: ['ring','drop','more','deadlines','explorer','font'], lastVersion: JSON.parse(fs.readFileSync('package.json', 'utf8')).version }));
 const app = await electron.launch({ executablePath: './node_modules/electron/dist/electron', args: ['--no-sandbox', '.'], env: { ...process.env, SPIDER_MOCK: 'test/mock.json', HOME: `${home}/${theme}`, SILK_MODEL_PATH: '/nonexistent' } });
