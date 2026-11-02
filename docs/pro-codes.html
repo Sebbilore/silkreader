@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Silkreader Pro-Codes</title>
+<!-- Lokales Werkzeug: startet den GitHub-Lauf „Pro-Codes“, holt das verschlüsselte Ergebnis ab und entschlüsselt es hier im Browser.
+     Token und (wenn gewünscht) Passwort bleiben nur in diesem Browser auf diesem PC (localStorage). -->
+<style>
+  :root {
+    --bg: #f3f3f4; --card: #ffffff; --ink: #1b1b1f; --muted: #5d5d66; --line: #dcdce2;
+    --accent: #b8195a; --on-accent: #ffffff; --field: #f7f7f9; --bad: #b3261e; --ok: #1f7a4d;
+    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root {
+    --bg: #18181b; --card: #222226; --ink: #f0f0f2; --muted: #a8a8b2; --line: #36363d;
+    --accent: #ff6aa4; --on-accent: #1b1b1f; --field: #1b1b1f; --bad: #ff8a80; --ok: #6fd39a; color-scheme: dark; } }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font); padding: 32px 16px; }
+  main { max-width: 640px; margin: 0 auto; display: grid; gap: 16px; }
+  h1 { font-size: 22px; margin: 0; } h2 { font-size: 16px; margin: 0; }
+  .lead, .hint, .small { color: var(--muted); margin: 0; } .hint, .small { font-size: 13px; font-weight: 400; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; } @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+  label { font-weight: 600; display: block; margin-bottom: 6px; }
+  textarea, input, select { width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--field); color: var(--ink); font: 14px/1.4 var(--font); }
+  textarea, input.mono { font: 13px/1.4 var(--mono); } textarea { height: 80px; resize: vertical; word-break: break-all; }
+  :is(textarea, input, select):focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .check { display: flex; gap: 8px; align-items: center; font-weight: 400; margin: 6px 0 0; } .check input { width: auto; }
+  button { font: 600 15px var(--font); border-radius: 6px; padding: 9px 16px; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  button.main { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+  button:disabled { opacity: .6; cursor: default; } button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .codes { display: grid; gap: 8px; }
+  .code { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--field); }
+  .code span { font: 600 14px var(--mono); word-break: break-all; flex: 1 1 220px; min-width: 0; user-select: all; }
+  .msg { margin: 0; font-size: 14px; } .msg.bad { color: var(--bad); } .msg.ok { color: var(--ok); }
+  details summary { cursor: pointer; font-weight: 600; } details[open] summary { margin-bottom: 12px; }
+  .hist { display: grid; gap: 10px; } .hist .h { font-size: 13px; color: var(--muted); }
+  ol { margin: 0; padding-left: 20px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Silkreader Pro-Codes</h1>
+  <p class="lead">Codes erzeugen, ohne GitHub zu öffnen. Die Seite startet den Lauf „Pro-Codes“, holt das Ergebnis ab und entschlüsselt es hier auf deinem PC.</p>
+
+  <section class="card" aria-labelledby="h-new">
+    <h2 id="h-new">Neue Codes</h2>
+    <div class="grid">
+      <div><label for="anzahl">Anzahl</label><input id="anzahl" type="number" min="1" max="100" value="1"></div>
+      <div><label for="dauer">Wie lange gültig?</label>
+        <select id="dauer">
+          <option selected>lebenslang</option><option>1 Woche</option><option>2 Wochen</option><option>1 Monat</option>
+          <option>3 Monate</option><option>6 Monate</option><option>1 Jahr</option><option>2 Jahre</option><option value="datum">bis zu einem Datum …</option>
+        </select></div>
+      <div id="bisBox" hidden><label for="bis">Gültig bis einschließlich</label><input id="bis" type="date"></div>
+      <div><label for="notiz">Notiz <span class="hint">(z. B. „für Max“)</span></label><input id="notiz" type="text"></div>
+    </div>
+    <div class="row"><button class="main" id="make">Codes erzeugen</button><span class="small" id="step"></span></div>
+    <p class="msg" id="msg" role="status"></p>
+    <div class="codes" id="codes"></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-set">
+    <h2 id="h-set">Zugang</h2>
+    <div>
+      <label for="token">GitHub-Token</label>
+      <input id="token" class="mono" type="password" autocomplete="off" placeholder="github_pat_…">
+      <label class="check"><input id="keepToken" type="checkbox" checked> Auf diesem PC merken</label>
+    </div>
+    <div>
+      <label for="pw">Passwort <span class="hint">(dein PRO_CODES_PASSWORD)</span></label>
+      <input id="pw" type="password" autocomplete="off">
+      <label class="check"><input id="keepPw" type="checkbox"> Auf diesem PC merken</label>
+    </div>
+    <div class="row"><button id="save">Speichern</button><button id="forget">Gespeichertes löschen</button><span class="small" id="saved"></span></div>
+    <details>
+      <summary>So bekommst du einen Token</summary>
+      <ol>
+        <li>Auf GitHub: Profilbild → Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token.</li>
+        <li>Name z. B. „Silkreader Pro-Codes“, Ablauf nach Wunsch.</li>
+        <li>Repository access: <b>Only select repositories</b> → <b>silkreader</b>.</li>
+        <li>Permissions → Repository permissions → <b>Actions: Read and write</b>. Mehr braucht es nicht.</li>
+        <li>Token erzeugen, kopieren, oben einfügen und speichern.</li>
+      </ol>
+    </details>
+    <p class="small">Token und Passwort bleiben nur in diesem Browser auf diesem PC. Sie gehen nur an GitHub (Token) bzw. nirgendwohin (Passwort).</p>
+  </section>
+
+  <section class="card" aria-labelledby="h-hist">
+    <h2 id="h-hist">Zuletzt erzeugt</h2>
+    <div class="hist" id="hist"><p class="small">Noch keine Codes auf diesem PC erzeugt.</p></div>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary>Verschlüsselten Text von Hand öffnen</summary>
+      <div style="display:grid;gap:12px">
+        <div><label for="enc">Text aus dem Lauf (beginnt mit SPW1.)</label><textarea id="enc" spellcheck="false"></textarea></div>
+        <div class="row"><button id="open">Öffnen</button></div>
+        <p class="msg" id="msg2" role="status"></p>
+        <div class="codes" id="codes2"></div>
+      </div>
+    </details>
+  </section>
+</main>
+
+<script>
+  const REPO = 'Sebbilore/silkreader', WF = 'pro-codes.yml', API = 'https://api.github.com';
+  const $ = (id) => document.getElementById(id);
+  const store = { get(k) { try { return localStorage.getItem('silkpro.' + k); } catch { return null; } },
+    set(k, v) { try { v == null ? localStorage.removeItem('silkpro.' + k) : localStorage.setItem('silkpro.' + k, v); } catch {} } };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // ---- Zugang ----
+  $('token').value = store.get('token') || ''; $('pw').value = store.get('pw') || '';
+  $('keepPw').checked = !!store.get('pw');
+  const showSaved = () => { $('saved').textContent = store.get('token') ? `Token gespeichert${store.get('pw') ? ', Passwort gespeichert' : ''}` : ''; };
+  function saveAccess() {
+    store.set('token', $('keepToken').checked && $('token').value.trim() ? $('token').value.trim() : null);
+    store.set('pw', $('keepPw').checked && $('pw').value ? $('pw').value : null);
+    showSaved();
+  }
+  $('save').addEventListener('click', saveAccess);
+  $('forget').addEventListener('click', () => { store.set('token', null); store.set('pw', null); $('token').value = ''; $('pw').value = ''; $('keepPw').checked = false; showSaved(); });
+  showSaved();
+  $('dauer').addEventListener('change', () => { $('bisBox').hidden = $('dauer').value !== 'datum'; });
+
+  // ---- Entschlüsseln (wie im Workflow: PBKDF2 250 000 × SHA-256, AES-256-GCM) ----
+  const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  async function decrypt(enc, pw) {
+    const parts = enc.replace(/\s+/g, '').split('.');
+    if (parts[0] !== 'SPW1' || parts.length !== 4) throw new Error('Der Text muss mit SPW1. beginnen und vollständig sein.');
+    if (!pw) throw new Error('Bitte gib unter „Zugang“ dein Passwort ein.');
+    const [salt, iv, data] = parts.slice(1).map(b64);
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+    const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    let text;
+    try { text = new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data)); }
+    catch { throw new Error('Passwort falsch oder Text unvollständig.'); }
+    return { head: (text.match(/^## (.*)$/m) || [])[1] || '', codes: text.replace(/```/g, '').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('##')) };
+  }
+  function showCodes(box, codes) {
+    box.textContent = '';
+    for (const c of codes) {
+      const row = document.createElement('div'); row.className = 'code';
+      const s = document.createElement('span'); s.textContent = c;
+      const b = document.createElement('button'); b.textContent = 'Kopieren';
+      b.addEventListener('click', () => navigator.clipboard.writeText(c).then(() => { b.textContent = 'Kopiert'; setTimeout(() => (b.textContent = 'Kopieren'), 1500); })
+        .catch(() => { const r = document.createRange(); r.selectNodeContents(s); getSelection().removeAllRanges(); getSelection().addRange(r); b.textContent = 'Markiert – Strg+C'; }));
+      row.append(s, b); box.append(row);
+    }
+  }
+  const say = (el, text, cls = '') => { el.className = 'msg ' + cls; el.textContent = text; };
+
+  // ---- Verlauf (nur auf diesem PC) ----
+  function history() { try { return JSON.parse(store.get('hist') || '[]'); } catch { return []; } }
+  function renderHist() {
+    const h = history(), box = $('hist');
+    if (!h.length) return;
+    box.textContent = '';
+    for (const e of h.slice(0, 20)) {
+      const wrap = document.createElement('div');
+      const t = document.createElement('div'); t.className = 'h'; t.textContent = `${new Date(e.at).toLocaleString('de-DE')} · ${e.head}`;
+      const c = document.createElement('div'); c.className = 'codes'; showCodes(c, e.codes);
+      wrap.append(t, c); box.append(wrap);
+    }
+  }
+  renderHist();
+
+  // ---- GitHub ----
+  async function gh(path, opts = {}, auth = true) {
+    const headers = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', ...(opts.body ? { 'Content-Type': 'application/json' } : {}) };
+    if (auth) headers.Authorization = 'Bearer ' + $('token').value.trim();
+    const r = await fetch(API + path, { ...opts, headers });
+    if (r.status === 403 && auth && !opts.method) return gh(path, opts, false); // öffentliche Daten notfalls ohne Token lesen
+    if (!r.ok) {
+      const t = await r.text();
+      if (r.status === 401) throw new Error('GitHub lehnt den Token ab (abgelaufen oder falsch kopiert). Bitte einen neuen Token eintragen.');
+      if (r.status === 403 || r.status === 404) throw new Error('Der Token darf den Lauf nicht starten. Er braucht Zugriff auf „silkreader“ mit „Actions: Read and write“.');
+      if (r.status === 422) throw new Error('GitHub hat die Eingaben nicht angenommen: ' + t.slice(0, 200));
+      throw new Error(`GitHub antwortet mit Fehler ${r.status}.`);
+    }
+    return r.status === 204 ? null : r.json();
+  }
+  async function make() {
+    const msg = $('msg'), step = $('step');
+    $('codes').textContent = '';
+    if (!$('token').value.trim()) return say(msg, 'Bitte unten unter „Zugang“ deinen GitHub-Token eintragen.', 'bad');
+    if (!$('pw').value) return say(msg, 'Bitte unten unter „Zugang“ dein Passwort eintragen.', 'bad');
+    let bis = '';
+    if ($('dauer').value === 'datum') { bis = $('bis').value; if (!bis) return say(msg, 'Bitte ein Datum wählen.', 'bad'); }
+    if ($('keepToken').checked || $('keepPw').checked) saveAccess();
+    $('make').disabled = true; say(msg, '');
+    try {
+      const started = Date.now() - 5000;
+      step.textContent = 'Starte den Lauf auf GitHub …';
+      const inputs = { anzahl: String(Math.min(100, Math.max(1, +$('anzahl').value || 1))), dauer: $('dauer').value === 'datum' ? 'lebenslang' : $('dauer').value, bis, notiz: $('notiz').value.trim() };
+      await gh(`/repos/${REPO}/actions/workflows/${WF}/dispatches`, { method: 'POST', body: JSON.stringify({ ref: 'main', inputs }) });
+      // Den eben gestarteten Lauf finden und abwarten
+      let run = null;
+      for (let i = 0; i < 90 && !(run && run.status === 'completed'); i++) {
+        await sleep(i < 3 ? 3000 : 4000);
+        const list = await gh(`/repos/${REPO}/actions/workflows/${WF}/runs?event=workflow_dispatch&per_page=5`);
+        run = (list.workflow_runs || []).find((r) => Date.parse(r.created_at) >= started) || run;
+        step.textContent = run ? (run.status === 'completed' ? 'Hole das Ergebnis …' : 'GitHub erzeugt die Codes … (dauert meist 20–40 Sekunden)') : 'Warte, bis GitHub den Lauf anlegt …';
+      }
+      if (!run) throw new Error('Der Lauf ist nicht auf GitHub erschienen. Bitte später noch einmal versuchen.');
+      if (run.status !== 'completed') throw new Error('Der Lauf dauert ungewöhnlich lange. Das Ergebnis findest du später unter Actions → Pro-Codes.');
+      const jobs = await gh(`/repos/${REPO}/actions/runs/${run.id}/jobs`);
+      const notes = [];
+      for (const j of jobs.jobs || []) notes.push(...(await gh(`/repos/${REPO}/check-runs/${j.id}/annotations`)));
+      if (run.conclusion !== 'success') {
+        const err = notes.find((a) => a.annotation_level === 'failure' && a.title);
+        throw new Error('Der Lauf ist fehlgeschlagen' + (err ? `: ${err.title} – ${err.message}` : '. Details unter Actions → Pro-Codes.'));
+      }
+      const enc = (notes.map((a) => a.message).find((m) => /^SPW1\./.test(m || '')) || '').trim();
+      if (!enc) throw new Error('Im Ergebnis stehen keine verschlüsselten Codes. Ist das Secret PRO_CODES_PASSWORD gesetzt?');
+      step.textContent = 'Entschlüssele …';
+      const { head, codes } = await decrypt(enc, $('pw').value);
+      say(msg, head, 'ok'); showCodes($('codes'), codes);
+      const h = history(); h.unshift({ at: Date.now(), head, codes }); store.set('hist', JSON.stringify(h.slice(0, 50))); renderHist();
+      step.textContent = '';
+    } catch (e) { say(msg, e.message, 'bad'); step.textContent = ''; }
+    $('make').disabled = false;
+  }
+  $('make').addEventListener('click', make);
+
+  $('open').addEventListener('click', async () => {
+    try { const { head, codes } = await decrypt($('enc').value, $('pw').value); say($('msg2'), head, 'ok'); showCodes($('codes2'), codes); }
+    catch (e) { say($('msg2'), e.message, 'bad'); $('codes2').textContent = ''; }
+  });
+</script>
+</body>
+</html>
