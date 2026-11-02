@@ -9,7 +9,7 @@ All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 - **Easier:** download the AI model right in the bubble instead of a red error; deadlines “in 3 months / 4 years”; “+ Folder”; “Add all deadlines to calendar”; reply drafts “Open as e-mail”.
 - **Spider:** holds up a “Due tomorrow!” sign for deadlines within 3 days, gets a fright on suspected scams, does a flip when you tick off a deadline; key points appear one after another.
 - **New appearances “Light · Grey” and “Dark · Grey”** (Settings → Appearance): graphite instead of pink everywhere – buttons, links, focus, the spider (legs, outline, hats, confetti), spider-web menu, drop zone glow and a grey tray icon. Contrast checked (WCAG AA, 0 axe violations). Also fixed: white text on light background on cocoon labels in light mode.
-- **Security:** test switches (`SILK_PRO`, test mode, test signing key) have no effect in the installed app; calendar files only accept real dates as file names. Privacy page no longer mentions screenshots (none are taken any more). Pro codes: choose the duration (default lifetime) or an end date; the app shows the last valid day.
+- **Security:** `SILK_PRO` and the test signing key have no effect in the installed app (no way to unlock Pro); calendar files only accept real dates as file names. Privacy page no longer mentions screenshots (none are taken any more). Pro codes: choose the duration (default lifetime) or an end date; the app shows the last valid day.
 - **Cleanup:** leftover code from the removed overlay deleted; details are only prefetched when the mouse rests on “More from the letter”; scanned PDFs without text are no longer recognised twice.
 
 ## 1.24.0

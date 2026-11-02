@@ -15,8 +15,9 @@ let autoUpdaterInstance = null;
 const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoUpdater);
 
 // Automatische Tests: SPIDER_MOCK = Test-Antworten statt KI, SILK_TEST = echte KI, aber Test-Schnittstelle an
-// Testmodus (Beispiel-Antworten, Test-Schnittstellen) nur in der Entwicklerversion – nie in der installierten App
-const TESTING = !app.isPackaged && !!(process.env.SPIDER_MOCK || process.env.SILK_TEST);
+// Testmodus (Beispiel-Antworten, Test-Schnittstellen) – auch im fertigen Paket, damit die Mac-/Paket-Tests es prüfen können.
+// Pro lässt sich darüber nicht freischalten (pro.js: Testschlüssel und SILK_PRO nur in der Entwicklerversion).
+const TESTING = !!(process.env.SPIDER_MOCK || process.env.SILK_TEST);
 // Aus dem Microsoft Store installiert: Updates, Autostart und „Öffnen mit“ regelt dann Windows selbst
 const STORE = !!process.windowsStore;
 // Öffentlich (ohne Code): Installer, Updates, Datenschutz, Fehlermeldungen. Der Code selbst liegt privat.
