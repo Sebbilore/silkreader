@@ -59,14 +59,16 @@ function checkCode(code, now = Date.now()) {
   try { valid = crypto.verify(null, data, crypto.createPublicKey({ key: Buffer.from(key, 'base64'), format: 'der', type: 'spki' }), sig); } catch { valid = false; }
   if (!valid || data[0] !== 1 || data[1] !== 1) return { ok: false, error: 'Dieser Code ist nicht gültig.' };
   const days = data.readUInt16BE(6);
-  const until = days ? new Date(EPOCH + days * 864e5) : null;
+  const until = days ? new Date(EPOCH + days * 864e5) : null; // Ablauf: Mitternacht (UTC) nach dem letzten Tag
+  const lastDay = until && new Date(until.getTime() - 1).toISOString().slice(0, 10); // letzter gültiger Tag, JJJJ-MM-TT
   if (until && until.getTime() < now) return { ok: false, error: `Dieser Code ist am ${until.toLocaleDateString('de-DE')} abgelaufen.`, until };
-  return { ok: true, id: data.readUInt32BE(2), until };
+  return { ok: true, id: data.readUInt32BE(2), until, lastDay };
 }
 // Schlüssel so annehmen, wie er eingefügt wurde: mit oder ohne Zeilenumbrüche, mit Leerzeichen/Anführungszeichen
 // oder nur der Mittelteil (Base64) – daraus wieder eine saubere PEM-Datei machen
+const pemBody = (text) => String(text).replace(/-----(BEGIN|END)[^-]*-----/g, '').replace(/[^A-Za-z0-9+/=]/g, '');
 function normalizePem(text) {
-  let body = String(text).replace(/-----(BEGIN|END)[^-]*-----/g, '').replace(/[^A-Za-z0-9+/=]/g, '');
+  let body = pemBody(text);
   if (/^[0-9a-fA-F]{96}$/.test(body)) body = Buffer.from(body, 'hex').toString('base64'); // als Hex eingefügt
   return `-----BEGIN PRIVATE KEY-----\n${body.match(/.{1,64}/g).join('\n')}\n-----END PRIVATE KEY-----\n`;
 }
@@ -134,6 +136,7 @@ function status() {
     enabled: ENABLED, active: active(),
     source: state.store ? 'store' : state.code ? 'code' : null,
     until: state.code?.until ? state.code.until.toISOString() : null,
+    lastDay: state.code?.lastDay || null,
     comingSoon: COMING_SOON,
     canBuy: !COMING_SOON && !!(process.windowsStore && ADDON_STORE_ID),
     // Installer-Version: kein Kauf möglich, aber Hinweis auf die Store-Version
@@ -143,4 +146,4 @@ function status() {
 }
 const storeLink = () => `ms-windows-store://pdp/?ProductId=${process.windowsStore ? ADDON_STORE_ID : APP_STORE_ID}`;
 
-module.exports = { ENABLED, ADDON_ID, FEATURES, allowed, active, status, refresh, checkCode, makeCode, storeLink, _state: state };
+module.exports = { ENABLED, ADDON_ID, FEATURES, allowed, active, status, refresh, checkCode, makeCode, pemBody, storeLink, _state: state };

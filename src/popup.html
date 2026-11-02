@@ -337,10 +337,13 @@
   // Langes Datum und „noch X Tage“ für die Aufgabe oben
   const longDay = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString(I18N.locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   // „in 5 Tagen“, bei weit entfernten Fristen „in 3 Monaten“ / „in 4 Jahren“
-  const inDays = (n) => (n === 0 ? T('heute') : n === 1 ? T('morgen') : n > 730 ? T('in {n} Jahren', { n: Math.round(n / 365) }) : n > 60 ? T('in {n} Monaten', { n: Math.round(n / 30.4) }) : T('in {n} Tagen', { n }));
+  // Ab 2 Jahren in Jahren, ab 2 Monaten in Monaten, sonst in Tagen
+  const span = (n) => (n > 730 ? ['y', Math.round(n / 365)] : n > 60 ? ['m', Math.round(n / 30.4)] : ['d', n]);
+  const inDays = (n) => { if (n === 0) return T('heute'); if (n === 1) return T('morgen'); const [u, k] = span(n); return T({ y: 'in {n} Jahren', m: 'in {n} Monaten', d: 'in {n} Tagen' }[u], { n: k }); };
   function daysChip(iso) {
     const n = Math.round((new Date(`${iso}T00:00:00`) - new Date(new Date().toDateString())) / 864e5);
-    const t = n < 0 ? T('abgelaufen') : n === 0 ? T('heute') : n === 1 ? T('morgen') : n > 730 ? T('noch {n} Jahre', { n: Math.round(n / 365) }) : n > 60 ? T('noch {n} Monate', { n: Math.round(n / 30.4) }) : T('noch {n} Tage', { n });
+    const [u, k] = span(n);
+    const t = n < 0 ? T('abgelaufen') : n === 0 ? T('heute') : n === 1 ? T('morgen') : T({ y: 'noch {n} Jahre', m: 'noch {n} Monate', d: 'noch {n} Tage' }[u], { n: k });
     return `<span class="days${n > 14 ? ' calm' : ''}">${t}</span>`;
   }
   function letterCard(L, r, more = []) {
@@ -634,7 +637,10 @@
       if (open && result.more === 'pending') loadMore();
     });
     // Maus über „Mehr“: Details schon mal anfordern – beim Klick sind sie dann früher da
-    $('moreBtn').addEventListener('pointerenter', () => { if (result.more === 'pending' && !moreFetch) moreFetch = { run, p: window.spider.analyzeMore(P.doc, result) }; });
+    // Vorab laden, wenn die Maus kurz auf „Mehr“ ruht (nicht schon beim Darüberfahren – das kostet KI-Rechenzeit)
+    let moreHover = null;
+    $('moreBtn').addEventListener('pointerenter', () => { moreHover = setTimeout(() => { if (result.more === 'pending' && !moreFetch) moreFetch = { run, p: window.spider.analyzeMore(P.doc, result) }; }, 350); });
+    $('moreBtn').addEventListener('pointerleave', () => clearTimeout(moreHover));
     const reopen = P.openMore;
     if (reopen) { P.openMore = false; $('moreBtn').click(); }
     $('main').querySelectorAll('.jump').forEach((row) => row.addEventListener('click', () =>
@@ -1203,7 +1209,7 @@
     state = 'done';
     $('title').textContent = 'Silkreader Pro';
     const st = await window.spider.proState();
-    const until = st.until ? new Date(new Date(st.until).getTime() - 1).toLocaleDateString(I18N.locale, { timeZone: 'UTC' }) : null; // letzter gültiger Tag
+    const until = st.lastDay ? new Date(`${st.lastDay}T12:00:00`).toLocaleDateString(I18N.locale) : null; // letzter gültiger Tag
     // Sechs Vorteile in Alltagssprache – die Pro-Funktionen sind darauf verteilt
     const PERKS = [
       ['Brief-Hilfe', 'Was du tun musst, bis wann, IBAN zum Kopieren.', ['letter']],
@@ -1374,7 +1380,7 @@
         const pct = Math.round((p.done / p.total) * 100);
         $('dlBar').classList.remove('hidden'); $('dlGo').disabled = true;
         $('dlFill').style.width = `${pct}%`;
-        $('dlText').textContent = `${pct} %${p.speed ? ` · ${(p.speed / 1048576).toFixed(1)} MB/s` : ''}`;
+        $('dlText').textContent = `${pct} %${p.speed ? ` · ${(p.speed / 1e6).toFixed(1)} MB/s` : ''}`;
       }
     };
   }

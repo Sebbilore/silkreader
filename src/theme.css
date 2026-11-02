@@ -101,7 +101,7 @@
 @keyframes silk-spin { to { transform: rotate(360deg); } }
 @keyframes dew-glint { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 
-/* Die große Spinne (spider.js) – im Lesemodus und beim Lesen auf dem Bildschirm */
+/* Die Spinne im Lesefenster (spider.js) */
 .spider-layer { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; transition: opacity .35s var(--ease-out); z-index: 5; }
 /* Die ruhige Spinne: einfarbig, flach, kein Glanz */
 .spider-femur { stroke: var(--spider); stroke-width: 2.3; stroke-linecap: round; }

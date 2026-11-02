@@ -8,7 +8,7 @@ const [count = '1', dauer = 'lebenslang', note = '', bis = ''] = process.argv.sl
 const key = process.env.PRO_SIGNING_KEY;
 if (!key) { console.error('PRO_SIGNING_KEY fehlt'); process.exit(1); }
 // Ungefährliche Beschreibung des eingetragenen Schlüssels (ohne Inhalt), falls er nicht passt
-const body = key.replace(/-----(BEGIN|END)[^-]*-----/g, '').replace(/[^A-Za-z0-9+/=]/g, '');
+const body = pro.pemBody(key);
 if (body.length < 40) {
   const lines = key.split(/\r?\n/).map((l) => { const c = [...l]; const other = c.filter((x) => !/[A-Za-z0-9+/=\- ]/.test(x)); return `${c.length} Zeichen, davon ${c.filter((x) => /[A-Za-z0-9]/.test(x)).length} Buchstaben/Ziffern, andere: ${[...new Set(other.map((x) => `U+${x.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}`))].slice(0, 6).join(' ') || '–'}`; });
   console.error(`Zeilen: ${lines.join(' | ')}`);
@@ -38,14 +38,14 @@ function validity() {
 const { opts, text } = validity();
 const n = Math.min(100, Math.max(1, Number(count) || 1));
 const lines = [];
-let until = null;
+let lastDay = null;
 for (let i = 0; i < n; i++) {
   const code = pro.makeCode(key, opts);
   const check = pro.checkCode(code);
   if (!check.ok) { console.error('Code passt nicht zum öffentlichen Schlüssel in src/pro.js'); process.exit(1); }
-  until = check.until;
+  lastDay = check.lastDay;
   lines.push(code);
 }
-const lastDay = until && new Date(until.getTime() - 1).toLocaleDateString('de-DE', { timeZone: 'UTC' });
-const head = `${n} Pro-Code(s), ${text}${lastDay ? ` bis einschließlich ${lastDay}` : ''}${note ? ` – ${note}` : ''}`;
+const lastDe = lastDay && lastDay.split('-').reverse().map(Number).join('.');
+const head = `${n} Pro-Code(s), ${text}${lastDe ? ` bis einschließlich ${lastDe}` : ''}${note ? ` – ${note}` : ''}`;
 console.log([`## ${head}`, '', '```', ...lines, '```'].join('\n'));

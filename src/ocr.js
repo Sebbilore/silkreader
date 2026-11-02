@@ -103,7 +103,7 @@ async function recognizePdf(file, maxPages = 30) {
   if (process.platform !== 'win32') return [];
   // Läuft der PowerShell-Helfer schon: dort erkennen (spart den Start einer eigenen PowerShell)
   const fast = await require('./grab').helperOcrPdf(file, maxPages);
-  if (fast && fast.some(Boolean)) return fast;
+  if (fast !== null) return fast; // auch leere Seiten: nicht noch einmal mit eigener PowerShell erkennen
   return recognizePdfSpawn(file, maxPages);
 }
 function recognizePdfSpawn(file, maxPages) {

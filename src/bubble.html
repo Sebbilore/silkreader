@@ -25,7 +25,7 @@
   .tibia { stroke: var(--spider); stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
   .joint { display: none; }
   /* Dunkel · Grau: silberne Beine mit leichtem Schimmer (leuchtet wie Pink) und feiner dunkler Kante (auch auf hellem Grund sichtbar) */
-  :root[data-theme="dark"][data-accent="gray"] #legs, :root[data-theme="dark"][data-accent="gray"] #body { filter: drop-shadow(0 0 .7px rgba(0, 0, 0, .9)) drop-shadow(0 0 1.8px rgba(255, 255, 255, .4)); }
+  :root[data-theme="dark"][data-accent="gray"] #spider { filter: drop-shadow(0 0 .7px rgba(0, 0, 0, .9)) drop-shadow(0 0 1.8px rgba(255, 255, 255, .4)); }
   #body { fill: #2b2b2b; stroke: var(--spider); stroke-width: 1.2; }
   #shine, #shine2 { display: none; }
   .catch #body { stroke: #fff; stroke-width: 2; }
@@ -646,12 +646,12 @@
     wasNear = near;
   }
   TRICKS.hello = { w: 0, run: () => 1400 };
-  // Ei legen: kurz runter, dann wieder hoch (das Ei fällt im Overlay weiter)
-  // Die große Spinne kommt: erschrecken, zittern und nach oben verschwinden …
+  // Erschrecken (z. B. Betrugsverdacht): zittern, kurz nach oben verschwinden …
   TRICKS.scared = { w: 0, run: () => {
     surprisedUntil = performance.now() + 900;
     setTimeout(() => { if (trick === 'scared') lenOverride = -70; }, 650);
-    return 15000; // bleibt versteckt, bis 'return' kommt
+    setTimeout(() => { if (trick === 'scared') { endTrick(); doTrick('return'); } }, 1100);
+    return 15000;
   } };
   // … und danach vorsichtig wieder herunterlugen
   TRICKS.return = { w: 0, run: () => {

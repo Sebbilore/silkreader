@@ -59,13 +59,9 @@ try {
 Add-Type -ReferencedAssemblies UIAutomationClient, UIAutomationTypes, WindowsBase -TypeDefinition @"
 using System;
 using System.Text;
-using System.Globalization;
 using System.Windows.Automation;
 using System.Windows.Automation.Text;
 public static class SilkText {
-  static string R(System.Windows.Rect rc) {
-    return string.Format(CultureInfo.InvariantCulture, "[{0:0},{1:0},{2:0},{3:0}]", rc.X, rc.Y, rc.Width, rc.Height);
-  }
   static TextPattern Find() {
     AutomationElement el = AutomationElement.FocusedElement;
     TextPattern tp = null;
@@ -89,33 +85,6 @@ public static class SilkText {
       if (t.Trim().Length == 0) return "-";
       return Convert.ToBase64String(Encoding.UTF8.GetBytes(t));
     } catch { return "-"; }
-  }
-  public static string Selection(int max) {
-    try {
-      TextPattern tp = Find();
-      if (tp == null) return "{}";
-      TextPatternRange[] sels = tp.GetSelection();
-      if (sels == null || sels.Length == 0) return "{}";
-      TextPatternRange sel = sels[0];
-      StringBuilder lines = new StringBuilder();
-      foreach (System.Windows.Rect rc in sel.GetBoundingRectangles()) {
-        if (rc.Width > 1 && rc.Height > 1) { if (lines.Length > 0) lines.Append(','); lines.Append(R(rc)); }
-      }
-      StringBuilder words = new StringBuilder();
-      int n = 0;
-      TextPatternRange r = sel.Clone();
-      r.MoveEndpointByRange(TextPatternRangeEndpoint.End, r, TextPatternRangeEndpoint.Start);
-      DateTime until = DateTime.Now.AddMilliseconds(1500);
-      while (n < max && DateTime.Now < until) {
-        r.ExpandToEnclosingUnit(TextUnit.Word);
-        if (r.CompareEndpoints(TextPatternRangeEndpoint.Start, sel, TextPatternRangeEndpoint.End) >= 0) break;
-        foreach (System.Windows.Rect rc in r.GetBoundingRectangles()) {
-          if (rc.Width > 1 && rc.Height > 1) { if (n > 0) words.Append(','); words.Append(R(rc)); n++; }
-        }
-        if (r.Move(TextUnit.Word, 1) == 0) break;
-      }
-      return "{\\"lines\\":[" + lines.ToString() + "],\\"words\\":[" + words.ToString() + "]}";
-    } catch { return "{}"; }
   }
 }
 "@
@@ -184,7 +153,6 @@ while ($true) {
     elseif ($line -eq 'diag') { [Console]::Out.WriteLine("uia=$uia ps=$($PSVersionTable.PSVersion)") }
     elseif ($line -eq 'seq') { [Console]::Out.WriteLine([SilkKeys]::Seq()) }
     elseif ($line -eq 'files') { $l = [System.Windows.Forms.Clipboard]::GetFileDropList(); [Console]::Out.WriteLine((@($l) -join '|')) }
-    elseif ($line -eq 'rects') { if ($uia) { [Console]::Out.WriteLine([SilkText]::Selection(160)) } else { [Console]::Out.WriteLine('{}') } }
     elseif ($line -eq 'ocrwarm') { SilkOcrInit; [Console]::Out.WriteLine('ok') }
     elseif ($line.StartsWith('ocrpdf ')) { $a = $line.Substring(7).Split(' '); [Console]::Out.WriteLine((SilkOcrPdf ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($a[0]))) ([int]$a[1]))) }
     elseif ($line.StartsWith('ocr ')) { [Console]::Out.WriteLine((SilkOcr ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($line.Substring(4)))))) }
@@ -245,19 +213,6 @@ function helperCommand(cmd, timeoutMs) {
 }
 
 const windowsCopy = (hotkey) => helperCommand(hotkey ? 'hotcopy' : 'copy', hotkey ? 4500 : 2500); // beim ersten Mal startet der Helfer ggf. noch
-
-/**
- * Bildschirm-Rechtecke der markierten Wörter (und Zeilen) im aktiven Programm.
- * Liefert { words: [[x,y,w,h]…], lines: […] } in Bildschirmpixeln oder null.
- */
-async function selectionRects() {
-  if (process.platform !== 'win32' || !helper?.ready) return null;
-  const r = await helperCommand('rects', 2500);
-  try {
-    const j = JSON.parse(r || '{}');
-    return j.words?.length || j.lines?.length ? j : null;
-  } catch { return null; }
-}
 
 /** Ist die linke Maustaste gerade gedrückt? (null = unbekannt, z. B. nicht Windows) */
 async function isMouseDown() {
@@ -429,4 +384,4 @@ async function helperOcrPdf(file, maxPages = 30, timeoutMs = 180000) {
 /** Texterkennung vorbereiten (Bibliotheken laden), wenn sie gleich gebraucht wird – Bereich wählen, Kamera */
 function warmOcr() { if (process.platform === 'win32' && helper?.ready) helperCommand('ocrwarm', 10000); }
 
-module.exports = { helperOcr, helperOcrPdf, warmOcr, setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable: () => process.platform === 'win32' && (!!winkeys.load() || !!helper?.ready) };
+module.exports = { helperOcr, helperOcrPdf, warmOcr, setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp, isMouseDown, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable: () => process.platform === 'win32' && (!!winkeys.load() || !!helper?.ready) };

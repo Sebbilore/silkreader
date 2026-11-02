@@ -32,7 +32,7 @@ function uiLang() {
   if (TESTING) return 'de'; // automatische Tests laufen auf Deutsch
   try { return app.getLocale().toLowerCase().startsWith('de') ? 'de' : 'en'; } catch { return 'de'; }
 }
-const { warmOcr, setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, selectionRects, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
+const { warmOcr, setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp: warmUpGrab, isMouseDown, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable } = require('./grab');
 const { CocoonStore } = require('./cocoons');
 const { recognizeText: ocrText, recognizeTextSpawn, recognizePdf } = require('./ocr');
 // Texterkennung mit Zeitmessung im Protokoll
@@ -350,11 +350,12 @@ function setBusy(busy) {
 
 // Hell oder dunkel: folgt Windows, außer in den Einstellungen ist etwas anderes gewählt.
 // Alle Fenster lesen das über prefers-color-scheme (theme.css).
+// Darstellung → Grundhelligkeit für Windows/macOS. „Hoher Kontrast“ ist dunkel mit eigenen Farben,
+// „Hell · Grau“ (graphite) und „Dunkel · Grau“ (graphite-dark) sind hell/dunkel mit Grau statt Pink.
+const THEMES = { system: 'system', light: 'light', dark: 'dark', graphite: 'light', 'graphite-dark': 'dark', contrast: 'dark' };
 function applyTheme(t = loadSettings().theme) {
   const { nativeTheme } = require('electron');
-  // „Hoher Kontrast“ ist dunkel mit eigenen Farben (Schwarz, Weiß, Gelb)
-  // „Hell · Grau“ (graphite) und „Dunkel · Grau“ (graphite-dark): Grau statt Pink
-  nativeTheme.themeSource = t === 'contrast' || t === 'graphite-dark' ? 'dark' : t === 'graphite' ? 'light' : ['light', 'dark'].includes(t) ? t : 'system';
+  nativeTheme.themeSource = THEMES[t] || 'system';
   setImmediate(broadcastTheme);
   setImmediate(updateTrayIcon);
 }
@@ -366,7 +367,7 @@ function themeMode() {
   if (t === 'contrast' || (t !== 'light' && t !== 'dark' && nativeTheme.shouldUseHighContrastColors)) return 'contrast';
   return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
 }
-const winBg = () => ({ contrast: '#000000', dark: '#1c1c1c', light: '#f3f3f3', graphite: '#f3f3f3', 'graphite-dark': '#1c1c1c' })[themeMode()];
+const winBg = () => { const m = themeMode(); return m === 'contrast' ? '#000000' : (THEMES[m] === 'dark' ? '#1c1c1c' : '#f3f3f3'); };
 // Symbol im Infobereich: graue Spinne in „Hell · Grau“, silberne in „Dunkel · Grau“, sonst die pinke
 const trayIconPath = () => path.join(__dirname, 'assets', { graphite: 'tray-gray.png', 'graphite-dark': 'tray-silver.png' }[themeMode()] || 'tray.png');
 function updateTrayIcon() {
@@ -484,8 +485,7 @@ function createPopup() {
 // Sprechblase vorab laden (Maus verweilt an der Spinne); ungenutzt nach 1 Minute wieder freigeben
 function prewarmPopup() {
   if (popupWin && !popupWin.isDestroyed()) return;
-  const win = createPopup();
-  win.__freeTimer = setTimeout(() => { if (!win.isDestroyed() && !win.isVisible()) win.destroy(); }, 60 * 1000);
+  scheduleFree(createPopup(), 90 * 1000); // wie ein verstecktes Fenster: ungenutzt wieder freigeben
 }
 
 function showPopup(doc, { autoStart = false } = {}) {
@@ -731,7 +731,7 @@ ipcMain.on('welcome-done', (_e, prefs) => {
   bubbleWin?.show();
   bubbleWin?.webContents.send('rig-trick', 'hello');
 });
-// Datenschutz-Entscheidungen schon vor dem Übungsschritt übernehmen (z. B. „Große Spinne liest mit“)
+// Datenschutz-Entscheidungen schon vor dem Übungsschritt übernehmen
 ipcMain.on('welcome-prefs', (_e, prefs) => {
   const st = loadSettings();
   for (const k of ['pinCopied', 'copyHint']) if (typeof prefs?.[k] === 'boolean') st[k] = prefs[k];
@@ -2321,20 +2321,18 @@ function icsEvents(items) {
       'BEGIN:VALARM', 'TRIGGER:-P1D', 'ACTION:DISPLAY', `DESCRIPTION:${esc(title)}`, 'END:VALARM', 'END:VEVENT'];
   }), 'END:VCALENDAR'].join('\r\n');
 }
-ipcMain.handle('add-calendar', async (_e, { title, date, note }) => {
-  const file = path.join(app.getPath('temp'), `Silkreader-Frist-${date.replace(/-/g, '')}.ics`);
-  fs.writeFileSync(file, icsEvents([{ title, date, note }]));
-  const err = await shell.openPath(file);
-  return !err;
-});
+// Kalenderdatei schreiben und mit dem Standard-Kalender öffnen
+async function openIcs(name, items) {
+  const file = path.join(app.getPath('temp'), name);
+  fs.writeFileSync(file, icsEvents(items));
+  return !(await shell.openPath(file));
+}
+ipcMain.handle('add-calendar', (_e, { title, date, note }) => openIcs(`Silkreader-Frist-${date.replace(/-/g, '')}.ics`, [{ title, date, note }]));
 // Alle offenen Fristen auf einmal in den Kalender
 ipcMain.handle('add-calendar-all', async () => {
   const open = collectDeadlines().filter((d) => !d.done && d.iso);
   if (!open.length) return 0;
-  const file = path.join(app.getPath('temp'), 'Silkreader-Fristen.ics');
-  fs.writeFileSync(file, icsEvents(open.map((d) => ({ title: `${T('Frist')}: ${d.title}`, date: d.iso, note: d.sentence }))));
-  const err = await shell.openPath(file);
-  return err ? 0 : open.length;
+  return (await openIcs('Silkreader-Fristen.ics', open.map((d) => ({ title: `${T('Frist')}: ${d.title}`, date: d.iso, note: d.sentence })))) ? open.length : 0;
 });
 
 // ---------- Silkreader Pro: Status, Code einlösen, kaufen ----------
@@ -2450,6 +2448,8 @@ const deadlinesFile = () => path.join(app.getPath('userData'), 'deadlines.json')
 function loadDeadlineState() { try { return { done: {}, told: {}, ...JSON.parse(fs.readFileSync(deadlinesFile(), 'utf8')) }; } catch { return { done: {}, told: {} }; } }
 function saveDeadlineState(st) { fs.writeFileSync(deadlinesFile(), JSON.stringify(st)); }
 const dayStart = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+// Tage bis zu einem Datum (JJJJ-MM-TT), nach Kalendertagen
+const daysUntil = (iso) => Math.round((dayStart(`${iso}T00:00:00`) - dayStart(new Date())) / 864e5);
 function collectDeadlines({ withDone = false } = {}) {
   const st = loadDeadlineState();
   const today = dayStart(new Date());
@@ -2936,7 +2936,8 @@ async function analyzeHandler(event, doc) {
     sw.done(`Lesen (${doc.pages.join('').length} Zeichen, ${loadSettings().provider})`);
     return { ok: true, result };
   } catch (e) {
-    return { ok: false, error: friendlyError(e), needsKey: e.code === 'NO_KEY' || e.code === 'NO_OLLAMA' || e.code === 'NO_MODEL' || Anthropic && e instanceof Anthropic.AuthenticationError, noModel: e.code === 'NO_MODEL' };
+    const f = friendlyErr(e);
+    return { ...f, needsKey: f.needsKey || !!(Anthropic && e instanceof Anthropic.AuthenticationError) };
   } finally {
     analysisRunning--;
     lastModelUse = Date.now();
@@ -2950,13 +2951,12 @@ function reactToResult(result) {
   try {
     if (!bubbleWin || bubbleWin.isDestroyed() || !bubbleWin.isVisible()) return;
     if (result.scam) {
-      bubbleWin.webContents.send('rig-trick', 'scared');
-      setTimeout(() => { if (!bubbleWin.isDestroyed()) bubbleWin.webContents.send('rig-trick', 'return'); }, 1100);
+      bubbleWin.webContents.send('rig-trick', 'scared'); // kommt von selbst wieder herunter
       return;
     }
     const d = result.letter?.deadlines?.[0];
     if (d?.iso) {
-      const days = Math.round((new Date(`${d.iso}T00:00:00`) - new Date(new Date().toDateString())) / 864e5);
+      const days = daysUntil(d.iso);
       if (days >= 0 && days <= 3) bubbleWin.webContents.send('rig-sign', days === 0 ? T('Frist heute!') : days === 1 ? T('Frist morgen!') : T('Frist in {n} Tagen', { n: days }));
     }
   } catch (e) { logLine(`Reaktion: ${e.message}`); }
@@ -3086,7 +3086,7 @@ ipcMain.handle('get-settings', () => {
     hideFullscreen: s.hideFullscreen !== false,
     hideInShare: s.hideInShare !== false,
     watchDownloads: s.watchDownloads === true,
-    theme: ['light', 'graphite', 'dark', 'graphite-dark', 'contrast'].includes(s.theme) ? s.theme : 'system',
+    theme: THEMES[s.theme] ? s.theme : 'system',
     fontSize: ZOOM[s.fontSize] ? s.fontSize : 'normal',
     learn: s.learn !== false,
     morning: s.morning === true,
@@ -3124,7 +3124,7 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   if (typeof privateMode === 'boolean') s.privateMode = privateMode;
   if (typeof hideFullscreen === 'boolean') s.hideFullscreen = hideFullscreen;
   if (typeof watchDownloads === 'boolean') s.watchDownloads = watchDownloads;
-  if (['system', 'light', 'graphite', 'dark', 'graphite-dark', 'contrast'].includes(theme)) { s.theme = theme; saveSettings(s); applyTheme(theme); }
+  if (THEMES[theme]) { s.theme = theme; saveSettings(s); applyTheme(theme); }
   if (typeof hideInShare === 'boolean') { s.hideInShare = hideInShare; setImmediate(() => [bubbleWin, popupWin, ringWin].forEach(protectFromCapture)); }
   if (CLICK_MODES.includes(cm)) { s.clickMode = cm; bubbleWin?.webContents.send('click-mode', cm); }
   if (model && MODELS[model]) s.model = model;
@@ -3149,7 +3149,7 @@ ipcMain.handle('open-external', (_e, url) => {
 });
 // Antwort-Entwurf als neue E-Mail öffnen (nur Text; Empfänger trägt man selbst ein)
 ipcMain.handle('open-mail', (_e, { subject = '', body = '' } = {}) => {
-  const q = (t, max) => encodeURIComponent(String(t).slice(0, max)).replace(/%20/g, '%20');
+  const q = (t, max) => encodeURIComponent(String(t).slice(0, max));
   return shell.openExternal(`mailto:?subject=${q(subject, 150)}&body=${q(body, 1800)}`).then(() => true, () => false);
 });
 
@@ -3400,7 +3400,7 @@ if (TESTING) global.__silk = { askPaid, watchCrashes, ocrText: (f) => recognizeT
   diag: () => ({ winkeys: !!winkeys.load(), winkeysError: winkeys.load.error?.message || null, helper: helperAvailable(),
     shortcuts: { ...shortcutStatus }, tray: !!tray && !tray.isDestroyed(), lang: uiLang(), userData: app.getPath('userData') }),
   grab: (o) => grabSelection(o), uia: () => uiaSelectedText(), helperDiag: () => helperDiag(),
-  log: () => { try { return fs.readFileSync(path.join(app.getPath('userData'), 'silkreader-errors.log'), 'utf8'); } catch { return ''; } }, rects: () => selectionRects(),
+  log: () => { try { return fs.readFileSync(path.join(app.getPath('userData'), 'silkreader-errors.log'), 'utf8'); } catch { return ''; } },
   verify: (file) => verifyUpdateSignature(['Silkreader'], file),
   spiderPos: () => spiderScreenPos(),
   modelReady: (k = 'fast') => modelReady(k),
