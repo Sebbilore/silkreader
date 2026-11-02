@@ -367,8 +367,8 @@ function themeMode() {
   return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
 }
 const winBg = () => ({ contrast: '#000000', dark: '#1c1c1c', light: '#f3f3f3', graphite: '#f3f3f3', 'graphite-dark': '#1c1c1c' })[themeMode()];
-// Symbol im Infobereich: graue Spinne in „Hell · Grau“ und „Dunkel · Grau“, sonst die pinke
-const trayIconPath = () => path.join(__dirname, 'assets', themeMode().startsWith('graphite') ? 'tray-gray.png' : 'tray.png');
+// Symbol im Infobereich: graue Spinne in „Hell · Grau“, silberne in „Dunkel · Grau“, sonst die pinke
+const trayIconPath = () => path.join(__dirname, 'assets', { graphite: 'tray-gray.png', 'graphite-dark': 'tray-silver.png' }[themeMode()] || 'tray.png');
 function updateTrayIcon() {
   if (tray && !tray.isDestroyed()) tray.setImage(nativeImage.createFromPath(trayIconPath()));
 }

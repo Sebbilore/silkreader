@@ -67,13 +67,13 @@
     --spider: #7c7c7c;                   /* mittleres Grau: auf hellem und dunklem Hintergrund zu sehen */
     --spider-glow: rgba(110, 110, 110, .3);
 }
-/* Dunkel · Grau: wie Dunkel, aber helles Grau statt Pink. Hauptknopf hell mit dunkler Schrift.
-   Kontrast auf #202020: Akzent 10,6 : 1, Links 13,4 : 1, Hauptknopf 14,3 : 1. */
+/* Dunkel · Grau: wie Dunkel, aber leuchtendes Silber statt Pink. Hauptknopf hell mit dunkler Schrift.
+   Kontrast auf #202020: Akzent 14 : 1, Links 15,5 : 1, Hauptknopf 15,8 : 1. */
 :root[data-theme="dark"][data-accent="gray"] {
-    --pink: #c8c8c8; --pink-2: #e0e0e0; --primary: #e6e6e6; --on-primary: #1b1b1b;
-    --pink-soft: rgba(255, 255, 255, .08); --pink-glow: rgba(255, 255, 255, .2);
-    --spider: #9a9a9a;
-    --spider-glow: rgba(200, 200, 200, .26);
+    --pink: #e4e4e4; --pink-2: #f2f2f2; --primary: #f0f0f0; --on-primary: #1b1b1b;
+    --pink-soft: rgba(255, 255, 255, .12); --pink-glow: rgba(255, 255, 255, .32);
+    --spider: #d2d2d2;                   /* hell wie das Pink, damit die Spinne genauso leuchtet */
+    --spider-glow: rgba(255, 255, 255, .34);
 }
 
 :root[data-theme="contrast"] {
