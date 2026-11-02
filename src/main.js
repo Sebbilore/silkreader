@@ -244,7 +244,7 @@ function createBubble() {
     webPreferences: WEB_PREFS,
   });
   bubbleWin.setAlwaysOnTop(true, 'floating');
-  bubbleWin.setVisibleOnAllWorkspaces(true);
+  bubbleWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }); // Mac: auf allen Schreibtischen, auch neben Vollbild-Apps
   protectFromCapture(bubbleWin);
   bubbleWin.setIgnoreMouseEvents(true, { forward: true });
   bubbleWin.loadFile(path.join(__dirname, 'bubble.html'));
@@ -873,14 +873,14 @@ function registerExplorerMenu() {
 // ---------- Nicht stören: Vollbild, Präsentation, Spiele, Bildschirmfreigabe ----------
 let hiddenForFullscreen = false, pauseUntil = 0, pauseTimer = null;
 function watchFullscreen() {
-  if (process.platform !== 'win32') return;
+  if (process.platform !== 'win32' && process.platform !== 'darwin') return;
   setInterval(() => {
     if (!bubbleWin || bubbleWin.isDestroyed()) return;
-    // Windows nimmt „immer oben“ weg, sobald ein anderes Programm nach vorn kommt: immer wieder setzen
+    // Windows (und macOS nach dem Ausblenden des Dock-Symbols) nehmen „immer oben“ weg: immer wieder setzen
     // (nicht, solange Spinnennetz-Menü oder Sprechblase offen sind – die sollen über der Spinne bleiben)
     const over = [ringWin, popupWin].some((w) => w && !w.isDestroyed() && w.isVisible());
     if (bubbleWin.isVisible() && !over) { bubbleWin.setAlwaysOnTop(true, 'floating'); bubbleWin.moveTop(); }
-    if (loadSettings().hideFullscreen === false) return;
+    if (process.platform !== 'win32' || loadSettings().hideFullscreen === false) return; // Vollbild-Erkennung nur unter Windows
     const busy = winkeys.fullscreenBusy();
     if (busy && bubbleWin.isVisible() && !hiddenForFullscreen) {
       hiddenForFullscreen = true;

@@ -3,6 +3,10 @@
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
 
+## 1.25.1
+- **Spider stays on top:** Windows (and macOS after hiding the Dock icon) sometimes dropped the spider behind other apps – it is now brought back to the front every second (not over the speech bubble or spider-web menu). It is also no longer hidden just because a Microsoft Store app (Photos, Settings, Outlook …) is open – only for real full screen, presentations and games.
+- **Mac:** step-by-step install guide (PDF) next to the download; spider also visible next to full-screen apps.
+
 ## 1.25.0
 - **Big spider removed:** the screen overlay never worked reliably. Clicking the spider now opens the speech bubble right away (measured: 5.3 s → 0.11 s; first content 5.4 s → 0.26 s). No more screenshot of the selection.
 - **Faster:** text recognition (photo, region, scanned PDF) runs in the already running helper (photo ~70 ms instead of ~500 ms, scanned PDF 1.2 s → 0.8 s); the AI skips imprint/footer lines; speech bubble preloaded while the mouse rests on the spider; details start loading when hovering “More from the letter”.

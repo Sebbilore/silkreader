@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Silkreader auf dem Mac installieren</title>
+<style>
+  @page { size: A4; margin: 18mm 18mm 16mm; }
+  body { font: 11pt/1.5 -apple-system, "Segoe UI", system-ui, sans-serif; color: #1b1b1f; margin: 0; }
+  h1 { font-size: 20pt; margin: 0 0 4pt; } .sub { color: #5d5d66; margin: 0 0 16pt; }
+  h2 { font-size: 13pt; margin: 18pt 0 6pt; color: #b8195a; }
+  ol { padding-left: 20pt; margin: 0; } li { margin: 0 0 6pt; } b { font-weight: 650; }
+  .box { border: 1px solid #dcdce2; border-radius: 8pt; padding: 10pt 12pt; margin: 10pt 0; background: #f7f7f9; }
+  code { font: 10pt Menlo, Consolas, monospace; background: #ececf0; padding: 2pt 5pt; border-radius: 4pt; word-break: break-all; }
+  .note { color: #5d5d66; font-size: 10pt; }
+</style>
+</head>
+<body>
+  <h1>Silkreader auf dem Mac installieren</h1>
+  <p class="sub">Für macOS 13, 14 und 15 · Dauer: etwa 2 Minuten</p>
+
+  <h2>1. Die richtige Datei wählen</h2>
+  <p>Unter  → <b>Über diesen Mac</b> steht dein Chip:</p>
+  <ol>
+    <li><b>Chip „Apple M1, M2, M3 oder M4“</b> → Datei mit <b>arm64</b> im Namen</li>
+    <li><b>Prozessor „Intel“</b> → Datei mit <b>x64</b> im Namen</li>
+  </ol>
+
+  <h2>2. Installieren</h2>
+  <ol>
+    <li>Die heruntergeladene <b>.dmg</b>-Datei doppelklicken.</li>
+    <li><b>Silkreader</b> in den Ordner <b>Programme</b> ziehen.</li>
+  </ol>
+
+  <h2>3. Das erste Öffnen erlauben</h2>
+  <p>Silkreader ist (noch) nicht von Apple beglaubigt. Darum meldet macOS beim ersten Start:
+  „Apple konnte nicht überprüfen, ob ‚Silkreader‘ frei von Schadsoftware ist“. Das ist keine Virenwarnung – macOS zeigt das bei jeder App ohne Apple-Beglaubigung.</p>
+  <ol>
+    <li>Silkreader im Ordner Programme doppelklicken. Bei der Meldung auf <b>Fertig</b> klicken (nicht „In den Papierkorb“).</li>
+    <li> → <b>Systemeinstellungen</b> → <b>Datenschutz &amp; Sicherheit</b> öffnen und ganz nach unten scrollen.</li>
+    <li>Bei „Silkreader wurde blockiert …“ auf <b>Dennoch öffnen</b> klicken und mit deinem Mac-Passwort bestätigen.</li>
+    <li>Silkreader noch einmal starten und <b>Öffnen</b> wählen. Ab jetzt startet die App ganz normal.</li>
+  </ol>
+  <div class="box">
+    <b>Steht dort kein „Dennoch öffnen“ oder heißt es „ist beschädigt“?</b><br>
+    Programm <b>Terminal</b> öffnen (Programme → Dienstprogramme), diese Zeile einfügen und Enter drücken:<br>
+    <code>xattr -dr com.apple.quarantine /Applications/Silkreader.app</code><br>
+    Danach Silkreader normal starten.
+  </div>
+
+  <h2>4. Markierten Text lesen erlauben</h2>
+  <ol>
+    <li> → <b>Systemeinstellungen</b> → <b>Datenschutz &amp; Sicherheit</b> → <b>Bedienungshilfen</b>.</li>
+    <li><b>Silkreader</b> einschalten (falls nicht in der Liste: mit <b>+</b> aus dem Ordner Programme hinzufügen).</li>
+  </ol>
+  <p class="note">Ohne diese Erlaubnis kann die Spinne keinen markierten Text lesen. Fotos, PDFs und Bildschirmbereiche funktionieren trotzdem.</p>
+
+  <h2>5. Loslegen</h2>
+  <ol>
+    <li>Die Spinne hängt oben am Bildschirm, das Spinnen-Symbol sitzt in der Menüleiste.</li>
+    <li>Text markieren, Spinne antippen – fertig. Beim ersten Mal lädt Silkreader einmalig das KI-Modell (etwa 1 GB).</li>
+  </ol>
+  <p class="note">Silkreader läuft komplett auf deinem Mac. Deine Briefe gehen nicht ins Internet.</p>
+</body>
+</html>
