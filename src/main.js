@@ -1037,6 +1037,8 @@ async function spiderTake({ autoStart = false, fromHotkey = false, mode = null }
       return;
     }
     if (!grabbed.text) {
+      // Mac ohne „Bedienungshilfen“: Die Spinne kann gar nichts lesen – erklären statt leerer Startblase
+      if (process.platform === 'darwin' && !require('electron').systemPreferences.isTrustedAccessibilityClient(false)) return showPopupPayload({ kind: 'macaccess' });
       showHome(); // nichts markiert → kleine Blase: einfügen, Zwischenablage, Datei, zuletzt Gelesenes
       return;
     }

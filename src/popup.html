@@ -145,6 +145,7 @@
   .proof { display: flex; gap: 8px; margin-top: 8px; padding: 8px 10px; border-left: 3px solid var(--pink); background: var(--card); border-radius: 0 var(--r-m) var(--r-m) 0; font-size: 12.5px; } .proof .icon { width: 15px; height: 15px; color: var(--muted); flex: none; margin-top: 1px; } .proof0 { margin-top: 6px; font-size: 12px; }
   .checks { display: flex; flex-direction: column; gap: 3px; margin: 12px 0 0; font-size: 12px; color: var(--muted); } .ck2.ok { color: var(--muted); } .ck2.ok::first-letter { color: var(--ok); }
   .calall { display: inline-flex; align-items: center; gap: 6px; margin: 8px 0 4px; } .calall .icon { width: 15px; height: 15px; }
+  .setup ol.steps { margin: 0 0 10px; padding-left: 18px; } .setup ol.steps li { margin: 2px 0; }
   .setup { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid var(--line); border-radius: var(--r-m); } .setup > .icon { width: 22px; height: 22px; color: var(--pink); flex: none; margin-top: 2px; } .setup p { margin: 4px 0 10px; } .dlbar { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--ink) 10%, transparent); overflow: hidden; margin: 4px 0 6px; } .dlbar > span { display: block; height: 100%; width: 0; background: var(--pink); transition: width .3s; }
   .askq { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 12px; padding: 10px 12px; border-radius: var(--r-l); background: var(--pink-soft); border: 1px solid color-mix(in srgb, var(--pink) 35%, transparent); font-size: 13.5px; }
   .askq .icon { width: 22px; height: 22px; color: var(--pink); flex: none; } .askq p { margin: 0; } .askq .row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; } .askq .link.dim { margin-top: 6px; font-size: 12px; color: var(--muted); }
@@ -1359,6 +1360,32 @@
     $('main').innerHTML = `<p class="error">${esc(res.error)}</p>`;
     footer({ actions: [['Erneut versuchen', retry], ...(res.needsKey ? [['Einstellungen', () => window.spider.openSettings()]] : [])] });
   }
+  // Mac: „Bedienungshilfen“ fehlt – erklären, mit einem Klick zur richtigen Einstellung, dann selbst nachsehen
+  function macAccess() {
+    state = 'idle';
+    $('title').textContent = T('Einmal erlauben');
+    $('main').innerHTML = `<div class="setup rise">${silkIcon('pro')}<div><b>${T('Damit ich markierten Text lesen kann, brauche ich „Bedienungshilfen“')}</b>
+      <p class="muted">${T('Ich kopiere dafür nur das Markierte (wie ⌘C) – ich sehe nichts anderes und schicke nichts weg. Fotos, PDFs und Bildschirmbereiche gehen auch ohne.')}</p>
+      <ol class="steps"><li>${T('Unten auf „Systemeinstellungen öffnen“ klicken')}</li><li>${T('Bei „Silkreader“ den Schalter einschalten (evtl. mit Passwort bestätigen)')}</li><li>${T('Fertig – ich merke es von selbst')}</li></ol>
+      <button class="btn primary" id="maOpen">${T('Systemeinstellungen öffnen')}</button>
+      <p class="muted" id="maState" role="status"></p></div></div>`;
+    footer({ actions: [['Später', () => window.spider.popupClose()]] });
+    const at = run;
+    $('maOpen').addEventListener('click', () => {
+      window.spider.macAccessOpen();
+      $('maState').textContent = T('Warte auf die Erlaubnis …');
+      // Nachsehen, bis die Erlaubnis da ist (höchstens 3 Minuten)
+      let n = 0;
+      const timer = setInterval(async () => {
+        if (at !== run || ++n > 90) return clearInterval(timer);
+        const a = await window.spider.macAccess();
+        if (!a.trusted) return;
+        clearInterval(timer);
+        $('main').innerHTML = `<div class="setup rise">${silkIcon('pro')}<div><b>${T('Danke – jetzt kann ich lesen!')}</b>
+          <p class="muted">${T('Text markieren und mich antippen. Klappt es nicht sofort, Silkreader einmal neu starten.')}</p></div></div>`;
+      }, 2000);
+    });
+  }
   // Noch kein KI-Modell: kein roter Fehler, sondern gleich hier laden – danach liest die Spinne den Brief
   function modelMissing(retry) {
     $('main').innerHTML = `<div class="setup rise">${silkIcon('pro')}<div><b>${T('Einmal noch das Wissen der Spinne laden')}</b>
@@ -1455,6 +1482,7 @@
     else if (P.kind === 'analyze') { $('title').textContent = P.doc.title; analyze(); }
     else if (P.kind === 'home') home();
     else if (P.kind === 'wait') { state = 'running'; $('title').textContent = T('Einen Moment …'); $('main').innerHTML = weave(T('Die Spinne holt den Text …')); $('foot').classList.add('hidden'); }
+    else if (P.kind === 'macaccess') macAccess();
     else if (P.kind === 'notebook') notebook();
     else if (P.kind === 'deadlines') deadlines();
     else if (P.kind === 'morning') morning();
