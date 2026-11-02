@@ -885,6 +885,8 @@ function watchFullscreen() {
       hiddenForFullscreen = false;
       if (Date.now() >= pauseUntil && !rigHiddenForMain) bubbleWin.showInactive();
     }
+    // Windows nimmt „immer oben“ manchmal weg, wenn sich ein anderes Programm nach vorn drängt: wieder setzen
+    if (!busy && bubbleWin.isVisible()) { bubbleWin.setAlwaysOnTop(true, 'floating'); bubbleWin.moveTop(); }
   }, 2000);
 }
 // In Bildschirmfreigaben (Teams, Zoom …) und Bildschirmfotos unsichtbar – nur man selbst sieht die Spinne

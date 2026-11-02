@@ -69,7 +69,9 @@ function fullscreenBusy() {
   if (!load() || !api.SHQueryUserNotificationState) return false;
   const out = [0];
   if (api.SHQueryUserNotificationState(out) !== 0) return false;
-  return [1, 2, 3, 4, 7].includes(out[0]);
+  // 1 Bildschirm gesperrt/Bildschirmschoner, 2 Vollbild-Programm, 3 Spiel (Direct3D-Vollbild), 4 Präsentationsmodus.
+  // Nicht 7 („eine Store-App läuft“): das ist z. B. schon bei Fotos, Einstellungen oder Outlook so – kein Vollbild.
+  return [1, 2, 3, 4].includes(out[0]);
 }
 
 module.exports = { load, voiceTyping, copy, leftDown, modifiersDown, clipboardSeq, fullscreenBusy };
