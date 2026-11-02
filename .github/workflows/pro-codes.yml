@@ -11,7 +11,7 @@ on:
         description: Wie viele Codes?
         default: '1'
       dauer:
-        description: Wie lange gültig? (Standard: lebenslang)
+        description: 'Wie lange gültig? (Standard: lebenslang)'
         type: choice
         default: lebenslang
         options:
