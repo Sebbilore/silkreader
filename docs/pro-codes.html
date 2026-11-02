@@ -4,247 +4,200 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Silkreader Pro-Codes</title>
-<!-- Lokales Werkzeug: startet den GitHub-Lauf „Pro-Codes“, holt das verschlüsselte Ergebnis ab und entschlüsselt es hier im Browser.
-     Token und (wenn gewünscht) Passwort bleiben nur in diesem Browser auf diesem PC (localStorage). -->
+<!-- Erzeugt Silkreader-Pro-Codes direkt hier im Browser – ohne GitHub, ohne Internet.
+     Braucht einmal den privaten Signierschlüssel (wird nur in diesem Browser auf diesem PC gespeichert).
+     Code-Aufbau wie in src/pro.js: Version 1 | Art 1 | Nummer (4 Byte) | gültig bis (Tage ab 1.1.2026, 0 = lebenslang) + Ed25519-Signatur. -->
 <style>
   :root {
-    --bg: #f3f3f4; --card: #ffffff; --ink: #1b1b1f; --muted: #5d5d66; --line: #dcdce2;
-    --accent: #b8195a; --on-accent: #ffffff; --field: #f7f7f9; --bad: #b3261e; --ok: #1f7a4d;
+    --bg: #f3f3f4; --card: #ffffff; --ink: #1b1b1f; --muted: #5d5d66; --line: #dcdce2; --soft: #f6f6f8;
+    --accent: #b8195a; --on-accent: #ffffff; --accent-soft: #fbe7ef; --bad: #b3261e; --ok: #1f7a4d;
     --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
-    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --mono: "Cascadia Mono", ui-monospace, Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) { :root {
-    --bg: #18181b; --card: #222226; --ink: #f0f0f2; --muted: #a8a8b2; --line: #36363d;
-    --accent: #ff6aa4; --on-accent: #1b1b1f; --field: #1b1b1f; --bad: #ff8a80; --ok: #6fd39a; color-scheme: dark; } }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font); padding: 32px 16px; }
-  main { max-width: 640px; margin: 0 auto; display: grid; gap: 16px; }
-  h1 { font-size: 22px; margin: 0; } h2 { font-size: 16px; margin: 0; }
-  .lead, .hint, .small { color: var(--muted); margin: 0; } .hint, .small { font-size: 13px; font-weight: 400; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; } @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
-  label { font-weight: 600; display: block; margin-bottom: 6px; }
-  textarea, input, select { width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px;
-    background: var(--field); color: var(--ink); font: 14px/1.4 var(--font); }
-  textarea, input.mono { font: 13px/1.4 var(--mono); } textarea { height: 80px; resize: vertical; word-break: break-all; }
-  :is(textarea, input, select):focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .check { display: flex; gap: 8px; align-items: center; font-weight: 400; margin: 6px 0 0; } .check input { width: auto; }
-  button { font: 600 15px var(--font); border-radius: 6px; padding: 9px 16px; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
-  button.main { background: var(--accent); color: var(--on-accent); border-color: transparent; }
-  button:disabled { opacity: .6; cursor: default; } button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .codes { display: grid; gap: 8px; }
-  .code { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--field); }
-  .code span { font: 600 14px var(--mono); word-break: break-all; flex: 1 1 220px; min-width: 0; user-select: all; }
-  .msg { margin: 0; font-size: 14px; } .msg.bad { color: var(--bad); } .msg.ok { color: var(--ok); }
-  details summary { cursor: pointer; font-weight: 600; } details[open] summary { margin-bottom: 12px; }
-  .hist { display: grid; gap: 10px; } .hist .h { font-size: 13px; color: var(--muted); }
-  ol { margin: 0; padding-left: 20px; color: var(--muted); font-size: 13px; }
+    --bg: #18181b; --card: #222226; --ink: #f0f0f2; --muted: #a8a8b2; --line: #36363d; --soft: #1b1b1f;
+    --accent: #ff6aa4; --on-accent: #1b1b1f; --accent-soft: #3a2230; --bad: #ff8a80; --ok: #6fd39a; color-scheme: dark; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font); padding: 40px 16px; }
+  main { max-width: 560px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  h1 { font-size: 22px; margin: 0; }
+  .card { min-width: 0; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 24px; display: grid; gap: 20px; }
+  .label { font-weight: 600; margin-bottom: 8px; display: block; }
+  .muted { color: var(--muted); font-size: 13px; margin: 0; }
+  /* Dauer als große Knöpfe */
+  .choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  @media (max-width: 420px) { .choices { grid-template-columns: repeat(2, 1fr); } }
+  .choices input { position: absolute; opacity: 0; pointer-events: none; }
+  .choices label { display: block; text-align: center; padding: 10px 6px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-weight: 600; user-select: none; }
+  .choices input:checked + label { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .choices input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .inline { display: flex; gap: 12px; flex-wrap: wrap; }
+  .inline > div { flex: 1 1 140px; min-width: 0; }
+  input[type=text], input[type=number], input[type=date], textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); color: var(--ink); font: 15px var(--font); }
+  textarea { font: 13px/1.4 var(--mono); height: 90px; resize: vertical; word-break: break-all; }
+  :is(input, textarea):focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button { font: 600 15px var(--font); border-radius: 8px; padding: 10px 16px; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  button.main { background: var(--accent); color: var(--on-accent); border-color: transparent; padding: 14px; font-size: 16px; width: 100%; }
+  button.link { border: 0; background: none; padding: 0; color: var(--muted); font: 13px var(--font); text-decoration: underline; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .result { display: grid; gap: 10px; }
+  .code { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 14px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent-soft); }
+  .code span { font: 600 14px/1.4 var(--mono); word-break: break-all; flex: 1 1 240px; min-width: 0; user-select: all; }
+  .msg { margin: 0; } .msg.bad { color: var(--bad); } .msg.ok { color: var(--ok); }
+  .keyline { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .hist { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .card { grid-template-columns: minmax(0, 1fr); }
+  .hrow { display: flex; gap: 10px; align-items: center; font-size: 13px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .hrow .c { font-family: var(--mono); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hrow .m { color: var(--muted); white-space: nowrap; }
+  .hrow button { padding: 4px 10px; font-size: 13px; }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <main>
   <h1>Silkreader Pro-Codes</h1>
-  <p class="lead">Codes erzeugen, ohne GitHub zu öffnen. Die Seite startet den Lauf „Pro-Codes“, holt das Ergebnis ab und entschlüsselt es hier auf deinem PC.</p>
 
-  <section class="card" aria-labelledby="h-new">
-    <h2 id="h-new">Neue Codes</h2>
-    <div class="grid">
-      <div><label for="anzahl">Anzahl</label><input id="anzahl" type="number" min="1" max="100" value="1"></div>
-      <div><label for="dauer">Wie lange gültig?</label>
-        <select id="dauer">
-          <option selected>lebenslang</option><option>1 Woche</option><option>2 Wochen</option><option>1 Monat</option>
-          <option>3 Monate</option><option>6 Monate</option><option>1 Jahr</option><option>2 Jahre</option><option value="datum">bis zu einem Datum …</option>
-        </select></div>
-      <div id="bisBox" hidden><label for="bis">Gültig bis einschließlich</label><input id="bis" type="date"></div>
-      <div><label for="notiz">Notiz <span class="hint">(z. B. „für Max“)</span></label><input id="notiz" type="text"></div>
+  <!-- Einrichten: nur beim ersten Mal -->
+  <section class="card" id="setup" hidden>
+    <div>
+      <label class="label" for="key">Einmal einrichten: deinen privaten Schlüssel einfügen</label>
+      <textarea id="key" spellcheck="false" placeholder="Den Hex-Wert (96 Zeichen) oder den Inhalt der .pem-Datei"></textarea>
+      <p class="muted" style="margin-top:8px">Das ist derselbe Wert, den du bei GitHub als PRO_SIGNING_KEY eingetragen hast. Er bleibt nur in diesem Browser auf diesem PC und wird nirgendwohin gesendet.</p>
     </div>
-    <div class="row"><button class="main" id="make">Codes erzeugen</button><span class="small" id="step"></span></div>
+    <button class="main" id="saveKey">Speichern</button>
+    <p class="msg" id="keyMsg" role="status"></p>
+  </section>
+
+  <!-- Erzeugen -->
+  <section class="card" id="make" hidden>
+    <div>
+      <span class="label" id="durLabel">Wie lange gültig?</span>
+      <div class="choices" role="radiogroup" aria-labelledby="durLabel">
+        <input type="radio" name="dur" id="d0" value="0" checked><label for="d0">Lebenslang</label>
+        <input type="radio" name="dur" id="d1" value="1"><label for="d1">1 Monat</label>
+        <input type="radio" name="dur" id="d3" value="3"><label for="d3">3 Monate</label>
+        <input type="radio" name="dur" id="d6" value="6"><label for="d6">6 Monate</label>
+        <input type="radio" name="dur" id="d12" value="12"><label for="d12">1 Jahr</label>
+        <input type="radio" name="dur" id="dd" value="date"><label for="dd">Bis Datum …</label>
+      </div>
+      <div id="dateBox" hidden style="margin-top:10px"><input type="date" id="until" aria-label="Gültig bis einschließlich"></div>
+    </div>
+    <div class="inline">
+      <div style="flex:0 1 110px"><label class="label" for="count">Anzahl</label><input type="number" id="count" min="1" max="100" value="1"></div>
+      <div><label class="label" for="note">Für wen? <span class="muted">(optional)</span></label><input type="text" id="note" placeholder="z. B. Max"></div>
+    </div>
+    <button class="main" id="go">Code erzeugen</button>
     <p class="msg" id="msg" role="status"></p>
-    <div class="codes" id="codes"></div>
+    <div class="result" id="result"></div>
+    <div class="keyline"><span class="muted" id="keyState">Schlüssel gespeichert ✓</span><button class="link" id="changeKey">Schlüssel ändern</button></div>
   </section>
 
-  <section class="card" aria-labelledby="h-hand">
-    <h2 id="h-hand">Verschlüsselten Text öffnen</h2>
-    <p class="small">Den Text aus GitHub (beginnt mit SPW1.) kopieren und hier einfügen – mit dem Knopf oder Strg+V irgendwo auf der Seite. Es darf auch mehr mitkopiert sein, der Code-Teil wird automatisch gefunden.</p>
-    <div><label for="enc">Verschlüsselter Text</label><textarea id="enc" spellcheck="false" placeholder="SPW1.…"></textarea></div>
-    <div class="row"><button id="pasteBtn">Einfügen</button><button class="main" id="open">Öffnen</button></div>
-    <p class="msg" id="msg2" role="status"></p>
-    <div class="codes" id="codes2"></div>
+  <section class="card" id="histCard" hidden>
+    <div class="keyline"><span class="label" style="margin:0">Zuletzt erzeugt</span><button class="link" id="clearHist">Liste leeren</button></div>
+    <div class="hist" id="hist"></div>
   </section>
-  <section class="card" aria-labelledby="h-set">
-    <h2 id="h-set">Zugang</h2>
-    <div>
-      <label for="token">GitHub-Token</label>
-      <input id="token" class="mono" type="password" autocomplete="off" placeholder="github_pat_…">
-      <label class="check"><input id="keepToken" type="checkbox" checked> Auf diesem PC merken</label>
-    </div>
-    <div>
-      <label for="pw">Passwort <span class="hint">(dein PRO_CODES_PASSWORD)</span></label>
-      <input id="pw" type="password" autocomplete="off">
-      <label class="check"><input id="keepPw" type="checkbox"> Auf diesem PC merken</label>
-    </div>
-    <div class="row"><button id="save">Speichern</button><button id="forget">Gespeichertes löschen</button><span class="small" id="saved"></span></div>
-    <details>
-      <summary>So bekommst du einen Token</summary>
-      <ol>
-        <li>Auf GitHub: Profilbild → Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token.</li>
-        <li>Name z. B. „Silkreader Pro-Codes“, Ablauf nach Wunsch.</li>
-        <li>Repository access: <b>Only select repositories</b> → <b>silkreader</b>.</li>
-        <li>Permissions → Repository permissions → <b>Actions: Read and write</b>. Mehr braucht es nicht.</li>
-        <li>Token erzeugen, kopieren, oben einfügen und speichern.</li>
-      </ol>
-    </details>
-    <p class="small">Token und Passwort bleiben nur in diesem Browser auf diesem PC. Sie gehen nur an GitHub (Token) bzw. nirgendwohin (Passwort).</p>
-  </section>
-
-  <section class="card" aria-labelledby="h-hist">
-    <h2 id="h-hist">Zuletzt erzeugt</h2>
-    <div class="hist" id="hist"><p class="small">Noch keine Codes auf diesem PC erzeugt.</p></div>
-  </section>
-
 </main>
 
 <script>
-  const REPO = 'Sebbilore/silkreader', WF = 'pro-codes.yml', API = 'https://api.github.com';
+  // Öffentlicher Schlüssel der App (src/pro.js) – damit prüft die Seite, ob der eingefügte Schlüssel passt
+  const PUBLIC_KEY = 'MCowBQYDK2VwAyEA6ZTFtnubZpFBiwrO2JRO5i0yZKh7xYDq0fKTdukrd4s=';
+  const EPOCH = Date.UTC(2026, 0, 1);
+  const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
   const $ = (id) => document.getElementById(id);
   const store = { get(k) { try { return localStorage.getItem('silkpro.' + k); } catch { return null; } },
     set(k, v) { try { v == null ? localStorage.removeItem('silkpro.' + k) : localStorage.setItem('silkpro.' + k, v); } catch {} } };
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  // ---- Zugang ----
-  $('token').value = store.get('token') || ''; $('pw').value = store.get('pw') || '';
-  $('keepPw').checked = !!store.get('pw');
-  const showSaved = () => { $('saved').textContent = store.get('token') ? `Token gespeichert${store.get('pw') ? ', Passwort gespeichert' : ''}` : ''; };
-  function saveAccess() {
-    store.set('token', $('keepToken').checked && $('token').value.trim() ? $('token').value.trim() : null);
-    store.set('pw', $('keepPw').checked && $('pw').value ? $('pw').value : null);
-    showSaved();
+  // ---- Schlüssel lesen: Hex (96 Zeichen), PEM oder nur der Base64-Teil ----
+  function keyBytes(text) {
+    let body = String(text).replace(/-----(BEGIN|END)[^-]*-----/g, '').replace(/[^A-Za-z0-9+/=]/g, '');
+    if (/^[0-9a-fA-F]{96}$/.test(body)) return Uint8Array.from(body.match(/../g), (h) => parseInt(h, 16));
+    try { return Uint8Array.from(atob(body), (c) => c.charCodeAt(0)); } catch { return null; }
   }
-  $('save').addEventListener('click', saveAccess);
-  $('forget').addEventListener('click', () => { store.set('token', null); store.set('pw', null); $('token').value = ''; $('pw').value = ''; $('keepPw').checked = false; showSaved(); });
-  showSaved();
-  $('dauer').addEventListener('change', () => { $('bisBox').hidden = $('dauer').value !== 'datum'; });
+  let privKey = null;
+  async function loadKey(text) {
+    const der = keyBytes(text);
+    if (!der || der.length !== 48) throw new Error('Das sieht nicht wie der Schlüssel aus. Erwartet: 96 Zeichen Hex oder der Inhalt der .pem-Datei.');
+    let key;
+    try { key = await crypto.subtle.importKey('pkcs8', der, { name: 'Ed25519' }, false, ['sign']); }
+    catch (e) { throw new Error(/not supported|NotSupported/i.test(String(e)) ? 'Dieser Browser kann keine Codes signieren. Bitte aktuellen Edge, Chrome oder Firefox verwenden.' : 'Der Schlüssel ließ sich nicht lesen.'); }
+    // Passt er zur App?
+    const test = new Uint8Array(8); test[0] = 1; test[1] = 1;
+    const sig = new Uint8Array(await crypto.subtle.sign({ name: 'Ed25519' }, key, test));
+    const pub = await crypto.subtle.importKey('spki', Uint8Array.from(atob(PUBLIC_KEY), (c) => c.charCodeAt(0)), { name: 'Ed25519' }, false, ['verify']);
+    if (!(await crypto.subtle.verify({ name: 'Ed25519' }, pub, sig, test))) throw new Error('Dieser Schlüssel passt nicht zu Silkreader – Codes damit würden in der App nicht funktionieren.');
+    return key;
+  }
 
-  // ---- Entschlüsseln (wie im Workflow: PBKDF2 250 000 × SHA-256, AES-256-GCM) ----
-  const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
-  // Den SPW1-Teil aus beliebigem kopiertem Text holen (Überschrift, ```, Zeilenumbrüche, Leerzeichen egal)
-  const findEnc = (text) => { const m = String(text || '').replace(/\s+/g, '').match(/SPW1\.[A-Za-z0-9+/=]+\.[A-Za-z0-9+/=]+\.[A-Za-z0-9+/=]+/); return m ? m[0] : ''; };
-  async function decrypt(enc, pw) {
-    const parts = (findEnc(enc) || enc.replace(/\s+/g, '')).split('.');
-    if (parts[0] !== 'SPW1' || parts.length !== 4) throw new Error('Der Text muss mit SPW1. beginnen und vollständig sein.');
-    if (!pw) throw new Error('Bitte gib unter „Zugang“ dein Passwort ein.');
-    const [salt, iv, data] = parts.slice(1).map(b64);
-    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
-    const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
-    let text;
-    try { text = new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data)); }
-    catch { throw new Error('Passwort falsch oder Text unvollständig.'); }
-    return { head: (text.match(/^## (.*)$/m) || [])[1] || '', codes: text.replace(/```/g, '').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('##')) };
+  // ---- Code bauen (wie src/pro.js) ----
+  function b32(buf) { let bits = 0, val = 0, out = ''; for (const b of buf) { val = (val << 8) | b; bits += 8; while (bits >= 5) { out += ALPHABET[(val >>> (bits - 5)) & 31]; bits -= 5; } } if (bits) out += ALPHABET[(val << (5 - bits)) & 31]; return out; }
+  async function makeCode(end) {
+    const data = new Uint8Array(8), dv = new DataView(data.buffer);
+    data[0] = 1; data[1] = 1; dv.setUint32(2, crypto.getRandomValues(new Uint32Array(1))[0]);
+    if (end) dv.setUint16(6, Math.min(65535, Math.max(1, Math.ceil((end.getTime() - EPOCH) / 864e5))));
+    const sig = new Uint8Array(await crypto.subtle.sign({ name: 'Ed25519' }, privKey, data));
+    const all = new Uint8Array(72); all.set(data); all.set(sig, 8);
+    return 'SILK-' + b32(all).match(/.{1,5}/g).join('-');
   }
-  function showCodes(box, codes) {
-    box.textContent = '';
-    for (const c of codes) {
-      const row = document.createElement('div'); row.className = 'code';
-      const s = document.createElement('span'); s.textContent = c;
-      const b = document.createElement('button'); b.textContent = 'Kopieren';
-      b.addEventListener('click', () => navigator.clipboard.writeText(c).then(() => { b.textContent = 'Kopiert'; setTimeout(() => (b.textContent = 'Kopieren'), 1500); })
-        .catch(() => { const r = document.createRange(); r.selectNodeContents(s); getSelection().removeAllRanges(); getSelection().addRange(r); b.textContent = 'Markiert – Strg+C'; }));
-      row.append(s, b); box.append(row);
-    }
+  function endDate() {
+    const v = document.querySelector('input[name=dur]:checked').value;
+    if (v === '0') return null;
+    if (v === 'date') { const d = $('until').value; if (!d) throw new Error('Bitte ein Datum wählen.'); const [y, m, day] = d.split('-').map(Number); const e = new Date(Date.UTC(y, m - 1, day, 23, 59)); if (e < Date.now()) throw new Error('Das Datum liegt in der Vergangenheit.'); return e; }
+    const e = new Date(); e.setMonth(e.getMonth() + Number(v)); return e;
   }
-  const say = (el, text, cls = '') => { el.className = 'msg ' + cls; el.textContent = text; };
+  // letzter gültiger Tag (so zeigt es auch die App)
+  const lastDay = (end) => { if (!end) return null; const days = Math.ceil((end.getTime() - EPOCH) / 864e5); return new Date(EPOCH + days * 864e5 - 1).toLocaleDateString('de-DE', { timeZone: 'UTC' }); };
 
-  // ---- Verlauf (nur auf diesem PC) ----
-  function history() { try { return JSON.parse(store.get('hist') || '[]'); } catch { return []; } }
+  // ---- Anzeige ----
+  const say = (el, t, cls = '') => { el.className = 'msg ' + cls; el.textContent = t; };
+  function copyBtn(text, el) {
+    const b = document.createElement('button'); b.textContent = 'Kopieren';
+    b.addEventListener('click', () => navigator.clipboard.writeText(text).then(() => { b.textContent = 'Kopiert ✓'; setTimeout(() => (b.textContent = 'Kopieren'), 1500); })
+      .catch(() => { const r = document.createRange(); r.selectNodeContents(el); getSelection().removeAllRanges(); getSelection().addRange(r); b.textContent = 'Markiert – Strg+C'; }));
+    return b;
+  }
+  function history() { try { return JSON.parse(store.get('codes') || '[]'); } catch { return []; } }
   function renderHist() {
-    const h = history(), box = $('hist');
-    if (!h.length) return;
-    box.textContent = '';
-    for (const e of h.slice(0, 20)) {
-      const wrap = document.createElement('div');
-      const t = document.createElement('div'); t.className = 'h'; t.textContent = `${new Date(e.at).toLocaleString('de-DE')} · ${e.head}`;
-      const c = document.createElement('div'); c.className = 'codes'; showCodes(c, e.codes);
-      wrap.append(t, c); box.append(wrap);
+    const h = history(); $('histCard').hidden = !h.length; $('hist').textContent = '';
+    for (const e of h.slice(0, 30)) {
+      const row = document.createElement('div'); row.className = 'hrow';
+      const c = document.createElement('span'); c.className = 'c'; c.textContent = e.code; c.title = e.code;
+      const m = document.createElement('span'); m.className = 'm'; m.textContent = `${e.note ? e.note + ' · ' : ''}${e.valid}`;
+      row.append(c, m, copyBtn(e.code, c)); $('hist').append(row);
     }
   }
-  renderHist();
 
-  // ---- GitHub ----
-  async function gh(path, opts = {}, auth = true) {
-    const headers = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', ...(opts.body ? { 'Content-Type': 'application/json' } : {}) };
-    if (auth) headers.Authorization = 'Bearer ' + $('token').value.trim();
-    const r = await fetch(API + path, { ...opts, headers });
-    if (r.status === 403 && auth && !opts.method) return gh(path, opts, false); // öffentliche Daten notfalls ohne Token lesen
-    if (!r.ok) {
-      const t = await r.text();
-      if (r.status === 401) throw new Error('GitHub lehnt den Token ab (abgelaufen oder falsch kopiert). Bitte einen neuen Token eintragen.');
-      if (r.status === 403 || r.status === 404) throw new Error('Der Token darf den Lauf nicht starten. Er braucht Zugriff auf „silkreader“ mit „Actions: Read and write“.');
-      if (r.status === 422) throw new Error('GitHub hat die Eingaben nicht angenommen: ' + t.slice(0, 200));
-      throw new Error(`GitHub antwortet mit Fehler ${r.status}.`);
-    }
-    return r.status === 204 ? null : r.json();
+  // ---- Ablauf ----
+  async function start() {
+    const saved = store.get('key');
+    if (saved) { try { privKey = await loadKey(saved); } catch (e) { store.set('key', null); say($('keyMsg'), e.message, 'bad'); } }
+    $('setup').hidden = !!privKey; $('make').hidden = !privKey; renderHist();
   }
-  async function make() {
-    const msg = $('msg'), step = $('step');
-    $('codes').textContent = '';
-    if (!$('token').value.trim()) return say(msg, 'Bitte unten unter „Zugang“ deinen GitHub-Token eintragen.', 'bad');
-    if (!$('pw').value) return say(msg, 'Bitte unten unter „Zugang“ dein Passwort eintragen.', 'bad');
-    let bis = '';
-    if ($('dauer').value === 'datum') { bis = $('bis').value; if (!bis) return say(msg, 'Bitte ein Datum wählen.', 'bad'); }
-    if ($('keepToken').checked || $('keepPw').checked) saveAccess();
-    $('make').disabled = true; say(msg, '');
+  $('saveKey').addEventListener('click', async () => {
+    try { privKey = await loadKey($('key').value); store.set('key', $('key').value.trim()); $('key').value = ''; say($('keyMsg'), ''); $('setup').hidden = true; $('make').hidden = false; }
+    catch (e) { say($('keyMsg'), e.message, 'bad'); }
+  });
+  $('changeKey').addEventListener('click', () => { if ($('changeKey').dataset.sure) { store.set('key', null); privKey = null; delete $('changeKey').dataset.sure; $('changeKey').textContent = 'Schlüssel ändern'; start(); } else { $('changeKey').dataset.sure = '1'; $('changeKey').textContent = 'Wirklich? Nochmal klicken'; setTimeout(() => { delete $('changeKey').dataset.sure; $('changeKey').textContent = 'Schlüssel ändern'; }, 4000); } });
+  document.querySelectorAll('input[name=dur]').forEach((r) => r.addEventListener('change', () => { $('dateBox').hidden = !$('dd').checked; }));
+  $('go').addEventListener('click', async () => {
+    $('result').textContent = '';
     try {
-      const started = Date.now() - 5000;
-      step.textContent = 'Starte den Lauf auf GitHub …';
-      const inputs = { anzahl: String(Math.min(100, Math.max(1, +$('anzahl').value || 1))), dauer: $('dauer').value === 'datum' ? 'lebenslang' : $('dauer').value, bis, notiz: $('notiz').value.trim() };
-      await gh(`/repos/${REPO}/actions/workflows/${WF}/dispatches`, { method: 'POST', body: JSON.stringify({ ref: 'main', inputs }) });
-      // Den eben gestarteten Lauf finden und abwarten
-      let run = null;
-      for (let i = 0; i < 90 && !(run && run.status === 'completed'); i++) {
-        await sleep(i < 3 ? 3000 : 4000);
-        const list = await gh(`/repos/${REPO}/actions/workflows/${WF}/runs?event=workflow_dispatch&per_page=5`);
-        run = (list.workflow_runs || []).find((r) => Date.parse(r.created_at) >= started) || run;
-        step.textContent = run ? (run.status === 'completed' ? 'Hole das Ergebnis …' : 'GitHub erzeugt die Codes … (dauert meist 20–40 Sekunden)') : 'Warte, bis GitHub den Lauf anlegt …';
+      const end = endDate(), n = Math.min(100, Math.max(1, Number($('count').value) || 1)), note = $('note').value.trim();
+      const valid = end ? `gültig bis ${lastDay(end)}` : 'lebenslang';
+      const h = history();
+      for (let i = 0; i < n; i++) {
+        const code = await makeCode(end);
+        const box = document.createElement('div'); box.className = 'code';
+        const s = document.createElement('span'); s.textContent = code;
+        box.append(s, copyBtn(code, s)); $('result').append(box);
+        h.unshift({ code, note, valid, at: Date.now() });
       }
-      if (!run) throw new Error('Der Lauf ist nicht auf GitHub erschienen. Bitte später noch einmal versuchen.');
-      if (run.status !== 'completed') throw new Error('Der Lauf dauert ungewöhnlich lange. Das Ergebnis findest du später unter Actions → Pro-Codes.');
-      const jobs = await gh(`/repos/${REPO}/actions/runs/${run.id}/jobs`);
-      const notes = [];
-      for (const j of jobs.jobs || []) notes.push(...(await gh(`/repos/${REPO}/check-runs/${j.id}/annotations`)));
-      if (run.conclusion !== 'success') {
-        const err = notes.find((a) => a.annotation_level === 'failure' && a.title);
-        throw new Error('Der Lauf ist fehlgeschlagen' + (err ? `: ${err.title} – ${err.message}` : '. Details unter Actions → Pro-Codes.'));
-      }
-      const enc = (notes.map((a) => a.message).find((m) => /^SPW1\./.test(m || '')) || '').trim();
-      if (!enc) throw new Error('Im Ergebnis stehen keine verschlüsselten Codes. Ist das Secret PRO_CODES_PASSWORD gesetzt?');
-      step.textContent = 'Entschlüssele …';
-      const { head, codes } = await decrypt(enc, $('pw').value);
-      say(msg, head, 'ok'); showCodes($('codes'), codes);
-      const h = history(); h.unshift({ at: Date.now(), head, codes }); store.set('hist', JSON.stringify(h.slice(0, 50))); renderHist();
-      step.textContent = '';
-    } catch (e) { say(msg, e.message, 'bad'); step.textContent = ''; }
-    $('make').disabled = false;
-  }
-  $('make').addEventListener('click', make);
-
-  async function openEnc() {
-    try { const { head, codes } = await decrypt($('enc').value, $('pw').value); say($('msg2'), head, 'ok'); showCodes($('codes2'), codes); }
-    catch (e) { say($('msg2'), e.message, 'bad'); $('codes2').textContent = ''; }
-  }
-  $('open').addEventListener('click', openEnc);
-  // Einfügen-Knopf (Browser fragt evtl. einmal nach Erlaubnis)
-  $('pasteBtn').addEventListener('click', async () => {
-    try { const t = await navigator.clipboard.readText(); $('enc').value = findEnc(t) || t; if (findEnc(t)) openEnc(); else say($('msg2'), 'In der Zwischenablage ist kein SPW1-Text. Bitte auf GitHub die ganze Zeile ab SPW1. kopieren.', 'bad'); }
-    catch { $('enc').focus(); say($('msg2'), 'Der Browser erlaubt das Einfügen per Knopf nicht. Klicke ins Feld und drücke Strg+V.', 'bad'); }
+      store.set('codes', JSON.stringify(h.slice(0, 200))); renderHist();
+      say($('msg'), `${n === 1 ? 'Code' : n + ' Codes'} erstellt · ${valid}${note ? ' · für ' + note : ''}. In Silkreader unter Einstellungen → Silkreader Pro einfügen.`, 'ok');
+    } catch (e) { say($('msg'), e.message, 'bad'); }
   });
-  // Strg+V irgendwo auf der Seite (außer in Token/Passwort/Notiz): SPW1-Text erkennen und gleich öffnen
-  document.addEventListener('paste', (e) => {
-    const t = e.clipboardData?.getData('text') || '';
-    if (['token', 'pw', 'notiz', 'anzahl'].includes(e.target.id)) return;
-    const enc = findEnc(t);
-    if (!enc) return;
-    e.preventDefault(); $('enc').value = enc; openEnc();
-  });
+  $('clearHist').addEventListener('click', () => { const b = $('clearHist'); if (b.dataset.sure) { store.set('codes', null); renderHist(); delete b.dataset.sure; b.textContent = 'Liste leeren'; } else { b.dataset.sure = '1'; b.textContent = 'Wirklich? Nochmal klicken'; setTimeout(() => { delete b.dataset.sure; b.textContent = 'Liste leeren'; }, 4000); } });
+  start();
 </script>
 </body>
 </html>

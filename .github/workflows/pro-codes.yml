@@ -82,7 +82,7 @@ jobs:
           rm codes.txt
           echo "::notice title=Pro-Codes (verschlüsselt)::$enc"
       # Öffentliches Repo: Codes mit deinem Passwort (Secret PRO_CODES_PASSWORD) verschlüsseln.
-      # Entschlüsseln: docs/pro-codes.html im Browser öffnen (erzeugt auch direkt Codes) – läuft nur bei dir, nichts wird gesendet.
+      # Einfacher: docs/pro-codes.html erzeugt Codes direkt im Browser, ganz ohne GitHub. Dieser Lauf bleibt als Ersatzweg.
       - name: Codes erzeugen (mit Passwort verschlüsselt)
         if: ${{ inputs.empfaenger == '' && !github.event.repository.private }}
         env:
@@ -104,4 +104,4 @@ jobs:
           ")
           rm codes.txt
           echo "::notice title=Pro-Codes (mit deinem Passwort verschlüsselt)::$enc"
-          { echo '## Pro-Codes (verschlüsselt)'; echo; echo 'In docs/pro-codes.html („Von Hand öffnen“) einfügen und mit deinem Passwort öffnen:'; echo; echo '```'; echo "$enc"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          { echo '## Pro-Codes (verschlüsselt)'; echo; echo 'Mit der Seite „Pro-Codes öffnen“ und deinem Passwort entschlüsseln (einfacher: docs/pro-codes.html erzeugt Codes direkt ohne GitHub):'; echo; echo '```'; echo "$enc"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
