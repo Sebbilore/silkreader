@@ -353,22 +353,22 @@ function setBusy(busy) {
 function applyTheme(t = loadSettings().theme) {
   const { nativeTheme } = require('electron');
   // „Hoher Kontrast“ ist dunkel mit eigenen Farben (Schwarz, Weiß, Gelb)
-  // „Hell · Grau“ (graphite) ist hell mit Graphit statt Pink
-  nativeTheme.themeSource = t === 'contrast' ? 'dark' : t === 'graphite' ? 'light' : ['light', 'dark'].includes(t) ? t : 'system';
+  // „Hell · Grau“ (graphite) und „Dunkel · Grau“ (graphite-dark): Grau statt Pink
+  nativeTheme.themeSource = t === 'contrast' || t === 'graphite-dark' ? 'dark' : t === 'graphite' ? 'light' : ['light', 'dark'].includes(t) ? t : 'system';
   setImmediate(broadcastTheme);
   setImmediate(updateTrayIcon);
 }
-// dark | light | graphite | contrast – auch, wenn Windows selbst auf hohen Kontrast steht
+// dark | light | graphite | graphite-dark | contrast – auch, wenn Windows selbst auf hohen Kontrast steht
 function themeMode() {
   const { nativeTheme } = require('electron');
   const t = loadSettings().theme;
-  if (t === 'graphite') return 'graphite';
+  if (t === 'graphite' || t === 'graphite-dark') return t;
   if (t === 'contrast' || (t !== 'light' && t !== 'dark' && nativeTheme.shouldUseHighContrastColors)) return 'contrast';
   return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
 }
-const winBg = () => ({ contrast: '#000000', dark: '#1c1c1c', light: '#f3f3f3', graphite: '#f3f3f3' })[themeMode()];
-// Symbol im Infobereich: graue Spinne in „Hell · Grau“, sonst die pinke
-const trayIconPath = () => path.join(__dirname, 'assets', themeMode() === 'graphite' ? 'tray-gray.png' : 'tray.png');
+const winBg = () => ({ contrast: '#000000', dark: '#1c1c1c', light: '#f3f3f3', graphite: '#f3f3f3', 'graphite-dark': '#1c1c1c' })[themeMode()];
+// Symbol im Infobereich: graue Spinne in „Hell · Grau“ und „Dunkel · Grau“, sonst die pinke
+const trayIconPath = () => path.join(__dirname, 'assets', themeMode().startsWith('graphite') ? 'tray-gray.png' : 'tray.png');
 function updateTrayIcon() {
   if (tray && !tray.isDestroyed()) tray.setImage(nativeImage.createFromPath(trayIconPath()));
 }
@@ -3086,7 +3086,7 @@ ipcMain.handle('get-settings', () => {
     hideFullscreen: s.hideFullscreen !== false,
     hideInShare: s.hideInShare !== false,
     watchDownloads: s.watchDownloads === true,
-    theme: ['light', 'graphite', 'dark', 'contrast'].includes(s.theme) ? s.theme : 'system',
+    theme: ['light', 'graphite', 'dark', 'graphite-dark', 'contrast'].includes(s.theme) ? s.theme : 'system',
     fontSize: ZOOM[s.fontSize] ? s.fontSize : 'normal',
     learn: s.learn !== false,
     morning: s.morning === true,
@@ -3124,7 +3124,7 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   if (typeof privateMode === 'boolean') s.privateMode = privateMode;
   if (typeof hideFullscreen === 'boolean') s.hideFullscreen = hideFullscreen;
   if (typeof watchDownloads === 'boolean') s.watchDownloads = watchDownloads;
-  if (['system', 'light', 'graphite', 'dark', 'contrast'].includes(theme)) { s.theme = theme; saveSettings(s); applyTheme(theme); }
+  if (['system', 'light', 'graphite', 'dark', 'graphite-dark', 'contrast'].includes(theme)) { s.theme = theme; saveSettings(s); applyTheme(theme); }
   if (typeof hideInShare === 'boolean') { s.hideInShare = hideInShare; setImmediate(() => [bubbleWin, popupWin, ringWin].forEach(protectFromCapture)); }
   if (CLICK_MODES.includes(cm)) { s.clickMode = cm; bubbleWin?.webContents.send('click-mode', cm); }
   if (model && MODELS[model]) s.model = model;

@@ -8,7 +8,7 @@ All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 - **Faster:** text recognition (photo, region, scanned PDF) runs in the already running helper (photo ~70 ms instead of ~500 ms, scanned PDF 1.2 s → 0.8 s); the AI skips imprint/footer lines; speech bubble preloaded while the mouse rests on the spider; details start loading when hovering “More from the letter”.
 - **Easier:** download the AI model right in the bubble instead of a red error; deadlines “in 3 months / 4 years”; “+ Folder”; “Add all deadlines to calendar”; reply drafts “Open as e-mail”.
 - **Spider:** holds up a “Due tomorrow!” sign for deadlines within 3 days, gets a fright on suspected scams, does a flip when you tick off a deadline; key points appear one after another.
-- **New appearance “Light · Grey”** (Settings → Appearance): graphite instead of pink everywhere – buttons, links, focus, the spider (legs, outline, hats, confetti), spider-web menu, drop zone glow and a grey tray icon. Contrast checked (WCAG AA, 0 axe violations). Also fixed: white text on light background on cocoon labels in light mode.
+- **New appearances “Light · Grey” and “Dark · Grey”** (Settings → Appearance): graphite instead of pink everywhere – buttons, links, focus, the spider (legs, outline, hats, confetti), spider-web menu, drop zone glow and a grey tray icon. Contrast checked (WCAG AA, 0 axe violations). Also fixed: white text on light background on cocoon labels in light mode.
 - **Security:** `SILK_PRO` no longer unlocks Pro in the installed app. Pro code generator: works with an encrypted output on a public repo (own password) and accepts the signing key in any format.
 
 ## 1.24.0
