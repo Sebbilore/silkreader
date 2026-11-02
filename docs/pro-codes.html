@@ -63,6 +63,14 @@
     <div class="codes" id="codes"></div>
   </section>
 
+  <section class="card" aria-labelledby="h-hand">
+    <h2 id="h-hand">Verschlüsselten Text öffnen</h2>
+    <p class="small">Den Text aus GitHub (beginnt mit SPW1.) kopieren und hier einfügen – mit dem Knopf oder Strg+V irgendwo auf der Seite. Es darf auch mehr mitkopiert sein, der Code-Teil wird automatisch gefunden.</p>
+    <div><label for="enc">Verschlüsselter Text</label><textarea id="enc" spellcheck="false" placeholder="SPW1.…"></textarea></div>
+    <div class="row"><button id="pasteBtn">Einfügen</button><button class="main" id="open">Öffnen</button></div>
+    <p class="msg" id="msg2" role="status"></p>
+    <div class="codes" id="codes2"></div>
+  </section>
   <section class="card" aria-labelledby="h-set">
     <h2 id="h-set">Zugang</h2>
     <div>
@@ -94,17 +102,6 @@
     <div class="hist" id="hist"><p class="small">Noch keine Codes auf diesem PC erzeugt.</p></div>
   </section>
 
-  <section class="card">
-    <details>
-      <summary>Verschlüsselten Text von Hand öffnen</summary>
-      <div style="display:grid;gap:12px">
-        <div><label for="enc">Text aus dem Lauf (beginnt mit SPW1.)</label><textarea id="enc" spellcheck="false"></textarea></div>
-        <div class="row"><button id="open">Öffnen</button></div>
-        <p class="msg" id="msg2" role="status"></p>
-        <div class="codes" id="codes2"></div>
-      </div>
-    </details>
-  </section>
 </main>
 
 <script>
@@ -130,8 +127,10 @@
 
   // ---- Entschlüsseln (wie im Workflow: PBKDF2 250 000 × SHA-256, AES-256-GCM) ----
   const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  // Den SPW1-Teil aus beliebigem kopiertem Text holen (Überschrift, ```, Zeilenumbrüche, Leerzeichen egal)
+  const findEnc = (text) => { const m = String(text || '').replace(/\s+/g, '').match(/SPW1\.[A-Za-z0-9+/=]+\.[A-Za-z0-9+/=]+\.[A-Za-z0-9+/=]+/); return m ? m[0] : ''; };
   async function decrypt(enc, pw) {
-    const parts = enc.replace(/\s+/g, '').split('.');
+    const parts = (findEnc(enc) || enc.replace(/\s+/g, '')).split('.');
     if (parts[0] !== 'SPW1' || parts.length !== 4) throw new Error('Der Text muss mit SPW1. beginnen und vollständig sein.');
     if (!pw) throw new Error('Bitte gib unter „Zugang“ dein Passwort ein.');
     const [salt, iv, data] = parts.slice(1).map(b64);
@@ -228,9 +227,23 @@
   }
   $('make').addEventListener('click', make);
 
-  $('open').addEventListener('click', async () => {
+  async function openEnc() {
     try { const { head, codes } = await decrypt($('enc').value, $('pw').value); say($('msg2'), head, 'ok'); showCodes($('codes2'), codes); }
     catch (e) { say($('msg2'), e.message, 'bad'); $('codes2').textContent = ''; }
+  }
+  $('open').addEventListener('click', openEnc);
+  // Einfügen-Knopf (Browser fragt evtl. einmal nach Erlaubnis)
+  $('pasteBtn').addEventListener('click', async () => {
+    try { const t = await navigator.clipboard.readText(); $('enc').value = findEnc(t) || t; if (findEnc(t)) openEnc(); else say($('msg2'), 'In der Zwischenablage ist kein SPW1-Text. Bitte auf GitHub die ganze Zeile ab SPW1. kopieren.', 'bad'); }
+    catch { $('enc').focus(); say($('msg2'), 'Der Browser erlaubt das Einfügen per Knopf nicht. Klicke ins Feld und drücke Strg+V.', 'bad'); }
+  });
+  // Strg+V irgendwo auf der Seite (außer in Token/Passwort/Notiz): SPW1-Text erkennen und gleich öffnen
+  document.addEventListener('paste', (e) => {
+    const t = e.clipboardData?.getData('text') || '';
+    if (['token', 'pw', 'notiz', 'anzahl'].includes(e.target.id)) return;
+    const enc = findEnc(t);
+    if (!enc) return;
+    e.preventDefault(); $('enc').value = enc; openEnc();
   });
 </script>
 </body>
