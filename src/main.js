@@ -15,7 +15,8 @@ let autoUpdaterInstance = null;
 const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoUpdater);
 
 // Automatische Tests: SPIDER_MOCK = Test-Antworten statt KI, SILK_TEST = echte KI, aber Test-Schnittstelle an
-const TESTING = !!(process.env.SPIDER_MOCK || process.env.SILK_TEST);
+// Testmodus (Beispiel-Antworten, Test-Schnittstellen) nur in der Entwicklerversion – nie in der installierten App
+const TESTING = !app.isPackaged && !!(process.env.SPIDER_MOCK || process.env.SILK_TEST);
 // Aus dem Microsoft Store installiert: Updates, Autostart und „Öffnen mit“ regelt dann Windows selbst
 const STORE = !!process.windowsStore;
 // Öffentlich (ohne Code): Installer, Updates, Datenschutz, Fehlermeldungen. Der Code selbst liegt privat.
@@ -2327,7 +2328,10 @@ async function openIcs(name, items) {
   fs.writeFileSync(file, icsEvents(items));
   return !(await shell.openPath(file));
 }
-ipcMain.handle('add-calendar', (_e, { title, date, note }) => openIcs(`Silkreader-Frist-${date.replace(/-/g, '')}.ics`, [{ title, date, note }]));
+ipcMain.handle('add-calendar', (_e, { title, date, note }) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) return false; // nur echte Daten – kein fremder Dateipfad im Dateinamen
+  return openIcs(`Silkreader-Frist-${date.replace(/-/g, '')}.ics`, [{ title: String(title || ''), date, note: String(note || '') }]);
+});
 // Alle offenen Fristen auf einmal in den Kalender
 ipcMain.handle('add-calendar-all', async () => {
   const open = collectDeadlines().filter((d) => !d.done && d.iso);

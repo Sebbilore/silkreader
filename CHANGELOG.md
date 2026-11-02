@@ -3,13 +3,14 @@
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
 
-## 1.25.0 (vorbereitet, noch nicht veröffentlicht)
+## 1.25.0
 - **Big spider removed:** the screen overlay never worked reliably. Clicking the spider now opens the speech bubble right away (measured: 5.3 s → 0.11 s; first content 5.4 s → 0.26 s). No more screenshot of the selection.
 - **Faster:** text recognition (photo, region, scanned PDF) runs in the already running helper (photo ~70 ms instead of ~500 ms, scanned PDF 1.2 s → 0.8 s); the AI skips imprint/footer lines; speech bubble preloaded while the mouse rests on the spider; details start loading when hovering “More from the letter”.
 - **Easier:** download the AI model right in the bubble instead of a red error; deadlines “in 3 months / 4 years”; “+ Folder”; “Add all deadlines to calendar”; reply drafts “Open as e-mail”.
 - **Spider:** holds up a “Due tomorrow!” sign for deadlines within 3 days, gets a fright on suspected scams, does a flip when you tick off a deadline; key points appear one after another.
 - **New appearances “Light · Grey” and “Dark · Grey”** (Settings → Appearance): graphite instead of pink everywhere – buttons, links, focus, the spider (legs, outline, hats, confetti), spider-web menu, drop zone glow and a grey tray icon. Contrast checked (WCAG AA, 0 axe violations). Also fixed: white text on light background on cocoon labels in light mode.
-- **Security:** `SILK_PRO` no longer unlocks Pro in the installed app. Pro code generator: works with an encrypted output on a public repo (own password) and accepts the signing key in any format.
+- **Security:** test switches (`SILK_PRO`, test mode, test signing key) have no effect in the installed app; calendar files only accept real dates as file names. Privacy page no longer mentions screenshots (none are taken any more). Pro codes: choose the duration (default lifetime) or an end date; the app shows the last valid day.
+- **Cleanup:** leftover code from the removed overlay deleted; details are only prefetched when the mouse rests on “More from the letter”; scanned PDFs without text are no longer recognised twice.
 
 ## 1.24.0
 - **Faster AI:** compact JSON (no line breaks/indentation in the AI's answer) and exactly 3 key points. Measured on the test letters (same machine, alternating): fast model 15.1 s → 11.8 s, slowest letter 22.4 s → 14.2 s, 17.8 → 23.6 tokens/s; thorough model 51 s → 32 s, details 125 s → 63 s – same accuracy.

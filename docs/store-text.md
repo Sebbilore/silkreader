@@ -1,4 +1,4 @@
-# Microsoft Store – Texte für Silkreader 1.24.0
+# Microsoft Store – Texte für Silkreader 1.25.0
 
 Zum Kopieren ins Partner Center (Store-Einträge → Deutsch / Englisch).
 
@@ -53,13 +53,14 @@ Hinweis: KI kann sich irren. Wichtige Angaben wie Beträge und Fristen bitte im 
 
 ### Neuerungen in dieser Version (What's new, max. 1500 Zeichen)
 
-Version 1.24 – noch schneller, kleiner, sparsamer
-• Noch schneller: Das Ergebnis steht beim schnellen KI-Modell rund ein Fünftel früher da, beim gründlichen in gut der Hälfte der Zeit.
-• Kleinerer Download: etwa ein Viertel weniger.
-• Sparsamer im Hintergrund: Die KI gibt ihren Arbeitsspeicher zuverlässig frei, wenn du nichts liest.
-• Die Spinne reagiert nur noch dicht bei sich auf Klicks und abgelegte Dateien – darunter kannst du wieder ganz normal Text markieren.
+Version 1.25 – sofort da, neue graue Darstellungen
+• Sofort da: Ein Klick auf die Spinne öffnet die Sprechblase ohne Wartezeit, Betrag und Frist stehen nach einem Augenblick oben.
+• Fotos, Bildschirmbereiche und gescannte PDFs werden schneller gelesen.
+• Neu: „Hell · Grau“ und „Dunkel · Grau“ – ruhiges Grau statt Pink, auch für die Spinne.
+• Alle Fristen auf einmal in den Kalender, Antworten direkt als E-Mail öffnen.
+• Die Spinne hält bei einer nahen Frist ein Schild hoch und warnt bei Betrugsverdacht.
 
-Aus Version 1.23: doppelt so schnell, Betrag/Frist/IBAN sofort oben, „Meine Briefe“, neues Spinnennetz-Menü, Lesezeit unter jedem Ergebnis.
+Aus Version 1.24: noch schneller, ein Viertel kleinerer Download, sparsamer im Hintergrund.
 
 ### Produktfeatures (Product features, je max. 200 Zeichen)
 
@@ -129,13 +130,14 @@ Note: AI can make mistakes. Please check important details such as amounts and d
 
 ### What's new in this version
 
-Version 1.24 – even faster, smaller, lighter
-• Even faster: with the fast AI model the result is ready about a fifth sooner, with the thorough model in little more than half the time.
-• Smaller download: about a quarter less.
-• Lighter in the background: the AI reliably frees its memory when you are not reading.
-• The spider only reacts to clicks and dropped files close to itself – below it you can select text as usual again.
+Version 1.25 – instant, new grey appearances
+• Instant: a click on the spider opens the speech bubble right away; amount and deadline appear a moment later.
+• Photos, screen regions and scanned PDFs are read faster.
+• New: “Light · Grey” and “Dark · Grey” – calm grey instead of pink, the spider included.
+• Add all deadlines to your calendar at once, open replies directly as an e-mail.
+• The spider holds up a sign when a deadline is near and warns on suspected scams.
 
-From version 1.23: twice as fast, amount/deadline/IBAN right at the top, “My letters”, new spider-web menu, reading time below every result.
+From version 1.24: even faster, a quarter smaller download, lighter in the background.
 
 ### Product features
 

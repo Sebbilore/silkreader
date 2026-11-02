@@ -55,7 +55,7 @@ function checkCode(code, now = Date.now()) {
   const data = raw.subarray(0, 8), sig = raw.subarray(8, 72);
   let valid = false;
   // Testschlüssel nur im Testmodus mit Beispiel-Antworten (dort gibt es ohnehin keine echte KI)
-  const key = process.env.SPIDER_MOCK && process.env.SILK_PRO_PUBKEY ? process.env.SILK_PRO_PUBKEY : PUBLIC_KEY;
+  const key = process.env.SPIDER_MOCK && process.env.SILK_PRO_PUBKEY && !isPackaged() ? process.env.SILK_PRO_PUBKEY : PUBLIC_KEY;
   try { valid = crypto.verify(null, data, crypto.createPublicKey({ key: Buffer.from(key, 'base64'), format: 'der', type: 'spki' }), sig); } catch { valid = false; }
   if (!valid || data[0] !== 1 || data[1] !== 1) return { ok: false, error: 'Dieser Code ist nicht gültig.' };
   const days = data.readUInt16BE(6);
@@ -124,7 +124,9 @@ async function refresh(settings, { psEnv, log = () => {}, store = true } = {}) {
   return status();
 }
 // SILK_PRO schaltet Pro nur für die Tests frei – nie in der installierten App
-const testPro = () => { if (!process.env.SILK_PRO) return false; try { return !require('electron').app?.isPackaged; } catch { return true; } };
+// Installierte App? (außerhalb von Electron, z. B. im Code-Skript: nein)
+function isPackaged() { try { return !!require('electron').app?.isPackaged; } catch { return false; } }
+const testPro = () => !!process.env.SILK_PRO && !isPackaged();
 const active = () => !ENABLED || !!state.code || state.store || testPro();
 /** Darf diese Funktion benutzt werden? */
 function allowed(feature) {
