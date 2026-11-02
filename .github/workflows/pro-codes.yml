@@ -10,9 +10,22 @@ on:
       anzahl:
         description: Wie viele Codes?
         default: '1'
-      monate:
-        description: Gültig für wie viele Monate? (0 = unbegrenzt)
-        default: '0'
+      dauer:
+        description: Wie lange gültig? (Standard: lebenslang)
+        type: choice
+        default: lebenslang
+        options:
+          - lebenslang
+          - 1 Woche
+          - 2 Wochen
+          - 1 Monat
+          - 3 Monate
+          - 6 Monate
+          - 1 Jahr
+          - 2 Jahre
+      bis:
+        description: 'Oder genau bis (Datum, z. B. 31.12.2027) – ersetzt die Dauer, leer lassen für die Auswahl oben'
+        default: ''
       notiz:
         description: Notiz (z. B. „für Max“)
         default: ''
@@ -42,19 +55,21 @@ jobs:
         env:
           PRO_SIGNING_KEY: ${{ secrets.PRO_SIGNING_KEY }}
           ANZAHL: ${{ inputs.anzahl }}
-          MONATE: ${{ inputs.monate }}
+          DAUER: ${{ inputs.dauer }}
+          BIS: ${{ inputs.bis }}
           NOTIZ: ${{ inputs.notiz }}
-        run: node scripts/pro-codes.mjs "$ANZAHL" "$MONATE" "$NOTIZ" >> "$GITHUB_STEP_SUMMARY"
+        run: node scripts/pro-codes.mjs "$ANZAHL" "$DAUER" "$NOTIZ" "$BIS" >> "$GITHUB_STEP_SUMMARY"
       - name: Codes erzeugen (verschlüsselt)
         if: ${{ inputs.empfaenger != '' }}
         env:
           PRO_SIGNING_KEY: ${{ secrets.PRO_SIGNING_KEY }}
           ANZAHL: ${{ inputs.anzahl }}
-          MONATE: ${{ inputs.monate }}
+          DAUER: ${{ inputs.dauer }}
+          BIS: ${{ inputs.bis }}
           NOTIZ: ${{ inputs.notiz }}
           EMPFAENGER: ${{ inputs.empfaenger }}
         run: |
-          node scripts/pro-codes.mjs "$ANZAHL" "$MONATE" "$NOTIZ" > codes.txt 2> err.txt || { echo "::error title=Code-Erzeugung fehlgeschlagen::$(tr '\n' ' ' < err.txt)"; exit 1; }
+          node scripts/pro-codes.mjs "$ANZAHL" "$DAUER" "$NOTIZ" "$BIS" > codes.txt 2> err.txt || { echo "::error title=Code-Erzeugung fehlgeschlagen::$(tr '\n' ' ' < err.txt)"; exit 1; }
           enc=$(node -e "
             const c = require('crypto'), fs = require('fs');
             const pub = Buffer.from(process.env.EMPFAENGER, 'base64').toString('utf8');
@@ -74,10 +89,11 @@ jobs:
           PRO_SIGNING_KEY: ${{ secrets.PRO_SIGNING_KEY }}
           PW: ${{ secrets.PRO_CODES_PASSWORD }}
           ANZAHL: ${{ inputs.anzahl }}
-          MONATE: ${{ inputs.monate }}
+          DAUER: ${{ inputs.dauer }}
+          BIS: ${{ inputs.bis }}
           NOTIZ: ${{ inputs.notiz }}
         run: |
-          node scripts/pro-codes.mjs "$ANZAHL" "$MONATE" "$NOTIZ" > codes.txt 2> err.txt || { echo "::error title=Code-Erzeugung fehlgeschlagen::$(tr '\n' ' ' < err.txt)"; exit 1; }
+          node scripts/pro-codes.mjs "$ANZAHL" "$DAUER" "$NOTIZ" "$BIS" > codes.txt 2> err.txt || { echo "::error title=Code-Erzeugung fehlgeschlagen::$(tr '\n' ' ' < err.txt)"; exit 1; }
           enc=$(node -e "
             const c = require('crypto'), fs = require('fs');
             const salt = c.randomBytes(16), iv = c.randomBytes(12);

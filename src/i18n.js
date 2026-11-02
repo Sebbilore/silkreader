@@ -38,7 +38,7 @@
     'Tipp: Mit dem gründlichen KI-Modell werden andere Sprachen deutlich besser.': 'Tip: other languages work much better with the thorough AI model.',
     'Mit Windows starten …': 'Start with Windows …',
     'Silkreader Pro': 'Silkreader Pro', 'Silkreader Pro ✓': 'Silkreader Pro ✓', 'Silkreader Pro …': 'Silkreader Pro …', 'Pro ist aktiv': 'Pro is active', 'Pro ist aktiv ✓': 'Pro is active ✓',
-    'per Code, gültig bis {d}': 'via code, valid until {d}', 'per Code, unbegrenzt': 'via code, unlimited', 'über den Microsoft Store': 'via the Microsoft Store',
+    'per Code, gültig bis {d}': 'via code, valid until {d}', 'per Code, lebenslang': 'via code, lifetime', 'über den Microsoft Store': 'via the Microsoft Store',
     'Mehr aus deinen Briefen holen.': 'Get more out of your letters.', 'Kommt bald': 'Coming soon',
     // ---- neues Design ----
     'Frage zum Text stellen': 'Ask about the text', 'Weitere Aktionen': 'More actions', 'Was du tun musst': 'What you need to do',

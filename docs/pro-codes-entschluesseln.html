@@ -3,54 +3,100 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pro-Codes entschlüsseln</title>
+<title>Pro-Codes öffnen</title>
 <style>
-  :root { --bg: #f6f6f8; --card: #fff; --ink: #1d1d27; --muted: #6b6b7a; --pink: #c2185b; --line: #e3e3ea; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #111117; --card: #1b1b24; --ink: #ececf2; --muted: #9a9aab; --line: #2c2c38; } }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
-  main { max-width: 640px; margin: 32px auto; padding: 0 16px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
-  h1 { font-size: 20px; margin: 0 0 4px; } p { color: var(--muted); margin: 0 0 16px; }
-  label { display: block; font-weight: 600; margin: 12px 0 4px; }
-  textarea, input { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: 13px ui-monospace, Consolas, monospace; }
-  textarea { height: 90px; }
-  button { margin-top: 16px; background: var(--pink); color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font-weight: 600; cursor: pointer; }
-  pre { white-space: pre-wrap; word-break: break-all; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-height: 20px; }
-  .err { color: #d33; }
+  /* Layout: eine ruhige Karte, drei Schritte untereinander, Ergebnis mit Kopieren-Knopf */
+  :root {
+    --bg: #f3f3f4; --card: #ffffff; --ink: #1b1b1f; --muted: #5d5d66; --line: #dcdce2;
+    --accent: #b8195a; --on-accent: #ffffff; --field: #f7f7f9; --bad: #b3261e; --ok: #1f7a4d;
+    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #18181b; --card: #222226; --ink: #f0f0f2; --muted: #a8a8b2; --line: #36363d;
+    --accent: #ff6aa4; --on-accent: #1b1b1f; --field: #1b1b1f; --bad: #ff8a80; --ok: #6fd39a; color-scheme: dark; } }
+  :root[data-theme="dark"] {
+    --bg: #18181b; --card: #222226; --ink: #f0f0f2; --muted: #a8a8b2; --line: #36363d;
+    --accent: #ff6aa4; --on-accent: #1b1b1f; --field: #1b1b1f; --bad: #ff8a80; --ok: #6fd39a; color-scheme: dark; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px; }
+  main { max-width: 600px; margin: 0 auto; display: grid; gap: 16px; }
+  h1 { font-size: 22px; margin: 0; text-wrap: balance; }
+  .lead { color: var(--muted); margin: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
+  label { font-weight: 600; display: block; margin-bottom: 6px; }
+  .hint { color: var(--muted); font-size: 13px; font-weight: 400; }
+  textarea, input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--field); color: var(--ink); font: 13px/1.4 var(--mono); }
+  textarea { height: 96px; resize: vertical; word-break: break-all; }
+  textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button { font: 600 15px var(--font); border-radius: 6px; padding: 10px 18px; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  button.main { background: var(--accent); color: var(--on-accent); border-color: transparent; justify-self: start; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .codes { display: grid; gap: 8px; }
+  .code { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--field); }
+  .code span { font: 600 16px var(--mono); letter-spacing: .04em; word-break: break-all; flex: 1 1 200px; min-width: 0; user-select: all; }
+  .msg { margin: 0; font-size: 14px; }
+  .msg.bad { color: var(--bad); } .msg.ok { color: var(--ok); }
+  .private { color: var(--muted); font-size: 13px; margin: 0; }
 </style>
 </head>
 <body>
+
 <main>
+  <h1>Pro-Codes öffnen</h1>
+  <p class="lead">Füge den verschlüsselten Text aus dem GitHub-Lauf „Pro-Codes“ ein und gib dein Passwort ein. Die Codes erscheinen darunter.</p>
   <div class="card">
-    <h1>Pro-Codes entschlüsseln</h1>
-    <p>Alles passiert nur hier in deinem Browser – nichts wird gesendet. Den verschlüsselten Text findest du im Lauf „Pro-Codes“ unter Actions (Zusammenfassung).</p>
-    <label for="enc">Verschlüsselter Text (beginnt mit SPW1.)</label>
-    <textarea id="enc" spellcheck="false"></textarea>
-    <label for="pw">Dein Passwort (Secret PRO_CODES_PASSWORD)</label>
-    <input id="pw" type="password" autocomplete="off">
-    <button id="go">Entschlüsseln</button>
-    <label>Codes</label>
-    <pre id="out"></pre>
+    <div>
+      <label for="enc">Verschlüsselter Text <span class="hint">(beginnt mit SPW1.)</span></label>
+      <textarea id="enc" spellcheck="false" placeholder="SPW1.…"></textarea>
+    </div>
+    <div>
+      <label for="pw">Passwort <span class="hint">(das du als PRO_CODES_PASSWORD eingetragen hast)</span></label>
+      <input id="pw" type="password" autocomplete="off">
+    </div>
+    <button class="main" id="go">Codes anzeigen</button>
+    <p class="msg" id="msg" role="status"></p>
+    <div class="codes" id="codes"></div>
   </div>
+  <p class="private">Das Entschlüsseln passiert nur in deinem Browser. Text und Passwort werden nirgendwohin gesendet oder gespeichert.</p>
 </main>
+
 <script>
+  const $ = (id) => document.getElementById(id);
   const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
-  document.getElementById('go').addEventListener('click', async () => {
-    const out = document.getElementById('out');
-    out.className = ''; out.textContent = '…';
+  async function open() {
+    const msg = $('msg'), box = $('codes');
+    box.textContent = ''; msg.className = 'msg'; msg.textContent = 'Wird entschlüsselt …';
     try {
-      const parts = document.getElementById('enc').value.trim().split('.');
-      if (parts[0] !== 'SPW1' || parts.length !== 4) throw new Error('Das ist kein gültiger Text (muss mit SPW1. beginnen).');
+      const parts = $('enc').value.replace(/\s+/g, '').split('.');
+      if (parts[0] !== 'SPW1' || parts.length !== 4) throw new Error('Der Text muss mit SPW1. beginnen und vollständig sein. Kopiere die ganze Zeile aus der Zusammenfassung des Laufs.');
+      if (!$('pw').value) throw new Error('Bitte gib dein Passwort ein.');
       const [salt, iv, data] = parts.slice(1).map(b64);
-      const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(document.getElementById('pw').value), 'PBKDF2', false, ['deriveKey']);
+      const base = await crypto.subtle.importKey('raw', new TextEncoder().encode($('pw').value), 'PBKDF2', false, ['deriveKey']);
       const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
-      const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
-      out.textContent = new TextDecoder().decode(plain).replace(/```/g, '').replace(/^## .*\n/m, '').trim();
+      const text = new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data));
+      const head = (text.match(/^## (.*)$/m) || [])[1] || '';
+      const codes = text.replace(/```/g, '').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('##'));
+      msg.className = 'msg ok'; msg.textContent = head || `${codes.length} Code(s)`;
+      for (const c of codes) {
+        const row = document.createElement('div'); row.className = 'code';
+        const s = document.createElement('span'); s.textContent = c;
+        const b = document.createElement('button'); b.textContent = 'Kopieren';
+        b.addEventListener('click', () => {
+          navigator.clipboard.writeText(c).then(() => { b.textContent = 'Kopiert'; setTimeout(() => (b.textContent = 'Kopieren'), 1500); })
+            .catch(() => { const r = document.createRange(); r.selectNodeContents(s); getSelection().removeAllRanges(); getSelection().addRange(r); b.textContent = 'Markiert – Strg+C'; });
+        });
+        row.append(s, b); box.append(row);
+      }
     } catch (e) {
-      out.className = 'err';
-      out.textContent = e.name === 'OperationError' ? 'Passwort falsch oder Text unvollständig.' : e.message;
+      msg.className = 'msg bad';
+      msg.textContent = e.name === 'OperationError' ? 'Passwort falsch oder Text unvollständig. Prüfe das Passwort und kopiere die ganze SPW1-Zeile erneut.'
+        : e.name === 'InvalidCharacterError' ? 'Der Text ist beschädigt. Kopiere die ganze SPW1-Zeile erneut.' : e.message;
     }
-  });
+  }
+  $('go').addEventListener('click', open);
+  $('pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') open(); });
 </script>
 </body>
 </html>

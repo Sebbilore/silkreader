@@ -71,10 +71,13 @@ function normalizePem(text) {
   return `-----BEGIN PRIVATE KEY-----\n${body.match(/.{1,64}/g).join('\n')}\n-----END PRIVATE KEY-----\n`;
 }
 /** Code erzeugen (nur mit privatem Schlüssel, z. B. im GitHub-Workflow) */
-function makeCode(privateKeyPem, { id = crypto.randomBytes(4).readUInt32BE(0), months = 0 } = {}) {
+// Gültigkeit: until (Datum, gilt bis einschließlich diesem Tag) oder months/days ab heute; nichts = für immer
+function makeCode(privateKeyPem, { id = crypto.randomBytes(4).readUInt32BE(0), months = 0, days = 0, until = null } = {}) {
   const data = Buffer.alloc(8);
   data[0] = 1; data[1] = 1; data.writeUInt32BE(id >>> 0, 2);
-  if (months) { const d = new Date(); d.setMonth(d.getMonth() + months); data.writeUInt16BE(Math.ceil((d.getTime() - EPOCH) / 864e5), 6); }
+  let end = until ? new Date(until) : null;
+  if (!end && (months || days)) { end = new Date(); end.setMonth(end.getMonth() + months); end.setDate(end.getDate() + days); }
+  if (end) data.writeUInt16BE(Math.min(65535, Math.max(1, Math.ceil((end.getTime() - EPOCH) / 864e5))), 6);
   const sig = crypto.sign(null, data, crypto.createPrivateKey(normalizePem(privateKeyPem)));
   return group(b32encode(Buffer.concat([data, sig])));
 }

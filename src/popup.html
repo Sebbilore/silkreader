@@ -1203,7 +1203,7 @@
     state = 'done';
     $('title').textContent = 'Silkreader Pro';
     const st = await window.spider.proState();
-    const until = st.until ? new Date(st.until).toLocaleDateString(I18N.locale) : null;
+    const until = st.until ? new Date(new Date(st.until).getTime() - 1).toLocaleDateString(I18N.locale, { timeZone: 'UTC' }) : null; // letzter gültiger Tag
     // Sechs Vorteile in Alltagssprache – die Pro-Funktionen sind darauf verteilt
     const PERKS = [
       ['Brief-Hilfe', 'Was du tun musst, bis wann, IBAN zum Kopieren.', ['letter']],
@@ -1215,7 +1215,7 @@
     ];
     const list = PERKS.map(([h, d, keys]) => `<li class="${keys.includes(feature) ? 'hit' : ''}"><strong>${T(h)}</strong><span>${T(d)}</span></li>`).join('');
     const head = st.active
-      ? `<div class="pro-on">✓ ${T('Pro ist aktiv')}${st.source === 'code' ? ` <span class="muted">· ${until ? T('per Code, gültig bis {d}', { d: until }) : T('per Code, unbegrenzt')}</span>` : st.source === 'store' ? ` <span class="muted">· ${T('über den Microsoft Store')}</span>` : ''}</div>`
+      ? `<div class="pro-on">✓ ${T('Pro ist aktiv')}${st.source === 'code' ? ` <span class="muted">· ${until ? T('per Code, gültig bis {d}', { d: until }) : T('per Code, lebenslang')}</span>` : st.source === 'store' ? ` <span class="muted">· ${T('über den Microsoft Store')}</span>` : ''}</div>`
       : `<p class="pro-why">${feature ? T('{f} gibt es mit Silkreader Pro.', { f: T(st.features[feature] || feature) }) : st.comingSoon ? T('Kommt bald im Microsoft Store. Mit einem Code geht es schon jetzt.') : T('Mehr aus deinen Briefen holen.')}</p>`;
     $('main').innerHTML = `
       <div class="pro-hero">${proMark()}<div><h2>${T('Mehr Hilfe bei jedem Brief')}</h2>${head}</div></div>
