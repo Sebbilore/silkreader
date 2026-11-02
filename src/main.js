@@ -877,7 +877,9 @@ function watchFullscreen() {
   setInterval(() => {
     if (!bubbleWin || bubbleWin.isDestroyed()) return;
     // Windows nimmt „immer oben“ weg, sobald ein anderes Programm nach vorn kommt: immer wieder setzen
-    if (bubbleWin.isVisible()) { bubbleWin.setAlwaysOnTop(true, 'floating'); bubbleWin.moveTop(); }
+    // (nicht, solange Spinnennetz-Menü oder Sprechblase offen sind – die sollen über der Spinne bleiben)
+    const over = [ringWin, popupWin].some((w) => w && !w.isDestroyed() && w.isVisible());
+    if (bubbleWin.isVisible() && !over) { bubbleWin.setAlwaysOnTop(true, 'floating'); bubbleWin.moveTop(); }
     if (loadSettings().hideFullscreen === false) return;
     const busy = winkeys.fullscreenBusy();
     if (busy && bubbleWin.isVisible() && !hiddenForFullscreen) {
