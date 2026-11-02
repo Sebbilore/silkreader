@@ -875,7 +875,10 @@ let hiddenForFullscreen = false, pauseUntil = 0, pauseTimer = null;
 function watchFullscreen() {
   if (process.platform !== 'win32') return;
   setInterval(() => {
-    if (!bubbleWin || bubbleWin.isDestroyed() || loadSettings().hideFullscreen === false) return;
+    if (!bubbleWin || bubbleWin.isDestroyed()) return;
+    // Windows nimmt „immer oben“ weg, sobald ein anderes Programm nach vorn kommt: immer wieder setzen
+    if (bubbleWin.isVisible()) { bubbleWin.setAlwaysOnTop(true, 'floating'); bubbleWin.moveTop(); }
+    if (loadSettings().hideFullscreen === false) return;
     const busy = winkeys.fullscreenBusy();
     if (busy && bubbleWin.isVisible() && !hiddenForFullscreen) {
       hiddenForFullscreen = true;
@@ -885,9 +888,7 @@ function watchFullscreen() {
       hiddenForFullscreen = false;
       if (Date.now() >= pauseUntil && !rigHiddenForMain) bubbleWin.showInactive();
     }
-    // Windows nimmt „immer oben“ manchmal weg, wenn sich ein anderes Programm nach vorn drängt: wieder setzen
-    if (!busy && bubbleWin.isVisible()) { bubbleWin.setAlwaysOnTop(true, 'floating'); bubbleWin.moveTop(); }
-  }, 2000);
+  }, 1000);
 }
 // In Bildschirmfreigaben (Teams, Zoom …) und Bildschirmfotos unsichtbar – nur man selbst sieht die Spinne
 function protectFromCapture(win) {
