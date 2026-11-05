@@ -3,6 +3,10 @@
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
 
+## 1.27.0
+- **Choice after reading:** the result shows Read / Translate / Simple / Reply at the top again.
+- **Smarter date detection:** articles (e.g. Wikipedia) no longer suggest deadlines. The kind of text (article, news, report vs. letter or notice) and real deadline words decide.
+
 ## 1.26.0
 - **Claude and Ollama removed:** Silkreader now reads only with the built-in model on your PC. If you used Claude or Ollama before, Silkreader switches to the built-in model on the first start and **deletes the saved API key**, then tells you in a short speech bubble. Privacy is unchanged: only what you select is read, nothing is sent over the internet (0 bytes).
 - **High-contrast mode:** in the Windows high-contrast mode, borders, focus, progress bar and spider stay visible. The spider window now has a name for screen readers.
