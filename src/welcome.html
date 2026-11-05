@@ -182,12 +182,9 @@
   }
   window.spider.welcomeState().then(async (st) => {
     prefs = { pinCopied: st.pinCopied, copyHint: st.copyHint };
-    // Wer schon Claude nutzt, braucht keinen Download
-    if (st.provider === 'claude' && st.hasKey) { $('dlCard').classList.add('hidden'); return; }
     if (st.modelReady) return ready();
     const ms = await window.spider.modelStatus();
     if (ms.downloading) return;
-    window.spider.saveSettings({ provider: 'builtin' });
     window.spider.modelDownload(ms.selected);
     progress(0);
   });

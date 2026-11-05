@@ -2,13 +2,13 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 // Hell oder dunkel: als Attribut am Dokument (theme.css), folgt Windows bzw. der Einstellung „Darstellung“
 let themeDark = ipcRenderer.sendSync('theme-dark');
-// mode: 'dark' | 'light' | 'graphite' | 'graphite-dark' | 'contrast' (ältere Hauptprozesse schicken true/false)
+// mode: 'dark' | 'light' | 'graphite' | 'graphite-dark' | 'contrast'
 // „graphite“ = Hell · Grau, „graphite-dark“ = Dunkel · Grau: data-theme hell/dunkel plus data-accent="gray" (theme.css)
 const setTheme = (mode) => {
   themeDark = mode;
   const root = document.documentElement;
   if (!root) return;
-  root.dataset.theme = mode === true || mode === 'graphite-dark' ? 'dark' : mode === false || mode === 'graphite' ? 'light' : mode;
+  root.dataset.theme = mode === 'graphite-dark' ? 'dark' : mode === 'graphite' ? 'light' : mode;
   if (mode === 'graphite' || mode === 'graphite-dark') root.dataset.accent = 'gray'; else delete root.dataset.accent;
 };
 // Das Vorladeskript läuft, bevor es <html> gibt: setzen, sobald das Element da ist (kein Aufblitzen)
@@ -50,7 +50,6 @@ contextBridge.exposeInMainWorld('spider', {
   askState: () => ipcRenderer.invoke('ask-state'),
   askAnswer: (id, answer) => ipcRenderer.invoke('ask-answer', id, answer),
   askRemind: (doc, on) => ipcRenderer.invoke('ask-remind', doc, on),
-  askFolder: (doc) => ipcRenderer.invoke('ask-folder', doc),
   learnThumbs: (good) => ipcRenderer.invoke('learn-thumbs', good),
   analyzeQuality: (doc) => ipcRenderer.invoke('analyze-quality', doc),
   analyzeMore: (doc, base) => ipcRenderer.invoke('analyze-more', doc, base),
@@ -87,7 +86,6 @@ contextBridge.exposeInMainWorld('spider', {
   setShortcut: (id, keys, label) => ipcRenderer.invoke('set-shortcut', id, keys, label),
   clipboardPreview: () => ipcRenderer.invoke('clipboard-preview'),
   popupClose: () => ipcRenderer.invoke('popup-close'),
-  popupDetails: (doc, result, focus) => ipcRenderer.invoke('popup-details', doc, result, focus),
   onDropZone: (cb) => ipcRenderer.on('drop-zone', (_e, on) => cb(on)),
   onPopupDoc: (cb) => ipcRenderer.on('popup-doc', (_e, d) => cb(d)),
   shortcuts: () => ipcRenderer.invoke('shortcuts'),
@@ -96,7 +94,6 @@ contextBridge.exposeInMainWorld('spider', {
   cocoonList: () => ipcRenderer.invoke('cocoon-list'),
   cocoonAddFiles: (files) => ipcRenderer.invoke('cocoon-add-files', files.map((f) => webUtils.getPathForFile(f))),
   cocoonAddText: (text) => ipcRenderer.invoke('cocoon-add-text', text),
-  cocoonCopy: (id) => ipcRenderer.invoke('cocoon-copy', id),
   cocoonMenu: (id) => ipcRenderer.send('cocoon-menu', id),
   cocoonDrag: (id) => ipcRenderer.send('cocoon-drag', id),
   onCocoons: (cb) => ipcRenderer.on('cocoons', (_e, list) => cb(list)),
@@ -109,7 +106,6 @@ contextBridge.exposeInMainWorld('spider', {
   openMain: () => ipcRenderer.invoke('open-main'),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (s) => ipcRenderer.invoke('save-settings', s),
-  ollamaModels: () => ipcRenderer.invoke('ollama-models'),
   modelStatus: () => ipcRenderer.invoke('model-status'),
   modelDownload: (key) => ipcRenderer.invoke('model-download', key),
   modelCancel: () => ipcRenderer.invoke('model-cancel'),

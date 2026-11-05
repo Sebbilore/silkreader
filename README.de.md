@@ -93,7 +93,7 @@ npm run dist:mac     # macOS (.dmg), muss auf einem Mac gebaut werden
 
 Aufbau:
 
-- `src/main.js`: Hauptprozess mit Spinnenfenster, Tastenkürzel, Dateien lesen und KI-Aufruf (eingebaute KI in zwei Stufen; Claude und Ollama nur noch für Profis)
+- `src/main.js`: Hauptprozess mit Spinnenfenster, Tastenkürzel, Dateien lesen und KI-Aufruf (eingebaute KI in zwei Stufen)
 - `src/facts.js`: feste Regeln für Briefe (Betrag, Frist, IBAN, Betrugs-Check, Unterschrift, Verträge) – ohne KI, sofort
 - `src/learn.js`: lokales Lernen aus Korrekturen und Absender-Profilen
 - `src/pro.js`: Silkreader Pro (Codes und Store-Add-on)

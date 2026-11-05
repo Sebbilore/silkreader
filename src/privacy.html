@@ -29,7 +29,7 @@
     <li><b>Texte und Ergebnisse</b> beim eingebauten Modell: Die KI läuft vollständig auf deinem PC.</li>
     <li><b>Notizbuch</b>: die letzten 20 gelesenen Texte samt Ergebnis, gespeichert in <code>%APPDATA%\Silkreader\history.json</code>.</li>
     <li><b>Spinnennetz</b>: angeheftete Dateien (nur der Pfad) und Texte in <code>cocoons.json</code>.</li>
-    <li><b>Einstellungen</b> in <code>settings.json</code>; ein Claude-API-Schlüssel wird mit Windows verschlüsselt gespeichert.</li>
+    <li><b>Einstellungen</b> in <code>settings.json</code>.</li>
     <li><b>Gelerntes</b> in <code>learn.json</code>: erkannte Absender, Beträge und deine Korrekturen. Einsehen, löschen oder abschalten unter Einstellungen → Was ich gelernt habe; im Privatmodus wird nichts gelernt.</li>
     <li><b>Später lesen</b> in <code>bookmarks.json</code>: der vorgemerkte Text bis zur Erinnerung.</li>
     <li><b>Protokoll</b> (<code>silkreader-errors.log</code>): technische Abläufe und Fehler, keine gelesenen Texte.</li>
@@ -38,8 +38,6 @@
 
   <h2>Was deinen PC verlässt – nur wenn du es nutzt</h2>
   <ul>
-    <li><b>Claude (Anthropic)</b>: Wählst du Claude, werden die Texte, die du lesen, übersetzen oder befragen lässt, an Anthropic geschickt und dort verarbeitet. Es gelten die Datenschutzbestimmungen von Anthropic.</li>
-    <li><b>Ollama</b>: läuft lokal auf deinem PC; Silkreader spricht es nur über <code>127.0.0.1</code> an.</li>
     <li><b>Modell-Download</b>: Das eingebaute Modell wird einmalig von Hugging Face geladen.</li>
     <li><b>Updates</b>: Silkreader fragt bei GitHub nach neuen Versionen. Dabei sieht GitHub wie bei jedem Webseitenaufruf deine IP-Adresse.</li>
     <li><b>Problem melden</b>: öffnet GitHub im Browser. Es wird nichts automatisch verschickt – du siehst alles, bevor du es absendest.</li>
@@ -66,7 +64,7 @@
     <li><b>Spider web</b>: pinned files (path only) and texts in <code>cocoons.json</code>.</li>
     <li><b>What the spider learned</b> in <code>learn.json</code>: recognised senders, amounts and your corrections. View, delete or turn off under Settings → What I have learned; nothing is learned in private mode.</li>
     <li><b>Read later</b> in <code>bookmarks.json</code>: the saved text until the reminder.</li>
-    <li><b>Settings</b> in <code>settings.json</code>; a Claude API key is stored encrypted by Windows.</li>
+    <li><b>Settings</b> in <code>settings.json</code>.</li>
     <li><b>Log</b> (<code>silkreader-errors.log</code>): technical steps and errors, never the texts you read.</li>
     <li><b>Screenshots</b>: to find the selected words, Silkreader briefly analyzes a screenshot in memory. It is never saved or sent. Can be turned off (“Big spider reads along”).</li>
     <li><b>Clipboard</b>: only if you turn it on, Silkreader checks whether you copied files or longer texts. When reading a selection, the clipboard is used briefly and restored afterwards.</li>
@@ -74,8 +72,6 @@
 
   <h2>What leaves your PC – only if you use it</h2>
   <ul>
-    <li><b>Claude (Anthropic)</b>: if you choose Claude, the texts you have read, translated or questioned are sent to and processed by Anthropic. Anthropic’s privacy policy applies.</li>
-    <li><b>Ollama</b>: runs locally on your PC; Silkreader only talks to it via <code>127.0.0.1</code>.</li>
     <li><b>Model download</b>: the built-in model is downloaded once from Hugging Face.</li>
     <li><b>Updates</b>: Silkreader asks GitHub for new versions. Like any web request, GitHub sees your IP address.</li>
     <li><b>Report a problem</b>: opens GitHub in your browser. Nothing is sent automatically – you review everything before submitting.</li>

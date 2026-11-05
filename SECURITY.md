@@ -11,5 +11,5 @@ What Silkreader does on your PC (for reviewers):
 - Reads the selected text via Windows UI Automation or a short Ctrl+C (the clipboard is restored afterwards).
 - Takes an in-memory screenshot to locate the selected words (never stored or sent).
 - Registers global shortcuts; optionally watches the clipboard (opt-in).
-- Talks to the network only for: Claude (if chosen), the one-time model download (Hugging Face), update checks (GitHub).
+- Talks to the network only for: the one-time model download (Hugging Face), update checks (GitHub).
 - Updates are only installed if signed with the pinned Silkreader certificate (or a valid publisher certificate).

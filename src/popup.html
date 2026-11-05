@@ -182,7 +182,6 @@
   .aiNote { font-size: 12px; color: var(--faint); margin: 12px 0 2px; } .aiNote .took { white-space: nowrap; }
   .where { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; padding-top: 7px; }
   .where .icon { width: 13px; height: 13px; }
-  .where.cloud { color: var(--pink-2); }
   .news li { margin-bottom: 9px; }
   .about { text-align: center; padding: 4px 0 6px; }
   .about svg.sp { width: 64px; height: 64px; }
@@ -576,7 +575,7 @@
     const st = await window.spider.getSettings();
     const box = document.createElement('div');
     box.className = 'langpick rise';
-    const weak = st.provider === 'builtin' && st.qualityPossible && !st.qualityReady;
+    const weak = st.qualityPossible && !st.qualityReady;
     box.innerHTML = `<div class="h">${T('Erklären auf …')}</div>${weak ? `<div class="muted" style="margin:0 0 6px">${T('Tipp: Mit dem gründlichen KI-Modell werden andere Sprachen deutlich besser.')} <button class="link" id="qualityLink2">${T('Einstellungen')}</button></div>` : ''}<div class="chips" data-noi18n>${Object.entries(st.explainLangs).map(([k, n]) => `<button class="chip${k === st.explainLang ? ' on' : ''}" data-x="${k}" lang="${k}">${esc(n)}</button>`).join('')}</div>`;
     $('main').appendChild(box);
     $('qualityLink2')?.addEventListener('click', () => window.spider.openSettings());
@@ -1457,15 +1456,13 @@
     close();
   }, 250));
 
-  // Bleibt der Text auf dem PC oder geht er an Claude? Klein im Kopf der Blase anzeigen
+  // Klein im Kopf der Blase: der Text bleibt auf dem PC
   async function showWhere() {
     const el = $('where');
     if (!['analyze', 'transform', 'compare'].includes(P.kind) || (P.kind === 'analyze' && P.result)) { el.classList.add('hidden'); return; }
-    const st = await window.spider.getSettings();
-    const cloud = st.provider === 'claude';
-    el.className = `where${cloud ? ' cloud' : ''}`;
-    el.innerHTML = `${silkIcon(cloud ? 'cloud' : 'lock')}<span>${T(cloud ? 'an Claude' : 'auf diesem PC')}</span>`;
-    el.title = T(cloud ? 'Dieser Text wird an Claude (Anthropic) geschickt.' : 'Dieser Text bleibt auf deinem PC.');
+    el.className = 'where';
+    el.innerHTML = `${silkIcon('lock')}<span>${T('auf diesem PC')}</span>`;
+    el.title = T('Dieser Text bleibt auf deinem PC.');
   }
 
   // ---------- Was ist neu? ----------

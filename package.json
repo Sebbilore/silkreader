@@ -32,9 +32,6 @@
       "!node_modules/**/{CHANGELOG,HISTORY,AUTHORS,CONTRIBUTING}*",
       "!node_modules/node-llama-cpp/llama/gitRelease.bundle",
       "!node_modules/koffi/build/koffi/win32_{ia32,arm64}/**",
-      "!node_modules/@anthropic-ai/sdk/src/**",
-      "!node_modules/@anthropic-ai/sdk/**/*.mjs",
-      "!node_modules/zod/src/**",
       "!node_modules/**/*.{ts,mts,cts}"
     ],
     "icon": "build/icon.png",
@@ -112,7 +109,6 @@
     "afterPack": "build/afterPack.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.1.0",
     "bytenode": "1.7.0",
     "electron-updater": "^6.8.9",
     "koffi": "2.16.3",

@@ -140,24 +140,6 @@
     <div class="line"><label class="check grow"><input type="checkbox" id="lowPower"> Sparmodus: braucht weniger Arbeitsspeicher (nach einem Neustart)</label></div>
   </div>
 
-  <!-- Andere KI: nur für alle, die schon Claude oder Ollama nutzen -->
-  <div id="otherAi" class="hidden">
-    <h2>Andere KI</h2>
-    <div class="grp"><div class="line"><span class="grow"><label for="provider" style="margin:0;font-weight:400">KI</label><span class="sub">Neu eingerichtet wird nur noch die eingebaute KI.</span></span>
-      <select id="provider"><option value="builtin">Eingebaut</option><option value="claude">Claude</option><option value="ollama">Ollama</option></select></div></div>
-    <div class="box" id="boxClaude">
-      <label for="key">Anthropic API-Schlüssel</label>
-      <input id="key" type="password" placeholder="sk-ant-…" autocomplete="off">
-      <div class="hint">Erstellen unter <a id="console">platform.claude.com</a> → API Keys. Wird verschlüsselt nur auf diesem PC gespeichert.</div>
-      <label for="model">Modell</label>
-      <select id="model"></select>
-    </div>
-    <div class="box" id="boxOllama">
-      <label for="ollamaModel">Lokales Modell</label>
-      <div class="inline"><select id="ollamaModel"></select><button id="refresh" title="Neu laden" aria-label="Neu laden">↻</button></div>
-      <div class="hint" id="ollamaStatus"></div>
-    </div>
-  </div>
   <div class="foot" style="margin-top:14px"><a id="lLog">Protokoll öffnen</a></div>
 </details>
 
@@ -237,31 +219,6 @@
   });
   $('modelCancel').addEventListener('click', () => { wantAfterDl = null; window.spider.modelCancel(); });
 
-  // ---- Andere KI (nur für bisherige Claude- oder Ollama-Nutzer) ----
-  let wantedOllama = 'gemma3:12b';
-  function showProvider(p) {
-    $('boxClaude').style.display = p === 'claude' ? '' : 'none';
-    $('boxOllama').style.display = p === 'ollama' ? '' : 'none';
-  }
-  async function loadOllama() {
-    $('ollamaStatus').textContent = T('Suche Ollama …'); $('ollamaStatus').className = 'hint';
-    const r = await window.spider.ollamaModels();
-    const sel = $('ollamaModel'); sel.innerHTML = '';
-    if (!r.ok || !r.models.length) {
-      $('ollamaStatus').textContent = !r.ok ? T('Ollama wurde nicht gefunden.') : T('Ollama läuft, aber es ist noch kein Modell geladen.');
-      $('ollamaStatus').className = 'hint bad';
-      sel.add(new Option(wantedOllama, wantedOllama));
-      return;
-    }
-    for (const m of r.models) sel.add(new Option(m, m, false, m === wantedOllama));
-    $('ollamaStatus').textContent = `✓ Ollama läuft · ${r.models.length} Modell(e) installiert`; $('ollamaStatus').className = 'hint ok';
-  }
-  $('provider').addEventListener('change', (e) => { showProvider(e.target.value); save({ provider: e.target.value }); if (e.target.value === 'ollama') loadOllama(); });
-  $('key').addEventListener('change', (e) => { if (!e.target.value.trim()) return; save({ apiKey: e.target.value }); e.target.value = ''; e.target.placeholder = T('•••••••• (gespeichert – leer lassen, um ihn zu behalten)'); });
-  $('model').addEventListener('change', (e) => save({ model: e.target.value }));
-  $('ollamaModel').addEventListener('change', (e) => save({ ollamaModel: e.target.value }));
-  $('refresh').addEventListener('click', loadOllama);
-  $('console').addEventListener('click', () => window.spider.openExternal('https://platform.claude.com/settings/keys'));
 
   // ---- Was ich gelernt habe ----
   const escH = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -302,19 +259,12 @@
   const TOGGLES = { copyHint: 'copyHint', hideFullscreen: 'hideFullscreen', privateMode: 'privateMode', pinCopied: 'pinCopied',
     hideInShare: 'hideInShare', lowPower: 'lowPower', autostart: 'autostart', learn: 'learn', morning: 'morning', askBack: 'askBack' };
   window.spider.getSettings().then((s) => {
-    for (const [id, name] of Object.entries(s.models)) $('model').add(new Option(name, id, false, id === s.model));
     $('lang').value = s.language;
     $('uiLang').value = s.uiLang;
     $('theme').value = s.theme || 'system';
     $('fontSize').value = s.fontSize || 'normal';
     for (const [id, key] of Object.entries(TOGGLES)) $(id).checked = !!s[key];
-    wantedOllama = s.ollamaModel;
     if (s.askMutedCount) { $('askReset').classList.remove('hidden'); $('askResetLink').textContent = s.askMutedCount === 1 ? T('1 Frage ausgeblendet – wieder anzeigen') : T('{n} Fragen ausgeblendet – wieder anzeigen', { n: s.askMutedCount }); }
-    if (s.hasKey) $('key').placeholder = T('•••••••• (gespeichert – leer lassen, um ihn zu behalten)');
-    if (s.provider && s.provider !== 'builtin') {
-      $('otherAi').classList.remove('hidden'); $('provider').value = s.provider; showProvider(s.provider);
-      if (s.provider === 'ollama') loadOllama();
-    }
     loadModelStatus(true);
   });
   for (const [id, key] of Object.entries(TOGGLES)) $(id).addEventListener('change', (e) => save({ [key]: e.target.checked }));
