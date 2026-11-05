@@ -3,6 +3,12 @@
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
 
+## 1.26.0
+- **Claude and Ollama removed:** Silkreader now reads only with the built-in model on your PC. If you used Claude or Ollama before, Silkreader switches to the built-in model on the first start and **deletes the saved API key**, then tells you in a short speech bubble. Privacy is unchanged: only what you select is read, nothing is sent over the internet (0 bytes).
+- **High-contrast mode:** in the Windows high-contrast mode, borders, focus, progress bar and spider stay visible. The spider window now has a name for screen readers.
+- **Calmer Pro card:** with Pro active, Settings shows one quiet line instead of an advert.
+- **Cleanup:** unused code, the never-shown folder question and unused translations removed (about 1,100 lines less in total, including the licence notices).
+
 ## 1.25.1
 - **Spider stays on top:** Windows (and macOS after hiding the Dock icon) sometimes dropped the spider behind other apps – it is now brought back to the front every second (not over the speech bubble or spider-web menu). It is also no longer hidden just because a Microsoft Store app (Photos, Settings, Outlook …) is open – only for real full screen, presentations and games.
 - **Mac:** step-by-step install guide (PDF) next to the download; spider also visible next to full-screen apps.

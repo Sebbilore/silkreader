@@ -20,7 +20,9 @@ await wel.click('#selAll');
 await sleep(300);
 await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('welcome')).focus());
 await sleep(300);
-await app.evaluate(() => global.__silk.spiderTake());
+// Auf Linux gibt es kein xdotool: das Kopieren (Strg+C) übernimmt die Willkommen-Seite selbst, kurz nachdem die Spinne die Zwischenablage vorbereitet hat
+const taking = app.evaluate(() => global.__silk.spiderTake());
+await sleep(300); await wel.evaluate(() => document.execCommand('copy')); await taking;
 const pop = await find('popup.html');
 await pop.waitForSelector('#moreBtn', { timeout: 20000 });
 console.log('Übung → Ergebnis:', await pop.textContent('#title'), '|', (await pop.textContent('.lead')).slice(0, 60));
