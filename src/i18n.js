@@ -283,6 +283,7 @@
     'Pause': 'Pause',
     'Richtig wäre': 'Correct would be',
     'Später lesen': 'Read later',
+    'Silkreader-Spinne': 'Silkreader spider',
     'Später lesen – erinnere mich': 'Read later – remind me',
     'Tempo': 'Speed',
     'Unterschreiben und zurückschicken': 'Sign and send back',

@@ -72,6 +72,7 @@
   details.adv[open] > summary::after { transform: rotate(45deg); }
   details.adv > summary .grow { flex: 1; } details.adv .sub { display: block; color: var(--muted); font-size: 12.5px; }
   .pro button { white-space: nowrap; }
+  .pro.calm { padding: 10px 16px; border-color: var(--line); } .pro.calm svg { display: none; } /* Pro aktiv: leise Zeile statt Werbefläche */
   .foot { display: flex; gap: 18px; align-items: center; margin-top: 24px; font-size: 13px; } .foot .saved { margin-left: auto; color: var(--faint); }
   .stats { display: flex; gap: 10px; margin: 10px 0 0; } .stats div { flex: 1; background: var(--card); border-radius: var(--r-m); padding: 10px 14px; } .stats b { display: block; font-size: 22px; font-weight: 600; } .stats span { font-size: 12px; color: var(--muted); }
   details.lrn { margin-top: 10px; } .line .empty { color: var(--muted); font-size: 13px; }
@@ -159,6 +160,7 @@
   // ---- Pro ----
   async function loadPro() {
     const st = await window.spider.proState();
+    $('proCard').classList.toggle('calm', !!st.active);
     $('proOn').classList.toggle('hidden', !st.active);
     $('proSoon').classList.toggle('hidden', st.active || !st.comingSoon);
     $('proBtn').textContent = st.active ? T('Pro ansehen') : T('Code einlösen');
