@@ -470,8 +470,7 @@
     if (res.ok) { result = res.result; P = { kind: 'analyze', doc, result }; showResult(); } else { state = 'done'; $('main').innerHTML = `<p class="error">${esc(res.error)}</p>`; }
   }
   function startExplain(code) {
-    const saved = { P, result };
-    setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); });
+    const saved = backToResult();
     P = { kind: 'transform', mode: `explain:${code}`, text: saved.P.doc.pages.join('\n\n'), title: T('In meiner Sprache') };
     $('title').textContent = P.title;
     transform();
@@ -562,8 +561,7 @@
 
   // Antwort/Widerspruch zum Brief schreiben – „Zurück“ führt wieder zum Ergebnis
   function replyToLetter(extra) {
-    const saved = { P, result };
-    setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); });
+    const saved = backToResult();
     P = { kind: 'transform', mode: 'reply', text: saved.P.doc.pages.join('\n\n'), extra };
     $('title').textContent = T('Antwort-Entwurf');
     transform();
@@ -582,8 +580,7 @@
     box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     box.addEventListener('click', (e) => {
       const code = e.target.closest('[data-x]')?.dataset.x; if (!code) return;
-      const saved = { P, result };
-      setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); });
+      const saved = backToResult();
       P = { kind: 'transform', mode: `explain:${code}`, text: saved.P.doc.pages.join('\n\n'), title: st.explainLangs[code] };
       $('title').textContent = st.explainLangs[code];
       transform();
@@ -659,16 +656,16 @@
     $('lSay')?.addEventListener('click', () => speak([...document.querySelectorAll('.letter .big, .letter .when2 > span:first-child')].map((x) => x.textContent).join(', ')));
     $('main').querySelectorAll('[data-tpl]').forEach((b) => b.addEventListener('click', () => replyToLetter(TEMPLATES[b.dataset.tpl](L || {})[1])));
     $('main').querySelectorAll('[data-cal]').forEach((b) => b.addEventListener('click', () => addCal(b, { iso: b.dataset.cal, sentence: T('Spätestens kündigen, sonst verlängert sich der Vertrag.') })));
-    $('cPro')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); proView('contract'); });
+    $('cPro')?.addEventListener('click', () => { backToResult(); proView('contract'); });
     $('main').scrollTop = 0;
     footer({ ask: true, actions: [['Kopieren', copyResult], ['Vorlesen', () => speak(bullets(r.summary).join('. '), 'Vorlesen', null, { show: true })], ['In meiner Sprache', explainPicker], ['Festhalten', keepResult], ['Später lesen', laterPicker], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)], ['Als PDF speichern', () => window.spider.exportResult(P.doc, result, 'pdf')], ['Drucken', () => window.spider.exportResult(P.doc, result, 'print')]] });
     $('lExplain')?.addEventListener('click', explainPicker);
     $('exPdf')?.addEventListener('click', async (e) => { const ok = await window.spider.exportResult(P.doc, result, 'pdf'); if (ok) e.target.closest('button').lastChild.textContent = T('Gespeichert'); });
     $('exPrint')?.addEventListener('click', () => window.spider.exportResult(P.doc, result, 'print'));
     $('exLater')?.addEventListener('click', laterPicker);
-    $('lPro')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); proView('letter'); });
+    $('lPro')?.addEventListener('click', () => { backToResult(); proView('letter'); });
     wireFeedback();
-    $('sAll')?.addEventListener('click', () => { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); notebook(null, r.sender.name); });
+    $('sAll')?.addEventListener('click', () => { backToResult(); notebook(null, r.sender.name); });
     if (!reopen) showQuestion(r).then((asked) => { if (asked) return maybeAskReview(); return maybeAskReview().then((rev) => { if (!rev) maybeTip(); }); });
   }
 
@@ -1330,6 +1327,8 @@
 
   // ---------- Zurück ----------
   let backFn = null;
+  // „Zurück“ führt wieder zum aktuellen Ergebnis; gibt den Stand zurück
+  function backToResult() { const saved = { P, result }; setBack(function resultAgain() { P = saved.P; result = saved.result; showResult(); }); return saved; }
   function setBack(fn) { backFn = fn; $('back').classList.toggle('hidden', !fn); }
   $('back').addEventListener('click', () => { const fn = backFn; setBack(null); run++; document.querySelectorAll('.lupe').forEach((l) => l.remove()); if (fn) { P = { kind: fn.name, mode: P.mode }; fn(); } });
 

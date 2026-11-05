@@ -127,3 +127,16 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Windows-Kontrastmodus („Kontrastdesigns“): die Farben bestimmt Windows, wir sorgen nur dafür,
+   dass nichts verschwindet – Ränder, Fokus, Auswahl und Fortschritt bleiben sichtbar. */
+@media (forced-colors: active) {
+  :root { --pink: Highlight; --pink-2: LinkText; --spider: CanvasText; --silk: CanvasText; --line: CanvasText; --line-2: CanvasText; --control-line: ButtonText; --primary: ButtonFace; --on-primary: ButtonText; }
+  :focus-visible { outline: 2px solid Highlight; }
+  button, input, select, textarea, .opt, .clip, .jump, .glass, .card { border: 1px solid ButtonText; forced-color-adjust: auto; }
+  button:disabled, [aria-disabled="true"] { border-color: GrayText; color: GrayText; }
+  .spider-abdomen, .spider-thorax, #body { fill: Canvas; stroke: CanvasText; }
+  .spider-eye, .spider-eye.small { fill: CanvasText; }
+  .wbar { border: 1px solid CanvasText; }
+  .wbar i { forced-color-adjust: none; background: Highlight; }
+}
