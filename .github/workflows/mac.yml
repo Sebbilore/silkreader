@@ -52,6 +52,7 @@ jobs:
         run: |
           node test/facts.mjs
           node test/letters.mjs
+          node test/fehler.mjs
           node test/learn.mjs
 
       - name: Codeschutz (verschleiern + Bytecode)

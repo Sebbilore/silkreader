@@ -43,6 +43,43 @@
     }
     return bad;
   }
+
+  // ---------- Daten, Fristen und kleine Beträge prüfen ----------
+  // Zahlenprüfung allein übersieht: ein Datum aus Teilen anderer Daten (22.11. statt 05.11.), eine andere Frist
+  // („4 Wochen“ statt „4 Tage“) oder einen kleinen Betrag („3 €“). Diese drei Arten prüft factKeys/unknownFacts.
+  const NUMWORDS = { ein: 1, eine: 1, einem: 1, einen: 1, einer: 1, zwei: 2, drei: 3, vier: 4, fünf: 5, sechs: 6, sieben: 7, acht: 8, neun: 9, zehn: 10, elf: 11, zwölf: 12, vierzehn: 14 };
+  const DATE_RE = new RegExp(`(\\d{1,2})\\.\\s?(?:(\\d{1,2})\\.\\s?|\\s*(${MONTH_RE})\\b\\s*)(\\d{4})?`, 'gi');
+  const SPAN_RE = /\b(\d{1,3}|ein|eine|einem|einen|einer|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|vierzehn)\s+(?:werk|kalender)?(tag|woche|monat|jahr)\w*/gi;
+  const SMALL_RE = /(?<![\d.,])(\d{1,2}(?:,\d+)?)\s?(€|euro\b|eur\b|%|prozent\b)/gi;
+  const dateKeys = (s) => [...String(s).matchAll(DATE_RE)].map((m) => {
+    const mo = m[2] ? +m[2] : MONTHS[m[3].toLowerCase()];
+    return { text: m[0].trim(), dm: `${+m[1]}.${mo}`, dmy: m[4] ? `${+m[1]}.${mo}.${m[4]}` : null };
+  }).filter((d) => !d.dm.endsWith('.undefined') && +d.dm.split('.')[1] <= 12);
+  const spanKeys = (s) => [...String(s).matchAll(SPAN_RE)].map((m) => {
+    const n = NUMWORDS[m[1].toLowerCase()] || +m[1], u = m[2].toLowerCase();
+    return { text: m[0].trim(), key: `${n}${u}`, eq: u === 'tag' ? `${n}d` : u === 'woche' ? `${n * 7}d` : u === 'monat' ? `${n}m` : `${n * 12}m` };
+  });
+  const smallKeys = (s) => [...String(s).matchAll(SMALL_RE)].map((m) => ({ text: m[0].trim(), key: `${m[1].replace(',', '.')}${/%|proz/i.test(m[2]) ? '%' : '€'}` }));
+  /** Alles, was im Originaltext an Daten, Fristen und kleinen Beträgen steht (einmal pro Text bauen) */
+  function factKeys(text) {
+    const t = String(text || '');
+    const dates = new Set(), spans = new Set(), small = new Set();
+    for (const d of dateKeys(t)) { dates.add(d.dm); if (d.dmy) dates.add(d.dmy); }
+    const base = letterDate(t); // „innerhalb von 4 Wochen“ ergibt ein errechnetes Datum – das darf die KI nennen
+    if (base) for (const d of findDeadlines(t, { now: base, max: 20 })) { const x = d.date; dates.add(`${x.getDate()}.${x.getMonth() + 1}`); dates.add(`${x.getDate()}.${x.getMonth() + 1}.${x.getFullYear()}`); }
+    for (const x of spanKeys(t)) { spans.add(x.key); spans.add(x.eq); }
+    for (const x of smallKeys(t)) small.add(x.key);
+    return { dates, spans, small };
+  }
+  /** Daten, Fristen und kleine Beträge im Satz der KI, die so nicht im Text stehen */
+  function unknownFacts(claim, keys) {
+    const bad = [];
+    for (const d of dateKeys(claim)) if (!(d.dmy ? keys.dates.has(d.dmy) : keys.dates.has(d.dm))) bad.push(d.text);
+    for (const x of spanKeys(claim)) if (!keys.spans.has(x.key) && !keys.spans.has(x.eq)) bad.push(x.text);
+    for (const x of smallKeys(claim)) if (!keys.small.has(x.key)) bad.push(x.text);
+    return bad;
+  }
+
   /**
    * Prüft alle Zahlen im Ergebnis gegen den Originaltext.
    * figures[i].check: 'ok' (steht im Text), 'calc' (abgeleitet/gerechnet), 'missing' (nicht gefunden)
@@ -50,6 +87,7 @@
    */
   function verifyResult(result, text) {
     const src = numbersIn(text);
+    const keys = factKeys(text);
     const flat = String(text || '').replace(/\s+/g, ' ').toLowerCase();
     const dollars = /\$|usd|dollar/i.test(text);
     const figures = (result.figures || []).map((f) => {
@@ -67,10 +105,12 @@
       return { ...f, check };
     });
     const claims = [result.summary, ...(result.key_points || []), ...(result.findings || []).map((x) => `${x.title} ${x.detail}`)];
-    const unsure = [...new Set(claims.flatMap((c) => unknownNumbers(c, src)))];
+    // bestätigte Fristen („14 Tage“ für „zwei Wochen“) nicht noch einmal als Zahl bemängeln
+    const bad = (c) => [...unknownNumbers(spanKeys(c).filter((x) => keys.spans.has(x.key) || keys.spans.has(x.eq)).reduce((a, x) => a.replace(x.text, ''), String(c || '')), src), ...unknownFacts(c, keys)];
+    const unsure = [...new Set(claims.flatMap(bad))];
     // Erkenntnisse dürfen rechnen (Quoten, Verhältnisse) – nur Stichpunkte/Kernaussagen gelten als unsicher
     const strict = [result.summary, ...(result.key_points || [])];
-    const unsureStrict = [...new Set(strict.flatMap((c) => unknownNumbers(c, src)))];
+    const unsureStrict = [...new Set(strict.flatMap(bad))];
     return { ...result, figures, checks: { unsure: unsureStrict, calc: unsure.filter((u) => !unsureStrict.includes(u)) } };
   }
 
