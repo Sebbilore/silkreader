@@ -20,3 +20,10 @@ Desktop-Spinne (Electron), die markierten Text, Fotos, PDFs und Bildschirmbereic
 - Texte für Nutzer auf Deutsch, einfach und beruhigend. Datenschutz offen erklären: Nur Markiertes wird kopiert, nichts wird verschickt.
 - `package-lock.json` nur über npm ändern. Ein Hook in `.claude/settings.json` sperrt direkte Änderungen und prüft die Syntax von .js- und .sh-Dateien.
 - Sparsam lesen: große Dateien und Logs mit grep, head oder tail filtern, Befehle leise ausführen.
+
+## Möglichst wenig Code (nach Ponytail)
+- Erst den betroffenen Code lesen und den Ablauf verstehen, dann entscheiden.
+- Vor neuem Code der Reihe nach prüfen: Wird es überhaupt gebraucht? Gibt es das schon im Projekt? Kann es Node/Electron selbst oder eine vorhandene Abhängigkeit? Geht es in einer Zeile? Erst dann das Kleinste schreiben, das funktioniert.
+- Keine neuen Abhängigkeiten ohne Rückfrage.
+- Nie an Sicherheit, Datenschutz, Datenverlust-Schutz oder Barrierefreiheit sparen.
+- Logik mit Verzweigung, Schleife oder Parser bekommt einen kleinen Test.
