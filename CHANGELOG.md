@@ -3,7 +3,7 @@
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
 
-## Unreleased
+## 1.28.0
 - **Newer built-in models:** Fast now uses Qwen3.5 2B, Thorough uses Qwen3.5 4B. Whoever already had a model gets the matching new one automatically in the background (only the model is downloaded, nothing is sent). The old file is deleted only after the download succeeded.
 
 ## 1.27.0
