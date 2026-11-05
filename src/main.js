@@ -4,13 +4,11 @@
 
 const {
   app, BrowserWindow, ipcMain, clipboard, globalShortcut, Menu, Tray,
-  dialog, screen, safeStorage, nativeImage, shell, desktopCapturer,
+  dialog, screen, nativeImage, shell, desktopCapturer,
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
 // Große Module erst laden, wenn sie gebraucht werden – das macht den Start schneller.
-let Anthropic = null;
-const loadAnthropic = () => (Anthropic ??= require('@anthropic-ai/sdk').default);
 let autoUpdaterInstance = null;
 const updater = () => (autoUpdaterInstance ??= require('electron-updater').autoUpdater);
 
@@ -128,7 +126,6 @@ function fireShortcut(sc) {
 }
 const shortcutStatus = {};
 let cocoons = null;
-const OLLAMA_URL = 'http://127.0.0.1:11434';
 
 // Eingebautes KI-Modell (läuft mit llama.cpp direkt in der App, kostenlos und offline).
 // Die Modelldatei wird einmalig aus der App heraus geladen und im Benutzerordner gespeichert.
@@ -162,12 +159,6 @@ const DRAFT_MODELS = {
   'draft-fast': { uri: 'hf:bartowski/Qwen2.5-0.5B-Instruct-GGUF:Q4_K_M', file: 'Qwen2.5-0.5B-Instruct-Q4_K_M.gguf', for: 'fast', sizeLabel: '0,4 GB' },
   'draft-quality': { uri: 'hf:unsloth/Qwen3-0.6B-GGUF:Q4_K_M', file: 'Qwen3-0.6B-Q4_K_M.gguf', for: 'quality', sizeLabel: '0,4 GB' },
 };
-const MODELS = {
-  'claude-opus-5-5': 'Claude Opus 5.5 (beste Qualität)',
-  'claude-sonnet-5-5': 'Claude Sonnet 5.5 (schneller, günstiger)',
-  'claude-haiku-5-5': 'Claude Haiku 5.5 (sehr schnell, sehr günstig)',
-};
-
 let bubbleWin = null;
 let mainWin = null;
 let settingsWin = null;
@@ -179,8 +170,7 @@ const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
 
 function loadSettings() {
   const defaults = {
-    provider: 'builtin', model: 'claude-opus-5-5', ollamaModel: 'gemma3:12b',
-    language: 'Deutsch', apiKeyEnc: null, bubble: null,
+    provider: 'builtin', language: 'Deutsch', bubble: null,
   };
   // Im Speicher halten: die Datei wird nur neu gelesen, wenn sie sich geändert hat (spart viele Festplattenzugriffe)
   try {
@@ -205,20 +195,6 @@ const learner = () => learnerInst || (learnerInst = createLearner(path.join(app.
 const learnOn = (s = loadSettings()) => s.learn !== false && !s.privateMode;
 const learnHints = (doc) => { try { return learnOn() ? learner().hints(doc.pages.join('\n')) : ''; } catch { return ''; } };
 
-function getApiKey() {
-  const s = loadSettings();
-  if (!s.apiKeyEnc) return process.env.ANTHROPIC_API_KEY || null;
-  const buf = Buffer.from(s.apiKeyEnc, 'base64');
-  return safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(buf) : buf.toString('utf8');
-}
-
-function setApiKey(key) {
-  const s = loadSettings();
-  s.apiKeyEnc = safeStorage.isEncryptionAvailable()
-    ? safeStorage.encryptString(key).toString('base64')
-    : Buffer.from(key, 'utf8').toString('base64');
-  saveSettings(s);
-}
 
 // ---------- Fenster ----------
 
@@ -718,7 +694,7 @@ function showWelcome() {
 ipcMain.handle('welcome-state', () => {
   const st = loadSettings();
   return {
-    provider: st.provider, hasKey: !!getApiKey(), modelReady: builtinModelReady(),
+    modelReady: builtinModelReady(),
     pinCopied: st.pinCopied === true, copyHint: st.copyHint === true,
   };
 });
@@ -823,7 +799,7 @@ ipcMain.handle('report-problem', (_e, { text, withLog }) => {
   if (withLog) {
     try { log = fs.readFileSync(logFile(), 'utf8').split('\n').filter(Boolean).slice(-40).join('\n'); } catch {}
   }
-  const head = `**Was ist passiert? / What happened?**\n${String(text || '').slice(0, 2000)}\n\n**System**\nSilkreader ${app.getVersion()} · ${process.platform} ${require('os').release()} · ${process.arch} · KI: ${st.provider} · ${uiLang()}`;
+  const head = `**Was ist passiert? / What happened?**\n${String(text || '').slice(0, 2000)}\n\n**System**\nSilkreader ${app.getVersion()} · ${process.platform} ${require('os').release()} · ${process.arch} · ${uiLang()}`;
   let body = head + (log ? `\n\n**Protokoll / Log**\n\`\`\`\n${log}\n\`\`\`` : '');
   const url = (b) => `${DOWNLOAD_REPO}/issues/new?title=${encodeURIComponent(`Problem: ${String(text || '').split('\n')[0].slice(0, 60)}`)}&body=${encodeURIComponent(b)}`;
   while (url(body).length > 7500 && log) { log = log.split('\n').slice(5).join('\n'); body = head + `\n\n**Protokoll / Log**\n\`\`\`\n${log}\n\`\`\``; }
@@ -920,7 +896,7 @@ function maybeShowWhatsNew() {
 // Ist noch keine KI eingerichtet, zeigt die Spinne beim Übungstext ein Beispiel-Ergebnis
 function aiReady() {
   const st = loadSettings();
-  return st.provider === 'claude' ? !!getApiKey() : st.provider === 'ollama' ? true : builtinModelReady();
+  return builtinModelReady();
 }
 const PRACTICE_MARK = /Stromrechnung für März|electricity bill for March/;
 function practiceResult(text) {
@@ -990,9 +966,6 @@ async function regionCapture() {
   const text = await recognizeText(file);
   if (text) {
     showPopup({ title: 'Bildschirmausschnitt', source: 'region', pages: [text] }, { autoStart: true });
-  } else if (loadSettings().provider === 'claude') {
-    // Ohne Texterkennung: Claude kann das Bild direkt ansehen
-    showPopup({ title: 'Bildschirmausschnitt', source: 'region', pages: ['(Bild)'], image: crop.toPNG().toString('base64') }, { autoStart: true });
   } else {
     showPopupPayload({ kind: 'message', title: 'Kein Text erkannt', text: 'In diesem Bereich hat die Windows-Texterkennung keinen Text gefunden. Tipp: einen größeren Bereich wählen oder näher heranzoomen.' });
   }
@@ -1398,39 +1371,7 @@ async function analyze(doc, onProgress) {
     if (process.env.SILK_MOCK_TWOSTAGE) return { ...m, key_points: [], figures: [], findings: m.findings.filter((f) => f.kind === 'Handlung'), more: 'pending' };
     return m;
   }
-  const s = loadSettings();
-  if (s.provider === 'builtin') return analyzeBuiltin(doc, s, onProgress);
-  return s.provider === 'ollama' ? analyzeOllama(doc, s, onProgress) : analyzeClaude(doc, s, onProgress);
-}
-
-async function analyzeClaude(doc, s, onProgress) {
-  const apiKey = getApiKey();
-  if (!apiKey) throw Object.assign(new Error('Kein API-Schlüssel hinterlegt. Bitte in den Einstellungen eintragen – oder dort auf den kostenlosen lokalen Modus umstellen.'), { code: 'NO_KEY' });
-  const client = new (loadAnthropic())({ apiKey });
-
-  const params = {
-    model: s.model,
-    max_tokens: 32000,
-    output_config: { effort: 'medium', format: { type: 'json_schema', schema: ANALYSIS_SCHEMA } },
-    messages: [{ role: 'user', content: doc.image
-      ? [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: doc.image } }, { type: 'text', text: buildPrompt({ ...doc, pages: ['(Text siehe Bild oben)'] }, s.language) }]
-      : buildPrompt(doc, s.language) }],
-  };
-  // Haiku hat keinen serverseitigen Fallback – für Opus/Sonnet springt bei einer
-  // Ablehnung automatisch ein passendes Ersatzmodell ein.
-  if (s.model !== 'claude-haiku-5-5') {
-    params.betas = ['server-side-fallback-2026-07-01'];
-    params.fallbacks = 'default';
-  }
-
-  const stream = client.beta.messages.stream(params);
-  stream.on('text', (delta) => onProgress(delta));
-  const msg = await stream.finalMessage();
-
-  if (msg.stop_reason === 'refusal') throw new Error('Claude hat die Analyse dieses Textes abgelehnt.');
-  if (msg.stop_reason === 'max_tokens') throw new Error('Die Antwort wurde abgeschnitten – das Dokument ist zu umfangreich.');
-  const text = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
-  return JSON.parse(text);
+  return analyzeBuiltin(doc, loadSettings(), onProgress);
 }
 
 // ---------- Kostenlos & eingebaut: llama.cpp ----------
@@ -1555,7 +1496,7 @@ let analysisRunning = 0;
 
 function preloadBuiltinModel() {
   const s = loadSettings();
-  if (s.provider !== 'builtin' || !builtinModelReady()) return;
+  if (!builtinModelReady()) return;
   // Vorladen verlängert die Ladezeit nicht dauerhaft – sonst bliebe das Modell (1–2,5 GB) im Speicher,
   // nur weil die Maus oft oben am Bildschirm an der Spinne vorbeikommt
   lastPreload = Date.now();
@@ -1961,69 +1902,6 @@ async function startModelDownload(sender, key) {
   }
 }
 
-// ---------- Kostenlos & lokal: Ollama ----------
-
-async function ollamaModels() {
-  const res = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(3000) });
-  const { models } = await res.json();
-  return models.map((m) => m.name);
-}
-
-async function analyzeOllama(doc, s, onProgress) {
-  let installed;
-  try {
-    installed = await ollamaModels();
-  } catch {
-    throw Object.assign(new Error('Ollama läuft nicht. Installiere es kostenlos von ollama.com, starte es und lade ein Modell (siehe Einstellungen).'), { code: 'NO_OLLAMA' });
-  }
-  const model = installed.includes(s.ollamaModel) ? s.ollamaModel : installed[0];
-  if (!model) {
-    throw Object.assign(new Error(`In Ollama ist noch kein Modell installiert. Öffne die Eingabeaufforderung und gib ein:  ollama pull ${s.ollamaModel}`), { code: 'NO_OLLAMA' });
-  }
-
-  const prompt = buildPrompt(doc, s.language);
-  // Kontextfenster an die Textlänge anpassen (ca. 3 Zeichen pro Token + Platz für die Antwort)
-  const numCtx = Math.min(65536, Math.max(8192, Math.ceil(prompt.length / 3) + 6000));
-
-  const res = await fetch(`${OLLAMA_URL}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      stream: true,
-      format: ANALYSIS_SCHEMA,
-      options: { num_ctx: numCtx, temperature: 0.2 },
-      messages: [
-        { role: 'system', content: 'Du bist ein sorgfältiger Analyst. Antworte ausschließlich mit JSON nach dem vorgegebenen Schema.' },
-        { role: 'user', content: prompt },
-      ],
-    }),
-  });
-  if (!res.ok) throw new Error(`Ollama-Fehler: ${(await res.text()).slice(0, 300)}`);
-
-  // Antwort kommt zeilenweise als JSON (NDJSON)
-  let out = '', buf = '';
-  const decoder = new TextDecoder();
-  for await (const chunk of res.body) {
-    buf += decoder.decode(chunk, { stream: true });
-    let nl;
-    while ((nl = buf.indexOf('\n')) >= 0) {
-      const line = buf.slice(0, nl).trim();
-      buf = buf.slice(nl + 1);
-      if (!line) continue;
-      const msg = JSON.parse(line);
-      if (msg.error) throw new Error(`Ollama-Fehler: ${msg.error}`);
-      out += msg.message?.content || '';
-      onProgress(msg.message?.content || '');
-    }
-  }
-  try {
-    return normalizeResult(JSON.parse(out));
-  } catch {
-    throw new Error('Das lokale Modell hat keine gültige Antwort geliefert. Bitte erneut versuchen oder ein größeres Modell wählen.');
-  }
-}
-
 // Kleinere lokale Modelle lassen manchmal Felder weg – fehlende Teile auffüllen.
 // Kernaussagen ohne Wiederholungen und ohne Platzhalter wie „quote“
 function uniqueTexts(list) {
@@ -2070,15 +1948,7 @@ function partialField(json, name) {
   try { return JSON.parse(`"${m[1].replace(/\\+$/, (b) => (b.length % 2 ? b.slice(1) : b))}"`); } catch { return m[1]; }
 }
 
-function friendlyError(e) {
-  if (e.code === 'NO_KEY' || e.code === 'NO_OLLAMA' || e.code === 'NO_MODEL') return e.message;
-  if (Anthropic && e instanceof Anthropic.AuthenticationError) return 'Der API-Schlüssel ist ungültig. Bitte in den Einstellungen prüfen.';
-  if (Anthropic && e instanceof Anthropic.RateLimitError) return 'Zu viele Anfragen – bitte kurz warten und erneut versuchen.';
-  if (Anthropic && e instanceof Anthropic.BadRequestError) return `Anfrage abgelehnt: ${e.message}`;
-  if (Anthropic && e instanceof Anthropic.APIConnectionError) return 'Keine Verbindung zu Claude – Internetverbindung prüfen.';
-  if (Anthropic && e instanceof Anthropic.APIError) return `Fehler von Claude: ${e.message}`;
-  return String(e.message || e);
-}
+const friendlyError = (e) => String(e.message || e);
 
 // ---------- Weitere KI-Aufgaben: Fragen, Übersetzen, Vereinfachen, Antworten, Vergleichen ----------
 
@@ -2090,74 +1960,29 @@ async function llmGenerate({ instruction, material = '', schema = null, maxToken
   // Nicht beim Übersetzen/Antworten: dort legt die Aufgabe die Sprache fest (sonst widerspricht sich die Anweisung)
   const lang = langHint ? `Antworte auf ${s.language}, in einfacher, klarer Sprache.` : 'Antworte klar und natürlich.';
 
-  if (s.provider === 'builtin') {
-    const key = modelKey && modelReady(modelKey) ? modelKey : builtinKey(s);
-    if (!modelReady(key)) throw Object.assign(new Error('Das eingebaute KI-Modell ist noch nicht heruntergeladen (Einstellungen → Herunterladen).'), { code: 'NO_MODEL' });
-    const { LlamaChatSession } = await esmImport('node-llama-cpp');
+  const key = modelKey && modelReady(modelKey) ? modelKey : builtinKey(s);
+  if (!modelReady(key)) throw Object.assign(new Error('Das eingebaute KI-Modell ist noch nicht heruntergeladen (Einstellungen → Herunterladen).'), { code: 'NO_MODEL' });
+  const { LlamaChatSession } = await esmImport('node-llama-cpp');
+  lastModelUse = Date.now();
+  const { llama, model } = await loadBuiltinModel(key);
+  const limit = budget || Math.round((BUILTIN_MODELS[key].genTokens || BUILTIN_MODELS[key].chunkTokens) * 1.4);
+  let text = material;
+  let truncated = false;
+  if (model.tokenize(text).length > limit) {
+    text = model.detokenize(model.tokenize(text).slice(0, limit));
+    truncated = true;
+  }
+  const prompt = `${instruction}\n${lang}${text ? `\n\n<text>\n${text}\n</text>` : ''}`;
+  const ctx = await model.createContext({ contextSize: model.tokenize(prompt).length + maxTokens + 300, flashAttention: 'auto' });
+  try {
+    const session = new LlamaChatSession({ contextSequence: ctx.getSequence(), systemPrompt: 'Du bist ein hilfreicher, präziser Assistent.' });
+    const grammar = schema ? await jsonGrammar(llama, schema) : undefined;
+    const out = await session.prompt(prompt, { grammar: grammar?.grammar, maxTokens, temperature: 0.3, onTextChunk: onChunk });
+    return { value: schema ? grammar.parse(out) : out.trim(), truncated };
+  } finally {
+    await ctx.dispose();
     lastModelUse = Date.now();
-    const { llama, model } = await loadBuiltinModel(key);
-    const limit = budget || Math.round((BUILTIN_MODELS[key].genTokens || BUILTIN_MODELS[key].chunkTokens) * 1.4);
-    let text = material;
-    let truncated = false;
-    if (model.tokenize(text).length > limit) {
-      text = model.detokenize(model.tokenize(text).slice(0, limit));
-      truncated = true;
-    }
-    const prompt = `${instruction}\n${lang}${text ? `\n\n<text>\n${text}\n</text>` : ''}`;
-    const ctx = await model.createContext({ contextSize: model.tokenize(prompt).length + maxTokens + 300, flashAttention: 'auto' });
-    try {
-      const session = new LlamaChatSession({ contextSequence: ctx.getSequence(), systemPrompt: 'Du bist ein hilfreicher, präziser Assistent.' });
-      const grammar = schema ? await jsonGrammar(llama, schema) : undefined;
-      const out = await session.prompt(prompt, { grammar: grammar?.grammar, maxTokens, temperature: 0.3, onTextChunk: onChunk });
-      return { value: schema ? grammar.parse(out) : out.trim(), truncated };
-    } finally {
-      await ctx.dispose();
-      lastModelUse = Date.now();
-    }
   }
-
-  const prompt = `${instruction}\n${lang}${material ? `\n\n<text>\n${material}\n</text>` : ''}`;
-  if (s.provider === 'ollama') {
-    const res = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: s.ollamaModel, stream: true, ...(schema ? { format: schema } : {}), options: { num_ctx: Math.min(65536, Math.max(8192, Math.ceil(prompt.length / 3) + maxTokens + 500)) }, messages: [{ role: 'user', content: prompt }] }),
-    }).catch(() => { throw Object.assign(new Error('Ollama läuft nicht.'), { code: 'NO_OLLAMA' }); });
-    let out = '', buf = '';
-    const dec = new TextDecoder();
-    for await (const chunk of res.body) {
-      buf += dec.decode(chunk, { stream: true });
-      let nl;
-      while ((nl = buf.indexOf('\n')) >= 0) {
-        const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
-        if (!line) continue;
-        const piece = JSON.parse(line).message?.content || '';
-        out += piece; onChunk(piece);
-      }
-    }
-    return { value: schema ? JSON.parse(out) : out.trim(), truncated: false };
-  }
-
-  // Claude
-  const apiKey = getApiKey();
-  if (!apiKey) throw Object.assign(new Error('Kein API-Schlüssel hinterlegt.'), { code: 'NO_KEY' });
-  const client = new (loadAnthropic())({ apiKey });
-  const params = {
-    model: s.model, max_tokens: Math.max(2000, maxTokens * 3),
-    output_config: { effort: 'low', ...(schema ? { format: { type: 'json_schema', schema: toClaudeSchema(schema) } } : {}) },
-    messages: [{ role: 'user', content: prompt }],
-  };
-  if (s.model !== 'claude-haiku-5-5') { params.betas = ['server-side-fallback-2026-07-01']; params.fallbacks = 'default'; }
-  const stream = client.beta.messages.stream(params);
-  stream.on('text', (d) => onChunk(d));
-  const msg = await stream.finalMessage();
-  if (msg.stop_reason === 'refusal') throw new Error('Claude hat diese Anfrage abgelehnt.');
-  const out = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
-  return { value: schema ? JSON.parse(out) : out.trim(), truncated: false };
-}
-
-// Claude-Schemas mögen keine Längen-/Anzahlgrenzen → für Claude entfernen
-function toClaudeSchema(schema) {
-  return JSON.parse(JSON.stringify(schema, (k, v) => (['maxLength', 'maxItems', 'minItems', 'description'].includes(k) ? undefined : v)));
 }
 
 // Testantworten (nur mit SPIDER_MOCK)
@@ -2205,13 +2030,13 @@ const TRANSFORMS = {
   reply: { title: 'Antwort-Entwurf', instruction: 'Der folgende Text ist eine E-Mail, Nachricht oder ein Brief. Schreibe einen kurzen, freundlichen Antwortentwurf in derselben Sprache und im passenden Ton (Du oder Sie wie im Text). Bei einem Brief (z. B. von einer Firma oder Behörde): mit Anrede und Grußformel, nenne den Bezug (Aktenzeichen, Kunden- oder Rechnungsnummer, Datum des Schreibens) und setze fehlende persönliche Angaben als [Platzhalter]. Gib nur den Entwurf aus, ohne Betreffzeile.' },
 };
 
-const friendlyErr = (e) => ({ ok: false, error: friendlyError(e), needsKey: ['NO_KEY', 'NO_OLLAMA', 'NO_MODEL'].includes(e.code), noModel: e.code === 'NO_MODEL' });
+const friendlyErr = (e) => ({ ok: false, error: friendlyError(e), needsKey: e.code === 'NO_MODEL', noModel: e.code === 'NO_MODEL' });
 
 ipcMain.handle('ask', async (event, doc, question) => {
   try {
     setBusy(true);
     const s = loadSettings();
-    const material = s.provider === 'builtin' ? relevantMaterial(doc, question, 9000) : doc.pages.join('\n\n');
+    const material = relevantMaterial(doc, question, 9000);
     const { value } = await llmGenerate({
       instruction: [`Beantworte diese Frage zum Text kurz und genau: „${question}“`, 'Wenn der Text keine Antwort enthält, sag das ehrlich. Gib in "quote" die wörtliche Stelle an, die die Antwort belegt (Zeichen für Zeichen aus dem Text kopiert).', factsBlock(doc)].filter(Boolean).join('\n'),
       material, schema: ASK_SCHEMA, maxTokens: 400,
@@ -2258,7 +2083,7 @@ function runExplain(code, text, extra = '', onChunk = () => {}) {
   const run = (i) => llmGenerate({ instruction: i + (extra ? ` ${extra}` : ''), material: text, maxTokens: 1500, langHint: false, onChunk, modelKey });
   return run(instr).then(async (r) => {
     // Kleine Modelle rutschen manchmal ins Deutsche (oder ins Russische statt Ukrainische) – dann einmal deutlicher nachfassen
-    const out = { ...r, fastModel: loadSettings().provider === 'builtin' && !modelKey };
+    const out = { ...r, fastModel: !modelKey };
     if (right(String(r.value || ''))) return out;
     const again = await run(`${instr} IMPORTANT: The answer must be written in ${lang}${looksWrong ? ` (not Russian, not German)` : ', not in German'}.`);
     return right(String(again.value || '')) ? { ...out, ...again } : out;
@@ -2306,7 +2131,7 @@ ipcMain.handle('compare', async (event, a, b) => {
   try {
     setBusy(true);
     const s = loadSettings();
-    const cut = (d) => d.pages.join('\n\n').slice(0, s.provider === 'builtin' ? 7000 : 120000);
+    const cut = (d) => d.pages.join('\n\n').slice(0, 7000);
     const { value } = await llmGenerate({
       instruction: `Vergleiche die beiden Dokumente „${a.title}“ (A) und „${b.title}“ (B). Nenne Gemeinsamkeiten, die wichtigsten Unterschiede (mit konkreten Zahlen, wenn vorhanden) und ein kurzes Fazit.`,
       material: `--- Dokument A: ${a.title} ---\n${cut(a)}\n\n--- Dokument B: ${b.title} ---\n${cut(b)}`,
@@ -2561,7 +2386,7 @@ let thumbsDownRun = 0;
 ipcMain.handle('ask-state', () => {
   const s = loadSettings();
   return { enabled: s.askBack !== false, muted: s.askMuted || [], paused: s.askPaused || {}, explainLang: s.explainLang || null, thumbsDownRun,
-    quality: modelReady('quality') && pro.allowed('quality') && builtinKey(s) !== 'quality' && s.provider === 'builtin' };
+    quality: modelReady('quality') && pro.allowed('quality') && builtinKey(s) !== 'quality' };
 });
 ipcMain.handle('ask-answer', (_e, id, answer) => {
   const s = loadSettings();
@@ -2770,18 +2595,17 @@ async function repairNumbers(result, doc) {
   const unsure = result.checks?.unsure || [];
   if (!unsure.length || (process.env.SPIDER_MOCK && !process.env.SILK_REPAIR)) return null;
   const text = doc.pages.join('\n');
-  const builtin = loadSettings().provider === 'builtin';
   const { value } = await llmGenerate({
     instruction: [`Hier sind Stichpunkte zu einem Text. Diese Zahlen stehen so NICHT im Text: ${unsure.join(', ')}.`,
       'Schreibe die Stichpunkte neu. Verwende nur Zahlen, die wörtlich im Text stehen (Beträge, Daten und Prozente genau übernehmen). Lass eine Angabe lieber weg, als zu raten.',
       factsBlock(doc), '', 'Stichpunkte:', result.summary].filter((x) => x !== '').join('\n'),
-    material: builtin ? relevantMaterial(doc, unsure.join(' '), 6000) : text, schema: REPAIR_SCHEMA, maxTokens: 500,
+    material: relevantMaterial(doc, unsure.join(' '), 6000), schema: REPAIR_SCHEMA, maxTokens: 500,
   });
   const fixed = facts.verifyResult({ ...result, summary: value.summary.map((b) => `• ${b}`).join('\n') }, text);
   return fixed.checks.unsure.length < unsure.length ? { result: fixed, fixed: unsure.length - fixed.checks.unsure.length } : null;
 }
 // Schon gelesen (gleicher Text, gleiche KI, gleiche Sprache, gleiche Version): Ergebnis sofort aus dem Notizbuch
-const aiKey = (s = loadSettings()) => `${s.provider}|${s.provider === 'builtin' ? builtinKey(s) : s.provider === 'claude' ? s.model : s.ollamaModel}|${s.language}|${app.getVersion()}`;
+const aiKey = (s = loadSettings()) => `builtin|${builtinKey(s)}|${s.language}|${app.getVersion()}`;
 function cachedResult(doc) {
   if (process.env.SPIDER_MOCK && !process.env.SILK_CACHE) return null;
   const text = doc.pages.join('\n\n').slice(0, 200000);
@@ -2911,9 +2735,7 @@ async function analyzeHandler(event, doc) {
       result = { ...result, ...letterExtras(doc, letter) };
       result.contract = pro.allowed('contract') ? contract : null; result.contractLocked = !!contract && !pro.allowed('contract');
     } catch (e) { logLine(`Prüfung fehlgeschlagen: ${e.message}`); }
-    // Wie viel ging dabei ins Internet? Eingebautes Modell und Ollama (lokal): nichts. Claude: der Text selbst.
-    const prov = loadSettings().provider;
-    result.sentBytes = prov === 'claude' && !process.env.SPIDER_MOCK ? Buffer.byteLength(doc.pages.join('\n'), 'utf8') : 0;
+    result.sentBytes = 0; // Das eingebaute Modell liest auf dem PC: nichts geht ins Internet (ältere Notizbuch-Einträge mit Claude behalten ihre Angabe)
     result.readMs = cached ? 0 : Date.now() - t0;
     sw.lap('Brief-Regeln');
     try { addHistory(doc, result); updateDeadlineBadge(); } catch (e) { console.error('Notizbuch:', e); }
@@ -2921,11 +2743,10 @@ async function analyzeHandler(event, doc) {
     try { if (learnOn()) learner().observe(doc.pages.join('\n'), facts.letterFacts(doc.pages.join('\n'))); } catch (e) { logLine(`Lernen: ${e.message}`); }
     countSuccess();
     reactToResult(result);
-    sw.done(`Lesen (${doc.pages.join('').length} Zeichen, ${loadSettings().provider})`);
+    sw.done(`Lesen (${doc.pages.join('').length} Zeichen)`);
     return { ok: true, result };
   } catch (e) {
-    const f = friendlyErr(e);
-    return { ...f, needsKey: f.needsKey || !!(Anthropic && e instanceof Anthropic.AuthenticationError) };
+    return friendlyErr(e);
   } finally {
     analysisRunning--;
     lastModelUse = Date.now();
@@ -3064,7 +2885,7 @@ ipcMain.handle('get-settings', () => {
   const s = loadSettings();
   return {
     uiLang: uiLang(),
-    provider: s.provider, model: s.model, ollamaModel: s.ollamaModel, language: s.language,
+    language: s.language,
     lowPower: lowPowerOn(s),
     pinCopied: s.pinCopied !== false,
     copyHint: s.copyHint !== false,
@@ -3082,7 +2903,7 @@ ipcMain.handle('get-settings', () => {
     explainLang: s.explainLang || null,
     qualityReady: modelReady('quality'), qualityPossible: ramGB() >= BUILTIN_MODELS.quality.minRamGB,
     explainLangs: Object.fromEntries(Object.entries(EXPLAIN_LANGS).map(([k, v]) => [k, v[0]])),
-    hasKey: !!getApiKey(), models: MODELS, hotkey: SHORTCUTS[0].label,
+    hotkey: SHORTCUTS[0].label,
   };
 });
 // Arbeitsspeicher des PCs (gerundet, in GB) – für Empfehlungen bei schwächeren PCs
@@ -3095,14 +2916,8 @@ ipcMain.handle('model-status', () => ({
 }));
 ipcMain.handle('model-download', (event, key) => { startModelDownload(event.sender, key); });
 ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await modelDownload?.cancel(); });
-ipcMain.handle('ollama-models', async () => {
-  try { return { ok: true, models: await ollamaModels() }; } catch { return { ok: false, models: [] }; }
-});
-ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, language, builtinModel, lowPower, pinCopied, copyHint, privateMode, hideFullscreen, hideInShare, watchDownloads, clickMode: cm, theme, fontSize, autostart, learn, morning, askBack }) => {
-  if (apiKey) setApiKey(apiKey.trim());
+ipcMain.handle('save-settings', (_e, { language, builtinModel, lowPower, pinCopied, copyHint, privateMode, hideFullscreen, hideInShare, watchDownloads, clickMode: cm, theme, fontSize, autostart, learn, morning, askBack }) => {
   const s = loadSettings();
-  if (['builtin', 'claude', 'ollama'].includes(provider)) s.provider = provider;
-  if (ollamaModel) s.ollamaModel = ollamaModel.trim();
   if (BUILTIN_MODELS[builtinModel]) s.builtinModel = builtinModel;
   if (typeof lowPower === 'boolean') s.lowPower = lowPower;
   if (typeof pinCopied === 'boolean') s.pinCopied = pinCopied;
@@ -3113,7 +2928,6 @@ ipcMain.handle('save-settings', (_e, { provider, apiKey, model, ollamaModel, lan
   if (THEMES[theme]) { s.theme = theme; saveSettings(s); applyTheme(theme); }
   if (typeof hideInShare === 'boolean') { s.hideInShare = hideInShare; setImmediate(() => [bubbleWin, popupWin, ringWin].forEach(protectFromCapture)); }
   if (CLICK_MODES.includes(cm)) { s.clickMode = cm; bubbleWin?.webContents.send('click-mode', cm); }
-  if (model && MODELS[model]) s.model = model;
   if (typeof autostart === 'boolean') app.setLoginItemSettings({ openAtLogin: autostart });
   if (typeof learn === 'boolean') s.learn = learn;
   if (typeof morning === 'boolean') s.morning = morning;
@@ -3364,11 +3178,13 @@ if (!app.requestSingleInstanceLock()) {
     const startFile = fileFromArgs(process.argv);
     if (startFile) setTimeout(() => readFileToBubble(startFile), 1500);
     const s = loadSettings();
+    // Claude und Ollama gibt es nicht mehr: auf das eingebaute Modell umstellen, gespeicherten Schlüssel löschen
+    const oldAi = s.provider !== 'builtin' || s.apiKeyEnc;
+    if (oldAi) { s.provider = 'builtin'; delete s.apiKeyEnc; delete s.model; delete s.ollamaModel; saveSettings(s); }
     if (!s.onboarded && (!TESTING || process.env.SILK_WELCOME)) { showWelcome(); return; }
     maybeShowWhatsNew();
-    if (s.provider === 'claude' && !getApiKey()) openSettings();
-    if (s.provider === 'builtin' && !builtinModelReady()) openSettings();
-    if (s.provider === 'ollama') ollamaModels().then((m) => { if (!m.length) openSettings(); }).catch(openSettings);
+    if (oldAi) showPopupPayload({ kind: 'message', title: 'Silkreader liest jetzt auf deinem PC', text: 'Claude und Ollama gibt es in Silkreader nicht mehr. Ab jetzt liest das eingebaute Modell – kostenlos, und deine Texte verlassen deinen PC nicht. Dein alter API-Schlüssel wurde gelöscht. Bitte lade das Modell einmal in den Einstellungen.' });
+    if (!builtinModelReady()) openSettings();
   });
 
   app.on('before-quit', () => { quitting = true; });

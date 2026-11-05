@@ -2,7 +2,7 @@ import { _electron as electron } from '/opt/node22/lib/node_modules/playwright/i
 import fs from 'fs';
 const out = process.argv[2];
 const app = await electron.launch({ executablePath: './node_modules/electron/dist/electron', args: ['--no-sandbox', '.'],
-  env: { ...process.env, SPIDER_MOCK: 'test/mock.json', ANTHROPIC_API_KEY: 'x' } });
+  env: { ...process.env, SPIDER_MOCK: 'test/mock.json' } });
 const errs = [];
 app.on('window', (w) => { w.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); }); w.on('pageerror', (e) => errs.push(String(e))); });
 await new Promise((r) => setTimeout(r, 2500));

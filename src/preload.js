@@ -106,7 +106,6 @@ contextBridge.exposeInMainWorld('spider', {
   openMain: () => ipcRenderer.invoke('open-main'),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (s) => ipcRenderer.invoke('save-settings', s),
-  ollamaModels: () => ipcRenderer.invoke('ollama-models'),
   modelStatus: () => ipcRenderer.invoke('model-status'),
   modelDownload: (key) => ipcRenderer.invoke('model-download', key),
   modelCancel: () => ipcRenderer.invoke('model-cancel'),
