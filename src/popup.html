@@ -594,7 +594,7 @@
     srcNums = SilkFacts.numbersIn(text);
     $('title').textContent = r.title || P.doc.title;
     const L = r.scam ? null : r.letter || null; // Verdacht auf Betrug: keine „bezahlen“-Karte
-    const deadlines = L ? [] : findDeadlines(text); // Briefe zeigen ihre Fristen in der Karte
+    const deadlines = L || SilkFacts.narrative(r.doc_type) ? [] : findDeadlines(text); // Briefe zeigen ihre Fristen in der Karte
     const figs = r.figures.slice(0, 8);
     const more = [];
     const card = L ? letterCard(L, r, more) : '';

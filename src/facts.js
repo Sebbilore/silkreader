@@ -86,6 +86,8 @@
   const DEADLINE_WORDS = /(bis|spätestens|frist|fällig|zahlbar|binnen|innerhalb|einzureichen|widerspruch|einspruch|kündig|zahlen|überweisen|vorlegen|melden|termin|until|by|due|deadline|before|no later)/i;
   // Streng (für Texte, die kein Brief sind): „bis 2027“ oder „by 3 March“ in Artikeln ist kein Termin
   const DEADLINE_STRICT = /(spätestens|frist|fällig|zahlbar|binnen|innerhalb|einzureichen|no later|deadline|\bdue\b)/i;
+  /** Die KI nennt die Art des Textes: Artikel, Nachricht, Bericht … enthalten Daten, aber keine Termine für den Leser */
+  const narrative = (docType) => /(artikel|article|wiki|nachricht|news|bericht|report|studie|blog|lexikon|essay|chronik|biograf|geschichte|buch|book)/i.test(String(docType || ''));
   /** Briefdatum: „Berlin, 3. Oktober 2026“, „Datum: 03.10.2026“ – sonst null */
   function letterDate(text) {
     const head = String(text || '').slice(0, 1500);
@@ -354,7 +356,7 @@
     return steps.length ? { steps, tip } : null;
   }
 
-  const api = { COUNTRIES, senderOf, recurringAmount, scamCheck, signatureNeeded, consequences, parseDate, contractFacts, numbersIn, unknownNumbers, verifyResult, findDeadlines, letterDate, letterFacts, ibanValid };
+  const api = { COUNTRIES, senderOf, recurringAmount, scamCheck, signatureNeeded, consequences, parseDate, contractFacts, numbersIn, unknownNumbers, verifyResult, findDeadlines, narrative, letterDate, letterFacts, ibanValid };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SilkFacts = api;
 })(typeof window !== 'undefined' ? window : globalThis);

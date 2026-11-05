@@ -73,6 +73,7 @@ ok('Frist ohne Jahr', dl.length === 1 && dl[0].iso === '2026-12-03', JSON.string
 const wiki = 'Die Stadt wurde am 3. März 1250 gegründet. Bis 2031 soll die Brücke fertig sein. Der Park wird bis 15. Mai 2027 saniert, am 12. Juni 2027 eröffnet.';
 ok('Artikel: keine Termine', F.findDeadlines(wiki, { now, strict: true }).filter((d) => d.deadline).length === 0, JSON.stringify(F.findDeadlines(wiki, { now, strict: true }).map((d) => d.iso)));
 ok('Zahlungsaufforderung: Frist auch streng', F.findDeadlines('Bitte zahlen Sie spätestens am 15.12.2026.', { now, strict: true }).some((d) => d.deadline && d.iso === '2026-12-15'));
+ok('Artikel/Nachricht/Bericht: kein Termin-Text', F.narrative('Wikipedia-Artikel') && F.narrative('Nachricht') && !F.narrative('Brief') && !F.narrative('Rechnung'));
 ok('Versionsnummer keine Frist', F.findDeadlines('Siehe Kapitel 4.2. und Abschnitt 3.1.', { now }).length === 0);
 
 const vertrag = `Mobilfunkvertrag – Vertragsbestätigung
