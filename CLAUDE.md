@@ -30,3 +30,4 @@ Desktop-Spinne (Electron), die markierten Text, Fotos, PDFs und Bildschirmbereic
 
 ## Store und Bilder
 - Bei jeder neuen Version `store/STORE.md` (Store-Texte, Neuerungen DE/EN, Paketinfos, Checkliste) und `store/BILDER.md` (Vorher/Nachher-Bilder, Dateien in `store/bilder/<Version>/`) aktualisieren und eine Kopie nach `/mnt/project-files/store/` legen. Dazu die zwei Artifacts neu veröffentlichen (gleiche Links, nicht neu anlegen): `python3 /mnt/project-files/store/artifact-bauen.py store <Ordner>` baut `store.html` und `bilder.html`. Store: https://claude.ai/artifact/8KVsbhhyR9ZUhs8Gp5U8Um, Bilder: https://claude.ai/artifact/DP4Dm2JjDucM72Umyv9wni (Designdokument bleibt getrennt).
+- Neue Bilder immer auch in `store/bilder/<Version>/` und in den Projektordner `/mnt/project-files/Silkreader-Bilder/` (gleiche Struktur, Namen `<Thema>-vorher.png` / `-nachher.png`, Store-Bilder in `Store/`) legen und `bilder/index.md` ergänzen.
