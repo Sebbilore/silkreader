@@ -4,8 +4,8 @@
 # Aufruf (PowerShell):  powershell -ExecutionPolicy Bypass -File scripts\tempo-test.ps1
 # Oder ohne Repo:       irm https://raw.githubusercontent.com/Sebbilore/silkreader/main/scripts/tempo-test.ps1 -OutFile tempo-test.ps1; powershell -ExecutionPolicy Bypass -File .\tempo-test.ps1
 #
-# Braucht: Git und Node.js 22 oder neuer (winget install Git.Git / winget install OpenJS.NodeJS.LTS), ca. 6 GB frei, Internet beim ersten Mal.
-# Dauer: erster Lauf 20–40 Minuten (KI-Modelle ca. 3,5 GB laden), danach etwa 10–25 Minuten.
+# Braucht: Git und Node.js 22 oder neuer (winget install Git.Git / winget install OpenJS.NodeJS.LTS), ca. 8 GB frei, Internet beim ersten Mal.
+# Dauer: erster Lauf 20–40 Minuten (KI-Modelle ca. 4 GB laden), danach etwa 10–25 Minuten.
 # Es werden nur Testbriefe aus dem Quellcode gelesen – nichts von deinen Dateien, nichts wird hochgeladen.
 param(
   [string]$Ordner = (Join-Path $env:USERPROFILE 'silkreader-tempo'),
@@ -72,7 +72,7 @@ try {
   $logDatei = Join-Path $Ordner 'tempo-log.txt'
 
   Write-Host "`n=== KI-Test läuft (die Spinne öffnet kurz Fenster – bitte nichts anklicken) ===" -ForegroundColor Cyan
-  Write-Host 'Beim ersten Mal werden die KI-Modelle geladen (ca. 3,5 GB), das dauert am längsten.'
+  Write-Host 'Beim ersten Mal werden die KI-Modelle geladen (ca. 4 GB), das dauert am längsten.'
   node test/bench.mjs $ergebnis 2>&1 | Tee-Object -FilePath $logDatei
   $testCode = $LASTEXITCODE
 } finally { Pop-Location }
@@ -93,9 +93,7 @@ $md.Add('## Dieser PC'); $md.Add('')
 $pc.GetEnumerator() | ForEach-Object { $md.Add("- **$($_.Key):** $($_.Value)") }
 $md.Add(''); $md.Add('## KI-Test (Mittel über alle Testbriefe)'); $md.Add('')
 if ($tabelle) { $md.Add($tabelle) } else { $md.Add('_Keine Ergebnistabelle – der Test ist nicht durchgelaufen, siehe Fehler unten._') }
-$md.Add(''); $md.Add('## Zum Vergleich: GitHub-Testrechner (Windows, 4 Kerne, ohne Grafikkarte), Version 1.25.1'); $md.Add('')
-$md.Add('| Modell | Ø Dauer | langsamster | Ø erste Stichpunkte | Ø Details | Token/s |'); $md.Add('|---|---|---|---|---|---|')
-$md.Add('| fast | 15,6 s | 20,1 s | 12,0 s | 18,9 s | 15,8 |'); $md.Add('| quality | 54,4 s | 95,6 s | 36,1 s | 66,0 s | 6,4 |')
+$md.Add(''); $md.Add('Zum Vergleich: der GitHub-Lauf „KI-Vergleich“ derselben Version (Windows-Testrechner, 4 Kerne, ohne Grafikkarte) – Actions → KI-Vergleich → letzter Lauf → Zusammenfassung.')
 if ($fehler.Count) { $md.Add(''); $md.Add('## Fehler und Warnungen'); $md.Add(''); $fehler | ForEach-Object { $md.Add("- $_") } }
 $md.Add(''); $md.Add('## Gelogte Zeiten (Rohdaten)'); $md.Add(''); $md.Add('```'); $zeit | ForEach-Object { $md.Add($_) }; $md.Add('```')
 Set-Content -Path $bericht -Value $md -Encoding UTF8

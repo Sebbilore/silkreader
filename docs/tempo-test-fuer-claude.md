@@ -14,12 +14,12 @@ Messe die KI-Geschwindigkeit von Silkreader auf **diesem Windows-PC** und berich
    irm https://raw.githubusercontent.com/Sebbilore/silkreader/main/scripts/tempo-test.ps1 -OutFile "$env:TEMP\tempo-test.ps1"
    powershell -ExecutionPolicy Bypass -File "$env:TEMP\tempo-test.ps1"
    ```
-   Das Skript richtet alles in `%USERPROFILE%\silkreader-tempo` ein (Quellcode, Bibliotheken, zwei KI-Modelle mit zusammen etwa 3,5 GB) und startet den Test. Der erste Lauf dauert 20 bis 40 Minuten, spätere 10 bis 25. Starte es im Hintergrund und warte, bis es fertig ist. Brich nicht ab, solange Modelle geladen werden.
+   Das Skript richtet alles in `%USERPROFILE%\silkreader-tempo` ein (Quellcode, Bibliotheken, zwei KI-Modelle mit zusammen etwa 4 GB) und startet den Test. Der erste Lauf dauert 20 bis 40 Minuten, spätere 10 bis 25. Starte es im Hintergrund und warte, bis es fertig ist. Brich nicht ab, solange Modelle geladen werden.
 3. Während des Tests öffnen sich kurz Fenster der Spinne. Ich fasse nichts an und lasse den PC am Netzteil.
 4. Lies danach `Desktop\Silkreader-Tempo-Ergebnis.md` und zeig mir:
    - **Dieser PC:** Prozessor, Kerne, Arbeitsspeicher, Grafikkarte.
    - **Ergebnistabelle** für „fast“ und „quality“: Ø Dauer, langsamster Brief, erste Stichpunkte, Details, Einlesen, Schreiben, Token/s.
-   - **Vergleich** mit dem GitHub-Rechner (fast 15,6 s, quality 54,4 s): um welchen Faktor schneller oder langsamer?
+   - **Vergleich** mit dem GitHub-Testrechner: Die Werte dazu stehen im letzten Lauf „KI-Vergleich“ derselben Version (Actions → KI-Vergleich). Nenne den Faktor nur, wenn du diese Werte wirklich gelesen hast; sonst sag, dass du sie nicht hattest.
    - Ob alle Antworten **richtig** waren (Betrag, Frist, Aufgabe, keine erfundenen Zahlen).
    - **Fehler und Warnungen**, falls es welche gibt.
 5. Schlage mir am Ende vor, was die Zeit bei diesem PC am meisten bestimmt (Einlesen oder Schreiben, Prozessor oder Grafikkarte), und ob der Sparmodus oder ein anderes Modell sinnvoll wäre.
