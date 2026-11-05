@@ -1437,6 +1437,8 @@ async function jsonGrammar(llama, schema) {
   logLine(`Zeit KI-Grammatik bauen: ${Date.now() - tg} ms`);
   return slot[key];
 }
+// Qwen3.5 öffnet sonst von sich aus einen „Denk“-Abschnitt (langsam, stört die JSON-Ausgabe): hier nur auf Wunsch des Modells.
+const qwenWrapper = async () => { const { QwenChatWrapper } = await esmImport('node-llama-cpp'); return new QwenChatWrapper({ variation: '3.5', thoughts: 'modelInitiated' }); };
 let llamaLoading = null;
 let modelDownload = null;
 let modelDownloadCanceled = false;
@@ -1744,19 +1746,19 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
         await own?.ctx.dispose();
         cur = own = await newSequence(Math.min(need, model.trainContextSize || need));
       }
-      const session = new LlamaChatSession({ contextSequence: cur.seq, systemPrompt });
+      const session = new LlamaChatSession({ contextSequence: cur.seq, systemPrompt, chatWrapper: await qwenWrapper() });
       const grammar = await jsonGrammar(llama, schema);
       const t0 = Date.now();
       let firstAt = 0;
       const tap = typeof stream === 'function' ? stream : stream ? (c) => onProgress(c) : null;
       try {
         const text = await session.prompt(prompt, {
-          grammar: grammar.grammar, maxTokens, temperature: 0.2, budgets: { thoughtTokens: 0 },
+          grammar: grammar.grammar, maxTokens, temperature: 0.2,
           onTextChunk: (c) => { if (!firstAt) firstAt = Date.now(); tap?.(c); },
         });
         lastGen = { promptTokens: model.tokenize(prompt).length, outTokens: model.tokenize(text).length, firstMs: firstAt - t0, genMs: Date.now() - firstAt, totalMs: Date.now() - t0 };
         logLine(`Zeit KI-Antwort (${key}${stage === 'more' ? ', Details' : ''}): ${lastGen.totalMs} ms – ${lastGen.promptTokens} Token einlesen bis zum ersten Wort ${lastGen.firstMs} ms, ${lastGen.outTokens} Token schreiben ${lastGen.genMs} ms (${(lastGen.outTokens / Math.max(0.001, lastGen.genMs / 1000)).toFixed(1)} Token/s)`);
-        return grammar.parse(text);
+        try { return grammar.parse(text); } catch (e) { logLine(`KI-Antwort nicht lesbar: ${JSON.stringify(text.slice(0, 160))}`); throw e; }
       } finally {
         session.dispose({ disposeSequence: false });
       }
@@ -1992,9 +1994,9 @@ async function llmGenerate({ instruction, material = '', schema = null, maxToken
   const prompt = `${instruction}\n${lang}${text ? `\n\n<text>\n${text}\n</text>` : ''}`;
   const ctx = await model.createContext({ contextSize: model.tokenize(prompt).length + maxTokens + 300, flashAttention: 'auto' });
   try {
-    const session = new LlamaChatSession({ contextSequence: ctx.getSequence(), systemPrompt: 'Du bist ein hilfreicher, präziser Assistent.' });
+    const session = new LlamaChatSession({ contextSequence: ctx.getSequence(), systemPrompt: 'Du bist ein hilfreicher, präziser Assistent.', chatWrapper: await qwenWrapper() });
     const grammar = schema ? await jsonGrammar(llama, schema) : undefined;
-    const out = await session.prompt(prompt, { grammar: grammar?.grammar, maxTokens, temperature: 0.3, budgets: { thoughtTokens: 0 }, onTextChunk: onChunk });
+    const out = await session.prompt(prompt, { grammar: grammar?.grammar, maxTokens, temperature: 0.3, onTextChunk: onChunk });
     return { value: schema ? grammar.parse(out) : out.trim(), truncated };
   } finally {
     await ctx.dispose();
