@@ -73,6 +73,7 @@ try {
 
   Write-Host "`n=== KI-Test läuft (die Spinne öffnet kurz Fenster – bitte nichts anklicken) ===" -ForegroundColor Cyan
   Write-Host 'Beim ersten Mal werden die KI-Modelle geladen (ca. 4 GB), das dauert am längsten.'
+  $ErrorActionPreference = 'Continue'   # Windows PowerShell 5.1 bricht sonst bei jeder Meldung von node auf stderr ab
   node test/bench.mjs $ergebnis 2>&1 | Tee-Object -FilePath $logDatei
   $testCode = $LASTEXITCODE
 } finally { Pop-Location }
