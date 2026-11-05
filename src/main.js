@@ -3042,7 +3042,6 @@ ipcMain.handle('open-reader', (_e, doc, result, focus) => {
 });
 ipcMain.handle('hide-main', () => mainWin?.hide());
 ipcMain.handle('popup-close', () => popupWin?.hide());
-ipcMain.handle('popup-details', (_e, doc, result, focus) => { popupWin?.hide(); showDocument(doc, { result, focus }); });
 ipcMain.handle('clipboard-preview', async () => {
   const text = String((await clipboard.readText()) || '').trim();
   if (text) showDocument({ title: 'Text aus der Zwischenablage', source: 'clipboard', pages: [text] });
@@ -3055,7 +3054,6 @@ ipcMain.handle('cocoon-add-files', (_e, paths) => {
   sendCocoons();
 });
 ipcMain.handle('cocoon-add-text', (_e, text) => { if (text?.trim()) cocoons.addText(text); sendCocoons(); });
-ipcMain.handle('cocoon-copy', (_e, id) => copyCocoon(id));
 ipcMain.on('cocoon-menu', (_e, id) => Menu.buildFromTemplate(cocoonMenu(id)).popup({ window: bubbleWin }));
 // Kokon aus der Spinne herausziehen → echte Datei, die man überall ablegen kann
 ipcMain.on('cocoon-drag', (e, id) => {
