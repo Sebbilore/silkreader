@@ -38,3 +38,6 @@ Ordner pro Version. Neue Bilder immer hier ablegen (Repo `store/bilder/` und Pro
 | Store | Store-Logo-1024.png | Store |
 
 Fehlt noch: Store-Screenshots (mind. 1366×768), Poster, Box-Art, Titelbild; Vorher-Bild der alten Pro-Karte.
+| 1.27.0 | Auswahl-nach-Lesen-vorher.png | vorher |
+| 1.27.0 | Auswahl-nach-Lesen-nachher.png | nachher |
+| 1.27.0 | Was-ist-neu-neu.png | nur neu |

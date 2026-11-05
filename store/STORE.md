@@ -7,7 +7,7 @@ Fortlaufendes Dokument: Bei jeder neuen Version aktualisieren (Checkliste unten)
 | | |
 |---|---|
 | Veröffentlicht im Store | 1.25.x (`package.json` auf main: 1.25.1) |
-| In Vorbereitung | 1.26.0 (Release-PR #5, noch nicht veröffentlicht) |
+| In Vorbereitung | 1.27.0 (Release-Lauf gestartet, siehe GitHub Actions; 1.26.0 ist auf GitHub veröffentlicht) |
 | Produkt-ID (Store-Link) | 9PHKJW54RGDS – https://apps.microsoft.com/detail/9PHKJW54RGDS |
 | Pro-Add-on | `silkreader.pro`, Store-ID 9NBHSZQJ7CJP (Pro ist noch „bald“) |
 | Paketname (Identity/Name) | SebbiLore.Silkreader |
@@ -46,6 +46,18 @@ Hinweis: Die fünf Dateien in `uploads/hearth/` (Stand 5. Nov.) sind keine Silkr
 3. Store-Paket bauen (Actions → „Store-Paket“), Probelauf muss grün sein.
 4. Partner Center: neue Einreichung → Paket (`.msix`) hochladen, Neuerungen DE/EN einfügen, Screenshots prüfen, einreichen.
 5. Store-Bilder prüfen (Tabelle „Bilder für den Store“), `store/BILDER.md` und Bilder in `store/bilder/<Version>/` aktualisieren.
+
+## Neuerungen 1.27.0 (Entwurf, erst mit dem Release einreichen)
+
+### Deutsch
+Version 1.27 – klügere Termine
+• Nach dem Lesen zeigt das Ergebnis oben wieder die Auswahl: Lesen, Übersetzen, Einfach und Antworten.
+• Artikel, zum Beispiel aus Wikipedia, schlagen keine Fristen mehr vor. Nur Briefe und Bescheide mit echten Fristwörtern tun das.
+
+### English
+Version 1.27 – smarter dates
+• After reading, the result shows the choice at the top again: Read, Translate, Simple and Reply.
+• Articles, for example from Wikipedia, no longer suggest deadlines. Only letters and notices with real deadline words do.
 
 ## Neuerungen 1.26.0 (Entwurf, erst mit dem Release einreichen)
 

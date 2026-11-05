@@ -2,7 +2,17 @@
 
 Fortlaufend pro Version: neue Version = neuer Abschnitt oben, Bilder in `store/bilder/<Version>/`. „Vorher“ ist immer der Stand der vorigen Version, „Nachher“ der neue. Ideen und Begründungen: `docs/ideen.md`. Store-Unterlagen: `store/STORE.md`.
 
-## 1.26.0 (in Vorbereitung)
+## 1.27.0 (Release läuft)
+
+Bilder in `bilder/1.27.0/`. Vorher = Stand 1.26.0 (Auswahl fehlte oben), Nachher = 1.27.0.
+
+| Bild | Vorher | Nachher |
+|---|---|---|
+| Auswahl nach dem Lesen | ![](bilder/1.27.0/Auswahl-nach-Lesen-vorher.png) | ![](bilder/1.27.0/Auswahl-nach-Lesen-nachher.png) |
+
+Nur neu: „Was ist neu?“ für 1.27.0 (die klügere Datum-Analyse ist unsichtbar, daher kein Bildvergleich): ![](bilder/1.27.0/Was-ist-neu-neu.png)
+
+## 1.26.0
 
 Vorher = Stand 1.25, Nachher = Stand 1.26.0, beides in `bilder/1.26.0/` (Namen `…-vorher.png` und `…-nachher.png`). Der Ausgangsstand 1.25 liegt zusätzlich in `bilder/1.25/`. Gleiche Bilder liegen im Projektordner `Silkreader-Bilder/` (siehe `bilder/index.md`).
 
