@@ -133,7 +133,7 @@
   .alldone { display: flex; flex-direction: column; gap: 2px; padding: 14px; border-radius: var(--r-l); background: var(--pink-soft); } .alldone b { font-size: 16px; font-weight: 600; }
   .bm { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; } .bm > span { flex: 1; min-width: 0; } .bm .icon { width: 15px; height: 15px; color: var(--pink); flex: none; } .bm .x { width: 26px; height: 26px; } .mytop { margin-bottom: 8px; } .mytop .bm { cursor: pointer; border-radius: var(--r-s); padding: 6px 4px; } .mytop .bm:hover { background: var(--hover, color-mix(in srgb, var(--ink) 6%, transparent)); } .bm.soon b { color: var(--pink); } .early button:disabled { opacity: .45; cursor: default; }
   .readalong { margin: 0 0 12px; padding: 12px 12px 8px; border-radius: var(--r-l); background: var(--card); }
-  .readalong .rtext { font-size: 15.5px; line-height: 1.7; max-height: 170px; overflow: auto; } .readalong .rtext span.now { background: var(--pink); color: #1b1b1b; border-radius: 3px; box-shadow: 0 0 0 2px var(--pink); }
+  .readalong .rtext { font-size: 15.5px; line-height: 1.7; max-height: 170px; overflow: auto; white-space: pre-line; } .readalong .rtext span.now { background: var(--pink); color: #1b1b1b; border-radius: 3px; box-shadow: 0 0 0 2px var(--pink); }
   .readalong .rbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; } .rprog { flex: 1; height: 4px; border-radius: 2px; background: var(--line-2); overflow: hidden; } .rprog i { display: block; height: 100%; width: 0; background: var(--pink); transition: width .2s; }
   .readalong .rates { display: flex; gap: 2px; } .readalong .chip { font-size: 11.5px; padding: 2px 7px; }
   .askrow { display: flex; gap: 6px; align-items: center; } .askrow .ask { flex: 1; min-width: 0; } .mic.on { color: var(--on-primary); background: var(--primary); border-radius: 50%; }
@@ -660,7 +660,7 @@
     $('main').querySelectorAll('[data-cal]').forEach((b) => b.addEventListener('click', () => addCal(b, { iso: b.dataset.cal, sentence: T('Spätestens kündigen, sonst verlängert sich der Vertrag.') })));
     $('cPro')?.addEventListener('click', () => { backToResult(); proView('contract'); });
     $('main').scrollTop = 0;
-    footer({ ask: true, actions: [['Kopieren', copyResult], ['Vorlesen', () => speak(bullets(r.summary).join('. '), 'Vorlesen', null, { show: true })], ['In meiner Sprache', explainPicker], ['Festhalten', keepResult], ['Später lesen', laterPicker], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)], ['Als PDF speichern', () => window.spider.exportResult(P.doc, result, 'pdf')], ['Drucken', () => window.spider.exportResult(P.doc, result, 'print')]] });
+    footer({ ask: true, actions: [['Kopieren', copyResult], ['Vorlesen', () => speak(bullets(r.summary).join('. '), 'Vorlesen', null, { show: true })], ['In meiner Sprache', explainPicker], ['Festhalten', keepResult], ['Später lesen', laterPicker], ['Lesemodus', () => window.spider.openReader(P.doc, result, null)], ['Original vorlesen', () => speak(P.doc.pages.join('\n\n'), 'Original vorlesen', null, { show: true })], ['Als PDF speichern', () => window.spider.exportResult(P.doc, result, 'pdf')], ['Drucken', () => window.spider.exportResult(P.doc, result, 'print')]] });
     $('lExplain')?.addEventListener('click', explainPicker);
     $('exPdf')?.addEventListener('click', async (e) => { const ok = await window.spider.exportResult(P.doc, result, 'pdf'); if (ok) e.target.closest('button').lastChild.textContent = T('Gespeichert'); });
     $('exPrint')?.addEventListener('click', () => window.spider.exportResult(P.doc, result, 'print'));
@@ -741,7 +741,8 @@
     const u = new SpeechSynthesisUtterance(text.slice(from));
     const voices = synth.getVoices();
     const lang = langCode || (/[äöüß]|\b(der|die|und|ist)\b/i.test(text) ? 'de' : 'en');
-    u.voice = voices.find((v) => v.lang.toLowerCase().startsWith(lang)) || null;
+    // nur Stimmen auf diesem PC (offline) – nichts verlässt den Rechner
+    u.voice = voices.find((v) => v.localService && v.lang.toLowerCase().startsWith(lang)) || voices.find((v) => v.lang.toLowerCase().startsWith(lang)) || null;
     u.lang = VOICE_LANG[lang] || 'en-US';
     u.rate = RATES[rateKey] || 1.05;
     const btn = $('foot').querySelector(`[data-a="${label}"]`);
@@ -752,12 +753,16 @@
       box.id = 'readAlong'; box.className = 'readalong rise';
       let pos = 0;
       const words = text.split(/(\s+)/).map((w) => { const start = pos; pos += w.length; return /\S/.test(w) ? `<span data-c="${start}">${esc(w)}</span>` : w; }).join('');
-      box.innerHTML = `<div class="rtext" data-noi18n>${words}</div><div class="rbar"><button class="x" id="rPause" aria-label="${T('Pause')}" title="${T('Pause')}">${silkIcon('pause')}</button>
+      box.innerHTML = `<div class="rtext" data-noi18n>${words}</div><div class="rbar"><button class="x" id="rPrev" aria-label="${T('Voriger Satz')}" title="${T('Voriger Satz')}">${silkIcon('prev')}</button><button class="x" id="rPause" aria-label="${T('Pause')}" title="${T('Pause')}">${silkIcon('pause')}</button>
         <span class="rprog"><i id="rProg"></i></span><span class="rates" role="radiogroup" aria-label="${T('Tempo')}">${[['slow', 'Langsam'], ['normal', 'Normal'], ['fast', 'Schnell']].map(([k, l]) => `<button class="chip${k === rateKey ? ' on' : ''}" role="radio" aria-checked="${k === rateKey}" data-rate="${k}">${T(l)}</button>`).join('')}</span>
-        <button class="x" id="rClose" aria-label="${T('Schließen')}" title="${T('Schließen')}">${silkIcon('close')}</button></div>`;
+        <button class="x" id="rNext" aria-label="${T('Nächster Satz')}" title="${T('Nächster Satz')}">${silkIcon('next')}</button><button class="x" id="rClose" aria-label="${T('Schließen')}" title="${T('Schließen')}">${silkIcon('close')}</button></div>`;
       $('main').prepend(box);
       $('main').scrollTop = 0;
       $('rClose').addEventListener('click', () => { synth.cancel(); box.remove(); });
+      for (const [id, dir] of [['rPrev', -1], ['rNext', 1]]) $(id).addEventListener('click', () => {
+        const to = window.SilkFacts.sentenceJump(text, box._at || 0, dir);
+        if (to != null) { synth.resume(); speak(text, label, langCode, { show, from: to, restart: true }); }
+      });
       $('rPause').addEventListener('click', () => {
         if (synth.paused) { synth.resume(); $('rPause').innerHTML = silkIcon('pause'); } else { synth.pause(); $('rPause').innerHTML = silkIcon('speak'); }
       });
@@ -1352,7 +1357,7 @@
     });
     f.classList.remove('hidden');
   }
-  const ACTION_ICONS = { 'Alle Änderungen': 'notebook', 'Im Browser öffnen': 'send', 'Protokoll öffnen': 'file', 'Über': 'info', Vorlesen: 'speak', Kürzer: 'shorter', Förmlicher: 'tone', Lockerer: 'tone', Kopieren: 'copy', Festhalten: 'keep', 'Später lesen': 'bookmark', 'Als PDF speichern': 'file', Drucken: 'file', Lesemodus: 'reader', Sprache: 'translate', 'In meiner Sprache': 'translate', 'Als E-Mail öffnen': 'send', Fristen: 'calendar', Notizbuch: 'notebook', 'Meine Briefe': 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Alle Einstellungen …': 'settings', 'Erneut versuchen': 'send' };
+  const ACTION_ICONS = { 'Alle Änderungen': 'notebook', 'Im Browser öffnen': 'send', 'Protokoll öffnen': 'file', 'Über': 'info', Vorlesen: 'speak', 'Original vorlesen': 'speak', Kürzer: 'shorter', Förmlicher: 'tone', Lockerer: 'tone', Kopieren: 'copy', Festhalten: 'keep', 'Später lesen': 'bookmark', 'Als PDF speichern': 'file', Drucken: 'file', Lesemodus: 'reader', Sprache: 'translate', 'In meiner Sprache': 'translate', 'Als E-Mail öffnen': 'send', Fristen: 'calendar', Notizbuch: 'notebook', 'Meine Briefe': 'notebook', Einstellungen: 'settings', 'Tastenkürzel & mehr …': 'settings', 'Alle Einstellungen …': 'settings', 'Erneut versuchen': 'send' };
   function flash(label, text) { const b = $('foot').querySelector(`[data-a="${label}"] span`); if (!b) return; b.textContent = T(text); setTimeout(() => (b.textContent = T(label)), 1300); }
   function showError(res, retry) {
     state = 'error';

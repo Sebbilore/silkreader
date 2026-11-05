@@ -32,6 +32,8 @@
     bug: '<path d="M-4 -2a4 4 0 0 1 8 0v4a4 4 0 0 1 -8 0z"/><path d="M-2.5 -5.5l-1.5 -2M2.5 -5.5l1.5 -2M-4 0h-4M4 0h4M-4 3.5l-3.5 2M4 3.5l3.5 2"/>',
     cloud: '<path d="M-5.5 5.5h11a4 4 0 0 0 .5 -8a5.5 5.5 0 0 0 -10.6 1.3a3.4 3.4 0 0 0 -.9 6.7z"/>',
     lock: '<rect x="-6" y="-1.5" width="12" height="9" rx="2"/><path d="M-3.5 -1.5v-2.5a3.5 3.5 0 0 1 7 0v2.5"/>',
+    prev: '<path d="M6 -6l-7 6 7 6M-6 -6v12"/>',
+    next: '<path d="M-6 -6l7 6 -7 6M6 -6v12"/>',
     pause: '<path d="M-3 -6v12M3 -6v12"/>',
     warn: '<path d="M0 -8l8.5 15h-17z"/><path d="M0 -2.5v4M0 4.3v.01" stroke-width="2"/>',
     trend: '<path d="M-8 5l5 -5 3.5 3.5 7.5 -7.5"/><path d="M3 -4h5v5"/>',

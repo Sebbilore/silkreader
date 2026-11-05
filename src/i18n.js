@@ -281,7 +281,7 @@
     'Nein': 'No',
     'Nein, da stimmt etwas nicht': 'No, something is wrong',
     'Nichts bezahlen und auf keinen Link klicken. Ruf den Absender über die Nummer auf seiner echten Webseite an.': 'Do not pay anything and do not click any link. Call the sender using the number on their real website.',
-    'Pause': 'Pause',
+    'Pause': 'Pause', 'Voriger Satz': 'Previous sentence', 'Nächster Satz': 'Next sentence', 'Original vorlesen': 'Read original aloud',
     'Richtig wäre': 'Correct would be',
     'Später lesen': 'Read later',
     'Silkreader-Spinne': 'Silkreader spider',

@@ -396,7 +396,15 @@
     return steps.length ? { steps, tip } : null;
   }
 
-  const api = { COUNTRIES, senderOf, recurringAmount, scamCheck, signatureNeeded, consequences, parseDate, contractFacts, numbersIn, unknownNumbers, verifyResult, findDeadlines, narrative, letterDate, letterFacts, ibanValid };
+  /** Vorlesen: Anfang des vorigen/nächsten Satzes (dir -1/+1) ab Stelle `at`; kurz nach Satzanfang springt „zurück“ zum vorigen */
+  function sentenceJump(text, at, dir) {
+    const t = String(text || '');
+    const starts = [0, ...[...t.matchAll(/[.!?…:]["“”)]?\s+(?=\S)/g)].map((m) => m.index + m[0].length)];
+    if (dir > 0) return starts.find((x) => x > at) ?? null;
+    const cur = starts.filter((x) => x <= at).pop() ?? 0;
+    return at - cur > 12 ? cur : (starts.filter((x) => x < cur).pop() ?? 0);
+  }
+  const api = { COUNTRIES, sentenceJump, senderOf, recurringAmount, scamCheck, signatureNeeded, consequences, parseDate, contractFacts, numbersIn, unknownNumbers, verifyResult, findDeadlines, narrative, letterDate, letterFacts, ibanValid };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SilkFacts = api;
 })(typeof window !== 'undefined' ? window : globalThis);

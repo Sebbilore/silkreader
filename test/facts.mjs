@@ -89,5 +89,9 @@ const fit = F.contractFacts('Mitgliedschaft im Fitnessstudio. Laufzeit 12 Monate
 ok('Fitness: Ende 15.01.2027, kündigen bis 15.10.2026 (vorbei)', fit?.end === '2027-01-15' && fit?.cancelBy === '2026-10-15' && fit?.cancelPassed && fit?.renew?.months === 12, JSON.stringify(fit));
 ok('Kein Vertrag bei Rechnung', F.contractFacts(brief, { now }) === null);
 
+const sj = 'Erster Satz hier. Zweiter Satz folgt! Dritter Satz? Ende.';
+ok('Satz vor', F.sentenceJump(sj, 3, 1) === 18 && F.sentenceJump(sj, 20, 1) === 38 && F.sentenceJump(sj, 55, 1) === null);
+ok('Satz zurück: Anfang des aktuellen, kurz danach der vorige', F.sentenceJump(sj, 35, -1) === 18 && F.sentenceJump(sj, 20, -1) === 0 && F.sentenceJump(sj, 2, -1) === 0);
+
 console.log(fails ? `${fails} Fehler` : 'alles gut');
 process.exit(fails ? 1 : 0);
