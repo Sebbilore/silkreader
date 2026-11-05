@@ -2,6 +2,14 @@
 
 Fortlaufend pro Version: neue Version = neuer Abschnitt oben, Bilder in `store/bilder/<Version>/`. „Vorher“ ist immer der Stand der vorigen Version, „Nachher“ der neue. Ideen und Begründungen: `docs/ideen.md`. Store-Unterlagen: `store/STORE.md`.
 
+## 1.29.0 (Entwurf, nicht veröffentlicht)
+
+Bilder in `bilder/1.29.0/`. Vorher = Stand 1.28.0, Nachher = main.
+
+| Bild | Vorher | Nachher |
+|---|---|---|
+| Vorlesen-Leiste (Satz zurück/vor, „Original vorlesen“ liest den ganzen Brief mit Zeilenumbrüchen) | ![](bilder/1.29.0/Vorlesen-vorher.png) | ![](bilder/1.29.0/Vorlesen-nachher.png) |
+
 ## 1.27.0 (Release läuft)
 
 Bilder in `bilder/1.27.0/`. Vorher = Stand 1.26.0 (Auswahl fehlte oben), Nachher = 1.27.0.
