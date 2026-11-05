@@ -29,4 +29,4 @@ Desktop-Spinne (Electron), die markierten Text, Fotos, PDFs und Bildschirmbereic
 - Logik mit Verzweigung, Schleife oder Parser bekommt einen kleinen Test.
 
 ## Store und Bilder
-- Bei jeder neuen Version `store/STORE.md` (Store-Texte, Neuerungen DE/EN, Paketinfos, Checkliste) und `store/BILDER.md` (Vorher/Nachher-Bilder, Dateien in `store/bilder/<Version>/`) aktualisieren und eine Kopie nach `/mnt/project-files/store/` legen.
+- Bei jeder neuen Version `store/STORE.md` (Store-Texte, Neuerungen DE/EN, Paketinfos, Checkliste) und `store/BILDER.md` (Vorher/Nachher-Bilder, Dateien in `store/bilder/<Version>/`) aktualisieren und eine Kopie nach `/mnt/project-files/store/` legen. Dazu die zwei Artifacts neu veröffentlichen (gleiche Links, nicht neu anlegen): `python3 /mnt/project-files/store/artifact-bauen.py store <Ordner>` baut `store.html` und `bilder.html`. Store: https://claude.ai/artifact/8KVsbhhyR9ZUhs8Gp5U8Um, Bilder: https://claude.ai/artifact/DP4Dm2JjDucM72Umyv9wni (Designdokument bleibt getrennt).
