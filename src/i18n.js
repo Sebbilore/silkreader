@@ -285,7 +285,6 @@
     'Nochmal gründlich': 'Again, thoroughly',
     'Passt so': 'That’s fine',
     'So prüfst du, ob der Brief echt ist': 'How to check whether the letter is genuine',
-    'Soll ich alle Briefe von {s} in eine Mappe legen?': 'Shall I put all letters from {s} in a folder?',
     'Soll ich dich 3 Tage vorher erinnern?': 'Shall I remind you 3 days before?',
     'Soll ich dir das wieder auf {l} erklären?': 'Shall I explain this in {l} again?',
     'Soll ich dir zeigen, wie du den echten Absender erreichst?': 'Shall I show you how to reach the real sender?',

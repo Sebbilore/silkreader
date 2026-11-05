@@ -50,7 +50,6 @@ contextBridge.exposeInMainWorld('spider', {
   askState: () => ipcRenderer.invoke('ask-state'),
   askAnswer: (id, answer) => ipcRenderer.invoke('ask-answer', id, answer),
   askRemind: (doc, on) => ipcRenderer.invoke('ask-remind', doc, on),
-  askFolder: (doc) => ipcRenderer.invoke('ask-folder', doc),
   learnThumbs: (good) => ipcRenderer.invoke('learn-thumbs', good),
   analyzeQuality: (doc) => ipcRenderer.invoke('analyze-quality', doc),
   analyzeMore: (doc, base) => ipcRenderer.invoke('analyze-more', doc, base),

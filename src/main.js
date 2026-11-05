@@ -2585,19 +2585,6 @@ ipcMain.handle('ask-remind', (_e, doc, on) => {
   saveDeadlineState(st);
   return true;
 });
-// Alle Briefe dieses Absenders in eine Mappe (Frage beim 3. Brief)
-ipcMain.handle('ask-folder', (_e, doc) => {
-  if (!pro.allowed('folders')) return { ok: false };
-  const text = doc.pages.join('\n');
-  const who = facts.senderOf(text);
-  if (!who) return { ok: false };
-  const list = loadHistory();
-  const mine = list.filter((h) => facts.senderOf(h.text)?.key === who.key);
-  const folder = mine.find((h) => h.folder)?.folder || guessFolder(text, mine[0]?.result) || 'Sonstiges';
-  for (const h of mine) h.folder = folder;
-  fs.writeFileSync(historyFile(), JSON.stringify(trimHistory(list)));
-  return { ok: true, folder, n: mine.length };
-});
 ipcMain.handle('learn-thumbs', (_e, good) => { thumbsDownRun = good ? 0 : thumbsDownRun + 1; return thumbsDownRun; });
 // Nochmal mit dem gründlichen Modell lesen (Frage nach zweimal 👎)
 ipcMain.handle('analyze-quality', async (event, doc) => {
@@ -2703,17 +2690,6 @@ function loadHistory() {
 }
 // Mappen (Pro): Briefe nach Thema. Was in einer Mappe liegt, bleibt (bis 200), sonst nur die letzten 20.
 const FOLDERS = ['Steuer', 'Wohnung', 'Verträge', 'Versicherung', 'Gesundheit', 'Arbeit', 'Bank', 'Sonstiges'];
-function guessFolder(text, result) {
-  const t = `${result?.doc_type || ''} ${result?.title || ''} ${String(text).slice(0, 4000)}`.toLowerCase();
-  if (/finanzamt|steuerbescheid|einkommensteuer|steuernummer|lohnsteuer/.test(t)) return 'Steuer';
-  if (/vermieter|mietvertrag|nebenkosten|betriebskosten|wohnung|miete\b/.test(t)) return 'Wohnung';
-  if (/krankenkasse|arzt|praxis|befund|klinik|rezept|therapie/.test(t)) return 'Gesundheit';
-  if (/versicherung|police|versicherungsschein|schadensfall/.test(t)) return 'Versicherung';
-  if (/arbeitgeber|arbeitsvertrag|gehalt|lohnabrechnung|kündigung des arbeits/.test(t)) return 'Arbeit';
-  if (/kontoauszug|kredit|darlehen|girokonto|sparkasse|bank\b/.test(t)) return 'Bank';
-  if (/vertrag|tarif|laufzeit|mobilfunk|strom|gas\b|internet|abonnement|mitgliedschaft/.test(t)) return 'Verträge';
-  return null;
-}
 function trimHistory(list) {
   const filed = list.filter((h) => h.folder).slice(0, 200), loose = list.filter((h) => !h.folder).slice(0, 20);
   const keep = new Set([...filed, ...loose].map((h) => h.id));
