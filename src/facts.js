@@ -84,6 +84,8 @@
   }
   const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const DEADLINE_WORDS = /(bis|spätestens|frist|fällig|zahlbar|binnen|innerhalb|einzureichen|widerspruch|einspruch|kündig|zahlen|überweisen|vorlegen|melden|termin|until|by|due|deadline|before|no later)/i;
+  // Streng (für Texte, die kein Brief sind): „bis 2027“ oder „by 3 March“ in Artikeln ist kein Termin
+  const DEADLINE_STRICT = /(spätestens|frist|fällig|zahlbar|binnen|innerhalb|einzureichen|no later|deadline|\bdue\b)/i;
   /** Briefdatum: „Berlin, 3. Oktober 2026“, „Datum: 03.10.2026“ – sonst null */
   function letterDate(text) {
     const head = String(text || '').slice(0, 1500);
@@ -96,8 +98,9 @@
    * Fristen und Termine im Text: feste Daten („bis zum 15.11.2026“, „15. November“) und relative
    * („innerhalb von 4 Wochen“, „binnen 14 Tagen“ – gerechnet ab Briefdatum, sonst ab heute).
    */
-  function findDeadlines(text, { now = new Date(), max = 4 } = {}) {
+  function findDeadlines(text, { now = new Date(), max = 4, strict = false } = {}) {
     text = String(text || '');
+    const WORDS_RE = strict ? DEADLINE_STRICT : DEADLINE_WORDS;
     const today = new Date(now); today.setHours(0, 0, 0, 0);
     const base = letterDate(text);
     const out = [];
@@ -105,9 +108,9 @@
       if (isNaN(date) || date < today || date.getFullYear() > today.getFullYear() + 5) return;
       const sentence = sentenceAround(text, start, end);
       const key = iso(date);
-      if (base && key === iso(base) && !DEADLINE_WORDS.test(sentence)) return; // Briefdatum selbst ist keine Frist
+      if (base && key === iso(base) && !WORDS_RE.test(sentence)) return; // Briefdatum selbst ist keine Frist
       if (out.some((o) => o.iso === key)) return;
-      out.push({ iso: key, date, sentence, deadline: DEADLINE_WORDS.test(sentence), ...extra });
+      out.push({ iso: key, date, sentence, deadline: WORDS_RE.test(sentence), ...extra });
     };
     // feste Daten (mit oder ohne Jahr)
     const re = new RegExp(`(\\d{1,2})\\.\\s?(?:(\\d{1,2})\\.\\s?|\\s*(${MONTH_RE})\\b\\s*)(\\d{4}|\\d{2}(?!\\d))?|(\\d{4})-(\\d{2})-(\\d{2})`, 'gi');

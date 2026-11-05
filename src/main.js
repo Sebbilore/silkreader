@@ -2292,7 +2292,7 @@ function collectDeadlines({ withDone = false } = {}) {
   const today = dayStart(new Date());
   const out = [];
   for (const h of loadHistory()) {
-    const found = facts.findDeadlines(h.text || '', { max: 6, now: new Date(h.date || Date.now()) }).filter((d) => d.deadline);
+    const found = facts.findDeadlines(h.text || '', { max: 6, strict: !h.result?.letter, now: new Date(h.date || Date.now()) }).filter((d) => d.deadline);
     // Vertrag: „kündigen spätestens am“ als eigene Frist
     const c = h.result?.contract;
     if (c?.cancelBy && !c.cancelPassed) found.push({ iso: c.cancelBy, sentence: T('Spätestens kündigen, sonst verlängert sich der Vertrag.'), deadline: true, contract: true });

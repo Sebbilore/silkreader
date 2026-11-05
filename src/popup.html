@@ -272,7 +272,7 @@
   }
 
   // ---------- Fristen im Text finden (für den Kalender) – feste Regeln aus facts.js ----------
-  const findDeadlines = (text) => SilkFacts.findDeadlines(text, { max: 3 });
+  const findDeadlines = (text) => SilkFacts.findDeadlines(text, { max: 3, strict: true }).filter((d) => d.deadline); // Artikel: nur echte Fristwörter, keine bloßen Daten
 
   // ---------- Analyse ----------
   async function analyze() {
