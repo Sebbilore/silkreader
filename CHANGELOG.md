@@ -3,6 +3,9 @@
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
 
+## Unreleased
+- **Newer built-in models:** Fast now uses Qwen3.5 2B, Thorough uses Qwen3.5 4B. Whoever already had a model gets the matching new one automatically in the background (only the model is downloaded, nothing is sent). The old file is deleted only after the download succeeded.
+
 ## 1.27.0
 - **Choice after reading:** the result shows Read / Translate / Simple / Reply at the top again.
 - **Smarter date detection:** articles (e.g. Wikipedia) no longer suggest deadlines. The kind of text (article, news, report vs. letter or notice) and real deadline words decide.

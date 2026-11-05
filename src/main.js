@@ -136,19 +136,21 @@ const WEB_PREFS = { preload: path.join(__dirname, 'preload.js'), spellcheck: fal
 const lowPowerOn = (s) => (typeof s.lowPower === 'boolean' ? s.lowPower : require('os').totalmem() < 6 * 1024 ** 3);
 const BUILTIN_MODELS = {
   fast: {
-    name: 'Schnell (Qwen2.5 1.5B)',
-    uri: 'hf:bartowski/Qwen2.5-1.5B-Instruct-GGUF:Q4_K_M',
-    file: 'Qwen2.5-1.5B-Instruct-Q4_K_M.gguf',
-    sizeLabel: '1 GB',
+    name: 'Schnell (Qwen3.5 2B)',
+    uri: 'hf:unsloth/Qwen3.5-2B-GGUF:Q4_K_M',
+    file: 'Qwen3.5-2B-Q4_K_M.gguf',
+    old: 'Qwen2.5-1.5B-Instruct-Q4_K_M.gguf', // bis 1.27.0: wird weiter genutzt, bis das neue Modell geladen ist
+    sizeLabel: '1,3 GB',
     chunkTokens: 1500, // kleinere Abschnitte: das kleine Modell übersieht sonst einzelne Aussagen
     genTokens: 2200,   // so viel Text darf beim Übersetzen, Fragen usw. auf einmal hinein
     minRamGB: 4,
   },
   quality: {
-    name: 'Gründlich (Qwen3 4B)',
-    uri: 'hf:unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M',
-    file: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
-    sizeLabel: '2,5 GB',
+    name: 'Gründlich (Qwen3.5 4B)',
+    uri: 'hf:unsloth/Qwen3.5-4B-GGUF:Q4_K_M',
+    file: 'Qwen3.5-4B-Q4_K_M.gguf',
+    old: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
+    sizeLabel: '2,7 GB',
     chunkTokens: 3000,
     minRamGB: 8,
   },
@@ -156,8 +158,8 @@ const BUILTIN_MODELS = {
 // Kleine Hilfsmodelle (gleiche Familie): schlagen Wörter vor, das große Modell prüft sie nur (Entwurfs-Vorhersage).
 // Noch im Test – nur aktiv mit SPEED.draft und wenn die Datei schon da ist.
 const DRAFT_MODELS = {
-  'draft-fast': { uri: 'hf:bartowski/Qwen2.5-0.5B-Instruct-GGUF:Q4_K_M', file: 'Qwen2.5-0.5B-Instruct-Q4_K_M.gguf', for: 'fast', sizeLabel: '0,4 GB' },
-  'draft-quality': { uri: 'hf:unsloth/Qwen3-0.6B-GGUF:Q4_K_M', file: 'Qwen3-0.6B-Q4_K_M.gguf', for: 'quality', sizeLabel: '0,4 GB' },
+  'draft-fast': { uri: 'hf:unsloth/Qwen3.5-0.8B-GGUF:Q4_K_M', file: 'Qwen3.5-0.8B-Q4_K_M.gguf', for: 'fast', sizeLabel: '0,5 GB' },
+  'draft-quality': { uri: 'hf:unsloth/Qwen3.5-0.8B-GGUF:Q4_K_M', file: 'Qwen3.5-0.8B-Q4_K_M.gguf', for: 'quality', sizeLabel: '0,5 GB' },
 };
 let bubbleWin = null;
 let mainWin = null;
@@ -1377,7 +1379,22 @@ async function analyze(doc, onProgress) {
 // ---------- Kostenlos & eingebaut: llama.cpp ----------
 
 const modelDir = () => (TESTING && process.env.SILK_MODEL_DIR) || path.join(app.getPath('userData'), 'models');
-const modelPathFor = (key) => process.env.SILK_MODEL_PATH || path.join(modelDir(), BUILTIN_MODELS[key].file);
+const modelPathFor = (key) => {
+  if (process.env.SILK_MODEL_PATH) return process.env.SILK_MODEL_PATH;
+  const m = BUILTIN_MODELS[key], neu = path.join(modelDir(), m.file), alt = path.join(modelDir(), m.old);
+  return !fs.existsSync(neu) && fs.existsSync(alt) ? alt : neu; // altes Modell, bis das neue da ist
+};
+// Wer das alte Modell hatte, bekommt das neue (gleiche Stufe) automatisch im Hintergrund; das alte wird erst danach gelöscht.
+async function upgradeModels() {
+  let notified = false;
+  for (const key of Object.keys(BUILTIN_MODELS)) {
+    const m = BUILTIN_MODELS[key], alt = path.join(modelDir(), m.old);
+    if (process.env.SILK_MODEL_PATH || !fs.existsSync(alt) || fs.existsSync(path.join(modelDir(), m.file))) continue;
+    if (!notified) { notified = true; new Notification({ title: T('Die Spinne lernt dazu'), body: T('Ein neueres Wissen wird im Hintergrund geladen. Du musst nichts tun, und es wird nichts verschickt. Das alte bleibt, bis das neue da ist.') }).show(); }
+    await startModelDownload(null, key);
+    if (fs.existsSync(path.join(modelDir(), m.file))) { fs.rmSync(alt, { force: true }); logLine(`KI-Modell ${key} aktualisiert, altes gelöscht`); }
+  }
+}
 const modelReady = (key) => fs.existsSync(modelPathFor(key));
 // Ohne Auswahl: das gründliche Modell, falls es schon da ist, sonst das schnelle.
 let forceModel = null; // „Nochmal gründlich lesen“: einmalig das gründliche Modell
@@ -1734,7 +1751,7 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
       const tap = typeof stream === 'function' ? stream : stream ? (c) => onProgress(c) : null;
       try {
         const text = await session.prompt(prompt, {
-          grammar: grammar.grammar, maxTokens, temperature: 0.2,
+          grammar: grammar.grammar, maxTokens, temperature: 0.2, budgets: { thoughtTokens: 0 },
           onTextChunk: (c) => { if (!firstAt) firstAt = Date.now(); tap?.(c); },
         });
         lastGen = { promptTokens: model.tokenize(prompt).length, outTokens: model.tokenize(text).length, firstMs: firstAt - t0, genMs: Date.now() - firstAt, totalMs: Date.now() - t0 };
@@ -1977,7 +1994,7 @@ async function llmGenerate({ instruction, material = '', schema = null, maxToken
   try {
     const session = new LlamaChatSession({ contextSequence: ctx.getSequence(), systemPrompt: 'Du bist ein hilfreicher, präziser Assistent.' });
     const grammar = schema ? await jsonGrammar(llama, schema) : undefined;
-    const out = await session.prompt(prompt, { grammar: grammar?.grammar, maxTokens, temperature: 0.3, onTextChunk: onChunk });
+    const out = await session.prompt(prompt, { grammar: grammar?.grammar, maxTokens, temperature: 0.3, budgets: { thoughtTokens: 0 }, onTextChunk: onChunk });
     return { value: schema ? grammar.parse(out) : out.trim(), truncated };
   } finally {
     await ctx.dispose();
@@ -3154,6 +3171,7 @@ if (!app.requestSingleInstanceLock()) {
     setTimeout(() => { if (!helperAvailable()) bubbleWin?.webContents.send('drop-zone', 'unavailable'); }, 15000);
     watchCopiedFiles();
     createBubble();
+    if (!TESTING) setTimeout(() => upgradeModels().catch((e) => logLine(`Modell-Update: ${e.message}`)), 20000);
 
     tray = new Tray(nativeImage.createFromPath(trayIconPath()));
     tray.setToolTip(`Silkreader ${app.getVersion()}`);

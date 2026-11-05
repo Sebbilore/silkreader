@@ -82,7 +82,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: silk-models
-          key: silk-models-qwen2.5-1.5b-qwen3-4b-v1
+          key: silk-models-qwen3.5-2b-4b-v1
 
       # Getestet wird genau das, was ausgeliefert wird: verschleiert und mit Bytecode
       - name: Codeschutz anwenden (wie beim Bauen)

@@ -66,6 +66,7 @@
     'Gut zu wissen: Bei Verträgen ab März 2022 kannst du nach der Mindestlaufzeit meist monatlich kündigen.': 'Good to know: for German contracts from March 2022 you can usually cancel monthly after the minimum term.',
     'Die Kündigungsfrist steht im Fristen-Netz – Silkreader erinnert dich rechtzeitig.': 'The cancellation deadline is in your deadline web – Silkreader reminds you in time.',
     'Spätestens kündigen, sonst verlängert sich der Vertrag.': 'Cancel by then, otherwise the contract renews.',
+    'Die Spinne lernt dazu': 'The spider is learning', 'Ein neueres Wissen wird im Hintergrund geladen. Du musst nichts tun, und es wird nichts verschickt. Das alte bleibt, bis das neue da ist.': 'A newer brain is being downloaded in the background. You do not need to do anything, and nothing is sent anywhere. The old one stays until the new one is ready.',
     'Suchen – oder fragen und Enter drücken …': 'Search – or ask and press Enter …', 'Alle': 'All', 'Keine Mappe': 'No folder', 'Mappe': 'Folder',
     'Die Spinne blättert im Notizbuch …': 'The spider is leafing through the notebook …', 'Im Notizbuch ist noch nichts gespeichert.': 'Nothing is saved in the notebook yet.',
     'Steuer': 'Taxes', 'Wohnung': 'Home', 'Verträge': 'Contracts', 'Versicherung': 'Insurance', 'Gesundheit': 'Health', 'Arbeit': 'Work', 'Bank': 'Bank', 'Sonstiges': 'Other',
