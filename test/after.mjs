@@ -20,7 +20,7 @@ const show = async () => {
   const pop = await find('popup.html'); await pop.waitForSelector('#moreBtn', { timeout: 20000 }); await sleep(500); return pop;
 };
 const pop = await show();
-ok('Oben: Auswahl Einfach/Antworten', (await pop.$$('#after .chip')).length === 2);
+ok('Oben: ganze Auswahl', (await pop.$$('#after .chip')).length === 4);
 await pop.screenshot({ path: `${out}/after-nachher.png` });
 await pop.click('[data-after="simplify"]');
 await pop.waitForSelector('.out', { timeout: 15000 }); await sleep(300);
