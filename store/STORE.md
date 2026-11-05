@@ -1,4 +1,51 @@
-# Microsoft Store – Texte für Silkreader 1.25.0
+# Microsoft Store – alles für Silkreader an einem Ort
+
+Fortlaufendes Dokument: Bei jeder neuen Version aktualisieren (Checkliste unten). Bilder: siehe `store/BILDER.md`.
+
+## Stand
+
+| | |
+|---|---|
+| Veröffentlicht im Store | 1.25.x (`package.json` auf main: 1.25.1) |
+| In Vorbereitung | 1.26.0 (Release-PR #5, noch nicht veröffentlicht) |
+| Produkt-ID (Store-Link) | 9PHKJW54RGDS – https://apps.microsoft.com/detail/9PHKJW54RGDS |
+| Pro-Add-on | `silkreader.pro`, Store-ID 9NBHSZQJ7CJP (Pro ist noch „bald“) |
+| Paketname (Identity/Name) | SebbiLore.Silkreader |
+| Herausgeber (Publisher) | CN=5B8315BE-3B5E-4EC9-8861-32B3317991B7, Anzeigename SebbiLore |
+| Sprachen | de-DE, en-US |
+| Windows mindestens | 10.0.17763.0 (1809), getestet bis 10.0.26100.0 |
+| Paket bauen | Actions → „Store-Paket“ (`.github/workflows/store.yml`) → Entwurfs-Release `store-v<Version>` mit `Silkreader-Store-<Version>.msix`; baut, installiert und startet es zur Probe |
+| Store-Logos | `build/appx/` (StoreLogo, Square44x44, Square150x150, Wide310x150, SmallTile, LargeTile) |
+| Datenschutzhinweis | App: `src/privacy.html`; Text: `PRIVACY.md` (DE/EN). Öffentliche Datenschutz-URL fürs Partner Center: **fehlt** (vermutlich `https://github.com/Sebbilore/silkreader-download/blob/main/PRIVACY.md`, bitte prüfen) |
+| Screenshots für den Store | **fehlt** (keine Store-Screenshots im Repo; Vorschläge aus `store/bilder/` in `BILDER.md`) |
+| Kategorie, Altersfreigabe, Preis | **fehlt** (nicht im Repo dokumentiert; Silkreader ist kostenlos) |
+| Updates | Kommen über den Store; der eingebaute Updater ist in der Store-Version aus |
+
+## Bei jedem Update zu tun
+
+1. Version in `package.json` erhöhen, `CHANGELOG.md` und `src/whatsnew.js` ergänzen.
+2. Unten „Neuerungen“ (DE und EN) in kurzem Stil neu schreiben: erste Zeile „Version X.Y – …“, dann Punkte mit „•“, max. 1500 Zeichen. Beschreibung, Produktfeatures und Suchbegriffe nur ändern, wenn sich Funktionen ändern.
+3. Store-Paket bauen (Actions → „Store-Paket“), Probelauf muss grün sein.
+4. Partner Center: neue Einreichung → Paket (`.msix`) hochladen, Neuerungen DE/EN einfügen, Screenshots prüfen, einreichen.
+5. `store/BILDER.md` und Bilder in `store/bilder/<Version>/` aktualisieren.
+
+## Neuerungen 1.26.0 (Entwurf, erst mit dem Release einreichen)
+
+### Deutsch
+Version 1.26 – ruhiger, nur noch auf deinem PC
+• Silkreader liest jetzt nur noch mit dem Modell auf deinem PC. Claude und Ollama gibt es nicht mehr. Ein früher gespeicherter API-Schlüssel wurde gelöscht. Es wird weiterhin nichts ins Internet gesendet.
+• Neu: Der Kontrastmodus von Windows wird unterstützt, Screenreader können die Spinne benennen.
+• Die Pro-Karte in den Einstellungen ist ruhiger geworden.
+
+### English
+Version 1.26 – calmer, only on your PC
+• Silkreader now reads only with the model on your PC. Claude and Ollama are gone. An API key you saved earlier has been deleted. Still nothing is sent over the internet.
+• New: Windows high-contrast mode is supported, and screen readers can name the spider.
+• The Pro card in Settings is calmer now.
+
+---
+
+## Texte der veröffentlichten Version 1.25 (Stand 1.25.0)
 
 Zum Kopieren ins Partner Center (Store-Einträge → Deutsch / Englisch).
 

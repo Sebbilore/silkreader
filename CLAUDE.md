@@ -27,3 +27,6 @@ Desktop-Spinne (Electron), die markierten Text, Fotos, PDFs und Bildschirmbereic
 - Keine neuen Abhängigkeiten ohne Rückfrage.
 - Nie an Sicherheit, Datenschutz, Datenverlust-Schutz oder Barrierefreiheit sparen.
 - Logik mit Verzweigung, Schleife oder Parser bekommt einen kleinen Test.
+
+## Store und Bilder
+- Bei jeder neuen Version `store/STORE.md` (Store-Texte, Neuerungen DE/EN, Paketinfos, Checkliste) und `store/BILDER.md` (Vorher/Nachher-Bilder, Dateien in `store/bilder/<Version>/`) aktualisieren und eine Kopie nach `/mnt/project-files/store/` legen.
