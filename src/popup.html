@@ -560,10 +560,10 @@
   }
 
   // Antwort/Widerspruch zum Brief schreiben – „Zurück“ führt wieder zum Ergebnis
-  function replyToLetter(extra) {
+  function replyToLetter(extra, mode = 'reply') {
     const saved = backToResult();
-    P = { kind: 'transform', mode: 'reply', text: saved.P.doc.pages.join('\n\n'), extra };
-    $('title').textContent = T('Antwort-Entwurf');
+    P = { kind: 'transform', mode, text: saved.P.doc.pages.join('\n\n'), extra };
+    $('title').textContent = T(TITLES[mode]);
     transform();
   }
 
@@ -602,6 +602,7 @@
     const moreLabel = T(L ? 'Mehr aus dem Brief' : 'Mehr aus dem Text');
     $('main').classList.toggle('settled', !!P.quickShown || !!P.openMore);
     $('main').innerHTML = `
+      <div class="chips" id="after">${[['simplify', 'Einfach'], ['reply', 'Antworten']].map(([m, l]) => `<button class="chip" data-after="${m}">${T(l)}</button>`).join('')}</div>
       ${r.scam ? scamCard(r.scam) : ''}
       ${!L && r.signature ? `<div class="letter sigonly rise">${sigNote(r.signature)}</div>` : ''}
       ${L ? card : r.letterLocked ? lockedCard('Brief-Hilfe mit Pro', 'Was du tun musst, bis wann, und die IBAN zum Kopieren.', 'lPro') : ''}
@@ -651,6 +652,7 @@
     $('main').querySelectorAll('[data-copy]').forEach((btn) => btn.addEventListener('click', async () => {
       await navigator.clipboard.writeText(btn.dataset.copy); btn.textContent = T('Kopiert');
     }));
+    $('after').addEventListener('click', (e) => { const m = e.target.closest('[data-after]')?.dataset.after; if (m) replyToLetter('', m); });
     $('lReply')?.addEventListener('click', () => replyToLetter(''));
     $('lTplBtn')?.addEventListener('click', (e) => { e.stopPropagation(); const m = $('lTplMenu'); m.classList.toggle('hidden'); $('lTplBtn').setAttribute('aria-expanded', String(!m.classList.contains('hidden'))); });
     $('lSay')?.addEventListener('click', () => speak([...document.querySelectorAll('.letter .big, .letter .when2 > span:first-child')].map((x) => x.textContent).join(', ')));
