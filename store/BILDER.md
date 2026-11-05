@@ -15,6 +15,7 @@ Vorher = Stand 1.25, Nachher = Stand 1.26.0, beides in `bilder/1.26.0/` (Namen `
 | Stimmungen der Spinne | ![](bilder/1.26.0/Spinne-Stimmungen-vorher.png) | ![](bilder/1.26.0/Spinne-Stimmungen-nachher.png) |
 | Icon | ![](bilder/1.26.0/Icon-vorher.png) | ![](bilder/1.26.0/Icon-nachher.png) |
 | Willkommen | ![](bilder/1.26.0/Willkommen-vorher.png) | ![](bilder/1.26.0/Willkommen-nachher.png) |
+| Auswahl nach dem Lesen (Lesen, Übersetzen, Einfach, Antworten oben im Ergebnis) | ![](bilder/1.26.0/Auswahl-nach-Lesen-vorher.png) | ![](bilder/1.26.0/Auswahl-nach-Lesen-nachher.png) |
 
 Nur neu in 1.26.0 (kein Vorher-Bild vorhanden: **fehlt**):
 
