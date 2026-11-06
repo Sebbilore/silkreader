@@ -7,7 +7,7 @@ Fortlaufendes Dokument: Bei jeder neuen Version aktualisieren (Checkliste unten)
 | | |
 |---|---|
 | Veröffentlicht im Store | 1.25.x (`package.json` auf main: 1.25.1) |
-| In Vorbereitung | 1.28.0 (Release-Lauf gestartet, siehe GitHub Actions; 1.27.0 ist auf GitHub veröffentlicht) |
+| In Vorbereitung | 1.28.0 auf GitHub veröffentlicht. Store-Paket 1.28.0 gebaut am 6. Nov., Probe-Installation grün (Actions „Store-Paket“, Lauf 42191863621, Entwurfs-Release `store-v1.28.0`, bereit zum Hochladen im Partner Center). 1.29.0 ist Entwurf (noch nicht in `package.json`) |
 | Produkt-ID (Store-Link) | 9PHKJW54RGDS – https://apps.microsoft.com/detail/9PHKJW54RGDS |
 | Pro-Add-on | `silkreader.pro`, Store-ID 9NBHSZQJ7CJP (Pro ist noch „bald“) |
 | Paketname (Identity/Name) | SebbiLore.Silkreader |
@@ -43,7 +43,7 @@ Hinweis: Die fünf Dateien in `uploads/hearth/` (Stand 5. Nov.) sind keine Silkr
 
 1. Version in `package.json` erhöhen, `CHANGELOG.md` und `src/whatsnew.js` ergänzen.
 2. Unten „Neuerungen“ (DE und EN) in kurzem Stil neu schreiben: erste Zeile „Version X.Y – …“, dann Punkte mit „•“, max. 1500 Zeichen. Beschreibung, Produktfeatures und Suchbegriffe nur ändern, wenn sich Funktionen ändern.
-3. Store-Paket bauen (Actions → „Store-Paket“), Probelauf muss grün sein.
+3. Store-Paket bauen (Actions → „Store-Paket“, wird bei jeder neuen Version immer mitgebaut), Probelauf muss grün sein.
 4. Partner Center: neue Einreichung → Paket (`.msix`) hochladen, Neuerungen DE/EN einfügen, Screenshots prüfen, einreichen.
 5. Store-Bilder prüfen (Tabelle „Bilder für den Store“), `store/BILDER.md` und Bilder in `store/bilder/<Version>/` aktualisieren.
 
