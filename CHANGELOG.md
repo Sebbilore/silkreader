@@ -3,6 +3,14 @@
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
 
+## 1.29.0
+- **Check of dates and amounts:** dates, deadlines ("4 weeks") and small amounts are checked against your original text; what does not match is marked.
+- **Read original aloud** (without AI), with one sentence back / forward.
+- **Combo mode:** reads fast first (preliminary); "More" lets the thorough model read more carefully.
+- **Outlook:** read the open e-mail in classic Outlook (Ctrl+Alt+O) – only that one e-mail, only on key press, directly on your PC.
+- **Ask first:** for dates and deadlines the spider asks "Remember this?" – Yes adds it to the calendar and remembers it in the app; nothing is saved without Yes.
+- **Morning deadline summary** is on by default (can be turned off). **Private mode** deletes everything saved when you quit.
+
 ## 1.28.0
 - **Newer built-in models:** Fast now uses Qwen3.5 2B, Thorough uses Qwen3.5 4B. Whoever already had a model gets the matching new one automatically in the background (only the model is downloaded, nothing is sent). The old file is deleted only after the download succeeded.
 

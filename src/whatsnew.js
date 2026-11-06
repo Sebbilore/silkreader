@@ -1,6 +1,20 @@
 // „Was ist neu?“ – erscheint nach einem Update einmal als Sprechblase an der Spinne.
 // Gezeigt wird nur der Eintrag der aktuellen Version; ältere Einträge stehen in CHANGELOG.md.
 module.exports = {
+  '1.29.0': {
+    de: [
+      '• Die Spinne prüft jetzt auch Daten, Fristen und kleine Beträge gegen deinen Originaltext.',
+      '• Neu: „Original vorlesen“, mit einem Satz zurück oder vor.',
+      '• Neu: Kombi-Modus (erst schnell, bei „Mehr“ genauer) und Outlook-Mail lesen (Strg+Alt+O).',
+      '• Bei Terminen fragt die Spinne kurz nach. Ohne Ja wird nichts gespeichert. Alles bleibt auf deinem PC.',
+    ],
+    en: [
+      '• Silkreader now also checks dates, deadlines and small amounts against your original text.',
+      '• New: "Read original aloud", with one sentence back or forward.',
+      '• New: Combo mode (fast first, more careful with "More") and read an Outlook e-mail (Ctrl+Alt+O).',
+      '• For dates the spider asks briefly. Nothing is saved without your Yes. Everything stays on your PC.',
+    ],
+  },
   '1.28.0': {
     de: [
       'Neue, modernere KI-Modelle: Schnell nutzt jetzt Qwen3.5 2B, Gründlich Qwen3.5 4B.',
