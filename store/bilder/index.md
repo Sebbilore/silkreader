@@ -48,3 +48,5 @@ Fehlt noch: Store-Screenshots (mind. 1366×768), Poster, Box-Art, Titelbild; Vor
 | 1.29.0 | Kombi-genauer-neu.png | nur neu |
 | 1.29.0 | Termin-Nachfrage-neu.png | nur neu |
 | 1.29.0 | Einstellungen-Outlook-neu.png | nur neu |
+| 1.29.0 | Termin-Nachfrage-aufgeraeumt-vorher.png | vorher |
+| 1.29.0 | Termin-Nachfrage-aufgeraeumt-nachher.png | nachher |

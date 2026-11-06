@@ -14,6 +14,7 @@ Bilder in `bilder/1.29.0/`. Vorher = Stand 1.28.0, Nachher = main.
 | Neue Nachfrage bei Terminen und Fristen („Soll ich mir das merken? Zahnarzt-Termin, 12.11.“, Ja oder Nein, nichts wird ohne Ja gespeichert) | – (neu) | ![](bilder/1.29.0/Termin-Nachfrage-neu.png) |
 | Einstellungen: Morgenmeldung jetzt standardmäßig an, Hinweis zu Outlook (klassisch, nur die geöffnete Mail) | – (neu) | ![](bilder/1.29.0/Einstellungen-Outlook-neu.png) |
 | Vorlesen-Leiste (Satz zurück/vor, „Original vorlesen“ liest den ganzen Brief mit Zeilenumbrüchen) | ![](bilder/1.29.0/Vorlesen-vorher.png) | ![](bilder/1.29.0/Vorlesen-nachher.png) |
+| Nachfrage „Soll ich mir das merken?“ aufgeräumt (kleinere Karte, Buttons nebeneinander, nichts mehr abgeschnitten) | ![](bilder/1.29.0/Termin-Nachfrage-aufgeraeumt-vorher.png) | ![](bilder/1.29.0/Termin-Nachfrage-aufgeraeumt-nachher.png) |
 
 ## 1.27.0 (Release läuft)
 
