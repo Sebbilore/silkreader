@@ -54,6 +54,7 @@ const SHORTCUTS = [
   { id: 'translate', keys: 'CommandOrControl+Alt+T', label: 'Strg+Alt+T', desc: 'Markierten Text übersetzen' },
   { id: 'simplify', keys: 'CommandOrControl+Alt+L', label: 'Strg+Alt+L', desc: 'Markierten Text in leichter Sprache' },
   { id: 'reply', keys: 'CommandOrControl+Alt+R', label: 'Strg+Alt+R', desc: 'Antwort auf markierte E-Mail entwerfen' },
+  { id: 'outlook', keys: 'CommandOrControl+Alt+O', label: 'Strg+Alt+O', desc: 'Geöffnete Mail im klassischen Outlook lesen' },
   { id: 'region', keys: 'CommandOrControl+Alt+B', label: 'Strg+Alt+B', desc: 'Bildschirmbereich lesen lassen' },
   { id: 'notebook', keys: 'CommandOrControl+Alt+N', label: 'Strg+Alt+N', desc: 'Notizbuch (letzte Analysen)' },
   { id: 'ring', keys: 'CommandOrControl+Alt+Space', label: 'Strg+Alt+Leertaste', desc: 'Spinnennetz-Ring am Mauszeiger (z. B. auf eine Maustaste legen)' },
@@ -100,6 +101,7 @@ const shortcutActions = {
   simplify: () => transformSelection('simplify'),
   reply: () => transformSelection('reply'),
   region: () => regionCapture(),
+  outlook: () => readOutlook(),
   notebook: () => showNotebook(),
   ring: () => openRing({ viaHotkey: true }),
 };
@@ -504,6 +506,18 @@ ipcMain.on('popup-size', (_e, h) => {
   if (popupWin.getSize()[1] !== height || popupWin.getSize()[0] !== popupW()) popupWin.setBounds({ x, y, width: popupW(), height });
 });
 
+// Nur die gerade geöffnete Mail im klassischen Outlook (Windows, lokal per COM). Nur auf Knopfdruck, nichts im Hintergrund.
+async function readOutlook() {
+  const r = await require('./outlook').readOpenMail();
+  logLine(`Outlook: ${r.error || 'Mail gelesen'}`);
+  if (r.error) {
+    bubbleWin?.webContents.send('rig-trick', 'shrug');
+    return showHome({ hint: r.error === 'no-mail' ? 'Öffne zuerst eine Mail in Outlook – dann lese ich genau diese.' : 'Das klassische Outlook läuft nicht (im neuen Outlook: Text markieren oder Bildschirmbereich lesen).' });
+  }
+  showPopup({ title: r.subject || 'E-Mail', source: 'outlook', pages: [`${r.subject}\n\n${r.body}`] }, { autoStart: true });
+}
+ipcMain.handle('read-outlook', () => readOutlook());
+
 // Mini-Blase statt App: Text einfügen, Zwischenablage, Datei, zuletzt Gelesenes
 function showHome(opts = {}) {
   showPopupPayload({ kind: 'home', mode: opts.mode || clickMode(), hint: opts.hint || '' });
@@ -644,6 +658,7 @@ function buildTrayMenu() {
     { label: T('Spinne anzeigen'), click: () => bubbleWin.show() },
     { label: T('Markierten Text lesen'), click: () => spiderTake({ mode: 'read' }) },
     { label: T('Datei lesen …'), click: pickFileToBubble },
+    ...(process.platform === 'win32' ? [{ label: T('Geöffnete Outlook-Mail lesen'), click: readOutlook }] : []),
     { label: T('Brief fotografieren …'), click: () => openCamera() },
     { label: T('Lesemodus öffnen'), click: () => showMain() },
     { label: deadlinesSoon ? T('Fristen ({n} bald)', { n: deadlinesSoon }) : T('Fristen'), click: () => showPopupPayload({ kind: 'deadlines' }) },
@@ -2310,21 +2325,27 @@ function saveDeadlineState(st) { fs.writeFileSync(deadlinesFile(), JSON.stringif
 const dayStart = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 // Tage bis zu einem Datum (JJJJ-MM-TT), nach Kalendertagen
 const daysUntil = (iso) => Math.round((dayStart(`${iso}T00:00:00`) - dayStart(new Date())) / 864e5);
+// Fristen und Termine eines gelesenen Textes (feste Regeln). Gemerkt wird nur, was der Nutzer mit Ja bestätigt hat.
+function deadlinesOf(h) {
+  const found = (!h.result?.letter && facts.narrative(h.result?.doc_type)) ? [] : facts.findDeadlines(h.text || '', { max: 6, strict: !h.result?.letter, now: new Date(h.date || Date.now()) }).filter((d) => d.deadline);
+  // Vertrag: „kündigen spätestens am“ als eigene Frist
+  const c = h.result?.contract;
+  if (c?.cancelBy && !c.cancelPassed) found.push({ iso: c.cancelBy, sentence: T('Spätestens kündigen, sonst verlängert sich der Vertrag.'), deadline: true, contract: true });
+  return found.map((d) => ({ ...d, key: `${h.id}|${d.iso}`, title: h.title || h.docTitle, histId: h.id }));
+}
 function collectDeadlines({ withDone = false } = {}) {
   const st = loadDeadlineState();
   const today = dayStart(new Date());
+  const hist = loadHistory();
+  // Erster Start mit Nachfrage: schon bekannte Fristen bleiben gemerkt
+  if (!st.saved) { st.saved = {}; for (const h of hist) for (const d of deadlinesOf(h)) st.saved[d.key] = 1; saveDeadlineState(st); }
   const out = [];
-  for (const h of loadHistory()) {
-    const found = (!h.result?.letter && facts.narrative(h.result?.doc_type)) ? [] : facts.findDeadlines(h.text || '', { max: 6, strict: !h.result?.letter, now: new Date(h.date || Date.now()) }).filter((d) => d.deadline);
-    // Vertrag: „kündigen spätestens am“ als eigene Frist
-    const c = h.result?.contract;
-    if (c?.cancelBy && !c.cancelPassed) found.push({ iso: c.cancelBy, sentence: T('Spätestens kündigen, sonst verlängert sich der Vertrag.'), deadline: true, contract: true });
-    for (const d of found) {
-      const key = `${h.id}|${d.iso}`;
+  for (const h of hist) {
+    for (const d of deadlinesOf(h)) {
       const date = dayStart(`${d.iso}T00:00:00`);
-      if (date < today) continue;
-      if (st.done[key] && !withDone) continue;
-      out.push({ key, iso: d.iso, days: Math.round((date - today) / 864e5), sentence: d.sentence, relative: !!d.relative, title: h.title || h.docTitle, histId: h.id, done: !!st.done[key] });
+      if (date < today || !st.saved[d.key]) continue;
+      if (st.done[d.key] && !withDone) continue;
+      out.push({ key: d.key, iso: d.iso, days: Math.round((date - today) / 864e5), sentence: d.sentence, relative: !!d.relative, title: d.title, histId: h.id, done: !!st.done[d.key] });
     }
   }
   return out.sort((a, b) => a.iso.localeCompare(b.iso));
@@ -2422,15 +2443,21 @@ ipcMain.handle('ask-answer', (_e, id, answer) => {
   saveSettings(s);
   logLine(`Frage ${id}: ${answer}`);
 });
-// Erinnerung an diese Frist an/aus (Frage „Soll ich dich 3 Tage vorher erinnern?“)
-ipcMain.handle('ask-remind', (_e, doc, on) => {
-  const text = doc.pages.join('\n\n').slice(0, 200000);
-  const h = loadHistory().find((x) => x.text === text);
-  if (!h) return false;
+// Erkannte Termine und Fristen eines Textes (nur offene, noch nicht gemerkte) – die Spinne fragt, ob sie sie merken soll
+const historyOf = (doc) => { const text = doc.pages.join('\n\n').slice(0, 200000); return loadHistory().find((x) => x.text === text); };
+ipcMain.handle('deadline-candidates', (_e, doc) => {
+  const h = historyOf(doc);
   const st = loadDeadlineState();
-  st.noRemind = st.noRemind || {};
-  for (const d of collectDeadlines({ withDone: true }).filter((x) => x.histId === h.id)) { if (on) delete st.noRemind[d.key]; else st.noRemind[d.key] = true; }
+  return h ? deadlinesOf(h).filter((d) => daysUntil(d.iso) >= 0 && !(st.saved || {})[d.key]).map((d) => ({ key: d.key, iso: d.iso, title: d.title })) : [];
+});
+ipcMain.handle('deadline-save', (_e, doc) => {
+  const h = historyOf(doc);
+  if (!h) return false;
+  collectDeadlines(); // legt st.saved an
+  const st = loadDeadlineState();
+  for (const d of deadlinesOf(h)) st.saved[d.key] = 1;
   saveDeadlineState(st);
+  updateDeadlineBadge();
   return true;
 });
 ipcMain.handle('learn-thumbs', (_e, good) => { thumbsDownRun = good ? 0 : thumbsDownRun + 1; return thumbsDownRun; });
@@ -2444,7 +2471,7 @@ ipcMain.handle('analyze-quality', async (event, doc) => {
 const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 function maybeMorning({ force = false } = {}) {
   const s = loadSettings();
-  if (s.morning !== true || !s.onboarded) return false; // „Guten Morgen“ nur, wenn eingeschaltet
+  if (s.morning === false || !s.onboarded) return false; // „Guten Morgen“ ist an, bis man es ausschaltet
   const h = new Date().getHours();
   if (!force && (h < 5 || h >= 11 || s.lastMorning === todayIso())) return false;
   const week = collectDeadlines().filter((d) => d.days <= 7);
@@ -2514,6 +2541,7 @@ function remindBookmarks() {
   fs.writeFileSync(bookmarksFile(), JSON.stringify(list));
 }
 function watchDeadlines() {
+  try { collectDeadlines(); } catch {} // legt beim ersten Start die Liste gemerkter Fristen an (vor dem ersten Lesen)
   const tick = () => { try { remindDeadlines(); updateDeadlineBadge(); maybeMorning(); } catch (e) { logLine(`Fristen: ${e.message}`); } };
   setTimeout(() => { try { maybeMorning(); } catch {} }, 20 * 1000);
   setInterval(() => { try { remindBookmarks(); } catch (e) { logLine(`Später lesen: ${e.message}`); } }, 60 * 1000);
@@ -2930,7 +2958,7 @@ ipcMain.handle('get-settings', () => {
     theme: THEMES[s.theme] ? s.theme : 'system',
     fontSize: ZOOM[s.fontSize] ? s.fontSize : 'normal',
     learn: s.learn !== false,
-    morning: s.morning === true,
+    morning: s.morning !== false,
     askBack: s.askBack !== false, askMutedCount: (s.askMuted || []).length + Object.values(s.askPaused || {}).filter((t) => t > Date.now()).length,
     autostart: app.getLoginItemSettings().openAtLogin,
     clickMode: clickMode(),

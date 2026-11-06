@@ -125,7 +125,7 @@
   const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const DEADLINE_WORDS = /(bis|spätestens|frist|fällig|zahlbar|binnen|innerhalb|einzureichen|widerspruch|einspruch|kündig|zahlen|überweisen|vorlegen|melden|termin|until|by|due|deadline|before|no later)/i;
   // Streng (für Texte, die kein Brief sind): „bis 2027“ oder „by 3 March“ in Artikeln ist kein Termin
-  const DEADLINE_STRICT = /(spätestens|frist|fällig|zahlbar|binnen|innerhalb|einzureichen|no later|deadline|\bdue\b)/i;
+  const DEADLINE_STRICT = /(termin|appointment|spätestens|frist|fällig|zahlbar|binnen|innerhalb|einzureichen|no later|deadline|\bdue\b)/i;
   /** Die KI nennt die Art des Textes: Artikel, Nachricht, Bericht … enthalten Daten, aber keine Termine für den Leser */
   const narrative = (docType) => /(artikel|article|wiki|nachricht|news|bericht|report|studie|blog|lexikon|essay|chronik|biograf|geschichte|buch|book)/i.test(String(docType || ''));
   /** Briefdatum: „Berlin, 3. Oktober 2026“, „Datum: 03.10.2026“ – sonst null */

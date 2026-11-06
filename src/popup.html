@@ -432,7 +432,12 @@
     const Q = [];
     if (L?.canObject && L.deadlines.length) Q.push({ id: 'objection', text: T('Bist du einverstanden? Wenn nicht, schreibe ich dir einen {w}.', { w: objWord(L) }), yes: T('{w} schreiben', { w: objWord(L, true) }), no: T('Passt so'), run: () => replyToLetter(TEMPLATES.objection(L)[1]) });
     if (r.contract?.cancelBy && !r.contract.cancelPassed && dueSoon(r.contract.cancelBy, 75)) Q.push({ id: 'cancel', text: T('Willst du kündigen? Ich setze die Kündigung für dich auf.'), yes: T('Kündigung schreiben'), no: T('Behalten'), run: () => replyToLetter(TEMPLATES.cancel()[1]) });
-    if (L && /rechnung|mahnung/.test(L.kind) && L.deadlines.length) Q.push({ id: 'remind', text: T('Soll ich dich 3 Tage vorher erinnern?'), yes: T('Ja, erinnern'), no: T('Nein'), run: async () => { await window.spider.askRemind(P.doc, true); return T('Ich erinnere dich 3 Tage vorher und am Tag davor ✓'); }, onNo: () => window.spider.askRemind(P.doc, false) });
+    const cand = await window.spider.deadlineCandidates(P.doc);
+    if (cand.length) {
+      const c = cand[0], when = new Date(`${c.iso}T00:00:00`).toLocaleDateString(I18N.locale, { day: 'numeric', month: 'numeric' });
+      const what = `${String(c.title || '').slice(0, 40)}, ${when}${cand.length > 1 ? ` ${T('(+{n} weitere)', { n: cand.length - 1 })}` : ''}`;
+      Q.unshift({ id: 'frist', text: T('Soll ich mir das merken? {w}', { w: what }), yes: T('Ja, merken und erinnern'), no: T('Nein, nicht speichern'), run: async () => { await window.spider.deadlineSave(P.doc); return T('Gemerkt. Ich erinnere dich rechtzeitig ✓'); } });
+    }
     return Q.find((q) => ok(q.id)) || null;
   }
   function answerBox(title, lines) {
@@ -958,6 +963,7 @@
         <button class="link" id="qFile">${silkIcon('file')}${T('Datei')}</button>
         <button class="link" id="qRegion">${silkIcon('region')}${T('Bereich')}</button>
         <button class="link" id="qCam">${silkIcon('camera')}${T('Brief fotografieren')}</button>
+        ${window.spider.platform === 'win32' ? `<button class="link" id="qMail" title="${T('Liest nur die gerade geöffnete Mail im klassischen Outlook. Nichts wird verschickt.')}">${silkIcon('file')}${T('Outlook-Mail')}</button>` : ''}
       </div>
       <div class="sec hidden" id="recentSec"><div class="h sub">Zuletzt gelesen</div><div id="recent"></div></div>`;
     $('modes').addEventListener('click', (e) => {
@@ -978,6 +984,7 @@
     });
     $('qRegion').addEventListener('click', () => window.spider.regionCapture());
     $('qCam').addEventListener('click', () => window.spider.openCamera());
+    $('qMail')?.addEventListener('click', () => window.spider.readOutlook());
     footer({ visible: 2, actions: [['Meine Briefe', () => { setBack(home); notebook(); }], ['Einstellungen', () => { setBack(home); settings(); }], ['Lesemodus', () => window.spider.openReader(null)]] });
     setTimeout(() => $('homeIn')?.focus(), 60);
     // Zwischenablage als Vorschlag

@@ -55,6 +55,9 @@ Version 1.29 – sicherer und besser vorlesen
 • Neu: „Original vorlesen“ – der Text wird so vorgelesen, wie er dasteht, ohne KI.
 • Beim Vorlesen: einen Satz zurück oder vor springen.
 • Neu: Kombi-Modus – erst schnell lesen (vorläufig), bei „Mehr“ liest das gründliche Modell genauer.
+• Neu: Geöffnete Mail im klassischen Outlook lesen (Strg+Alt+O) – nur diese eine Mail, nur auf Knopfdruck, direkt auf dem PC.
+• Bei Terminen und Fristen fragt die Spinne kurz nach, ob sie sie merken soll. Ohne Ja wird nichts gespeichert.
+• Die Morgenmeldung der Fristen ist jetzt standardmäßig an (abschaltbar).
 • Privatmodus löscht beim Beenden alles Gespeicherte.
 
 ### English
@@ -63,6 +66,9 @@ Version 1.29 – safer checks and better reading aloud
 • New: "Read original aloud" – the text is read exactly as written, without AI.
 • While reading aloud: jump back or forward by one sentence.
 • New: Combo mode – reads fast first (preliminary), with "More" the thorough model reads more carefully.
+• New: read the open e-mail in classic Outlook (Ctrl+Alt+O) – only that one e-mail, only when you press the key, directly on your PC.
+• For dates and deadlines the spider asks briefly whether to remember them. Nothing is saved without your Yes.
+• The morning deadline summary is now on by default (can be turned off).
 • Private mode deletes everything saved when you quit.
 
 ## Neuerungen 1.28.0 (Entwurf, erst mit dem Release einreichen)
