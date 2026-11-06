@@ -437,7 +437,7 @@
     if (cand.length) {
       const c = cand[0], when = new Date(`${c.iso}T00:00:00`).toLocaleDateString(I18N.locale, { day: 'numeric', month: 'numeric' });
       const what = `${String(c.title || '').slice(0, 40)}, ${when}${cand.length > 1 ? ` ${T('(+{n} weitere)', { n: cand.length - 1 })}` : ''}`;
-      Q.unshift({ id: 'frist', text: T('Soll ich mir das merken? {w}', { w: what }), yes: T('Ja, merken und erinnern'), no: T('Nein, nicht speichern'), run: async () => { await window.spider.deadlineSave(P.doc); return T('Gemerkt. Ich erinnere dich rechtzeitig ✓'); } });
+      Q.unshift({ id: 'frist', text: T('Soll ich mir das merken? {w}', { w: what }), yes: T('Ja, merken und erinnern'), no: T('Nein, nicht speichern'), run: async () => { await window.spider.deadlineSave(P.doc); return T('Gemerkt und im Kalender. Ich erinnere dich rechtzeitig ✓'); } });
     }
     return Q.find((q) => ok(q.id)) || null;
   }
@@ -454,6 +454,7 @@
     const el = $('askBack');
     el.innerHTML = `<div class="askq rise" role="group" aria-label="${T('Frage der Spinne')}"><div class="qt">${silkIcon('pro')}<p>${esc(q.text)}</p></div>
       <div class="row"><button class="btn primary" data-q="yes">${esc(q.yes)}</button><button class="btn" data-q="no">${esc(q.no)}</button><button class="link dim" data-q="mute">${T('Nicht mehr fragen')}</button></div></div>`;
+    if (q.id === 'frist') document.querySelectorAll('[data-ldl],[data-dl]').forEach((b) => { b.hidden = true; }); // Ja macht beides: Kalender und merken
     let answered = false;
     el.addEventListener('click', async (e) => {
       const a = e.target.closest('[data-q]')?.dataset.q; if (!a) return;

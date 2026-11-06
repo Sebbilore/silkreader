@@ -2455,9 +2455,12 @@ ipcMain.handle('deadline-save', (_e, doc) => {
   if (!h) return false;
   collectDeadlines(); // legt st.saved an
   const st = loadDeadlineState();
+  const neu = deadlinesOf(h).filter((d) => daysUntil(d.iso) >= 0 && !st.saved[d.key]);
   for (const d of deadlinesOf(h)) st.saved[d.key] = 1;
   saveDeadlineState(st);
   updateDeadlineBadge();
+  // Nach dem Ja kommt der Termin gleich in den Kalender (eine Datei, die du dort bestätigst)
+  if (neu.length) openIcs('Silkreader-Frist.ics', neu.map((d) => ({ title: `${T('Frist')}: ${d.title}`, date: d.iso, note: d.sentence }))).catch(() => {});
   return true;
 });
 ipcMain.handle('learn-thumbs', (_e, good) => { thumbsDownRun = good ? 0 : thumbsDownRun + 1; return thumbsDownRun; });

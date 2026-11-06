@@ -383,6 +383,7 @@
     'Ja, merken und erinnern': 'Yes, remember and remind me',
     'Nein, nicht speichern': 'No, do not save',
     'Gemerkt. Ich erinnere dich rechtzeitig ✓': 'Saved. I will remind you in time ✓',
+    'Gemerkt und im Kalender. Ich erinnere dich rechtzeitig ✓': 'Saved and sent to your calendar. I will remind you in time ✓',
     'Morgens kurz die Fristen der Woche zeigen': 'Show this week’s deadlines briefly in the morning',
     'Hoher Kontrast': 'High contrast',
     'Hell · Grau': 'Light · Grey',

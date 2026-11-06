@@ -28,7 +28,7 @@ let pop = await show(mail('Zahnarzt Kontrolle', '12.11.2030'), 'Zahnarzt Termin'
 ok('Frage „merken?“ bei Termin', /merken/.test(await q(pop)), await q(pop));
 await pop.screenshot({ path: `${out}/termin-frage.png` });
 ok('vorher nichts gespeichert', (await pop.evaluate(() => window.spider.deadlinesList())).length === 0);
-await pop.click('.askq [data-q="yes"]'); await sleep(500);
+await pop.click('.askq [data-q="yes"]'); await sleep(900); await pop.screenshot({ path: `${out}/termin-ja.png` });
 ok('nach Ja gemerkt', (await pop.evaluate(() => window.spider.deadlinesList())).some((d) => d.iso === '2030-11-12'));
 pop = await show(mail('Hautarzt', '20.12.2030'), 'Hautarzt Termin');
 await pop.click('.askq [data-q="no"]'); await sleep(500);
