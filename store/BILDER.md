@@ -13,6 +13,8 @@ Bilder in `bilder/1.29.0/`. Vorher = Stand 1.28.0, Nachher = main.
 | Kombi-Modus: „Ich lese genauer, das dauert einen Moment.“ | – (neu) | ![](bilder/1.29.0/Kombi-genauer-neu.png) |
 | Neue Nachfrage bei Terminen und Fristen („Soll ich mir das merken? Zahnarzt-Termin, 12.11.“, Ja oder Nein, nichts wird ohne Ja gespeichert) | – (neu) | ![](bilder/1.29.0/Termin-Nachfrage-neu.png) |
 | Einstellungen: Morgenmeldung jetzt standardmäßig an, Hinweis zu Outlook (klassisch, nur die geöffnete Mail) | – (neu) | ![](bilder/1.29.0/Einstellungen-Outlook-neu.png) |
+| Privatmodus (Einstellungen › Erweitert): „nichts speichern, beim Beenden alles löschen“ | – (neu) | ![](bilder/1.29.0/Privatmodus-neu.png) |
+| Knopf „Outlook-Mail“ im Startfenster (nur Windows; hier mit dem Markup der App nachgebaut, da Test unter Linux) | – (neu) | ![](bilder/1.29.0/Outlook-Knopf-neu.png) |
 | Vorlesen-Leiste (Satz zurück/vor, „Original vorlesen“ liest den ganzen Brief mit Zeilenumbrüchen) | ![](bilder/1.29.0/Vorlesen-vorher.png) | ![](bilder/1.29.0/Vorlesen-nachher.png) |
 | Nachfrage „Soll ich mir das merken?“ aufgeräumt (kleinere Karte, Buttons nebeneinander, nichts mehr abgeschnitten) | ![](bilder/1.29.0/Termin-Nachfrage-aufgeraeumt-vorher.png) | ![](bilder/1.29.0/Termin-Nachfrage-aufgeraeumt-nachher.png) |
 
