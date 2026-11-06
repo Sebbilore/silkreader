@@ -162,8 +162,11 @@
     // ---- 1.18: Nicht stören, Scans, Explorer, Privatmodus, Übung, Was ist neu ----
     'Mit Silkreader lesen': 'Read with Silkreader', 'Auf diesem Bild wurde kein Text erkannt.': 'No text was recognized in this image.',
     'Pause beenden': 'End pause', 'Nicht stören': 'Do not disturb', '1 Stunde': '1 hour', '3 Stunden': '3 hours', 'Bis morgen': 'Until tomorrow',
-    'Privatmodus (nichts im Notizbuch speichern)': 'Private mode (keep nothing in the notebook)',
-    'Privatmodus: nichts im Notizbuch speichern': 'Private mode: keep nothing in the notebook',
+    'Privatmodus (nichts speichern, beim Beenden alles löschen)': 'Private mode (save nothing, delete everything on exit)',
+    'Privatmodus: nichts speichern, beim Beenden alles löschen': 'Private mode: save nothing, delete everything on exit',
+    'Kombi': 'Combo', 'Erst schnell und vorläufig; bei „Mehr“ liest das gründliche Modell genauer': 'Fast and preliminary first; with “More” the thorough model reads more carefully',
+    'Vorläufig (schnell gelesen). Bei „Mehr“ lese ich genauer.': 'Preliminary (read quickly). With “More” I read more carefully.',
+    'Ich lese genauer, das dauert einen Moment.': 'I am reading more carefully, this takes a moment.',
     'Privatmodus: Neue Texte werden nicht gespeichert.': 'Private mode: new texts are not saved.',
     'In Bildschirmfreigaben (Teams, Zoom …) und Bildschirmfotos unsichtbar': 'Invisible in screen shares (Teams, Zoom …) and screenshots',
     'an Claude': 'to Claude', 'auf diesem PC': 'on this PC',

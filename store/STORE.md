@@ -54,12 +54,16 @@ Version 1.29 – sicherer und besser vorlesen
 • Die Spinne prüft jetzt auch Daten, Fristen („4 Wochen“) und kleine Beträge gegen deinen Originaltext und markiert, was nicht stimmt.
 • Neu: „Original vorlesen“ – der Text wird so vorgelesen, wie er dasteht, ohne KI.
 • Beim Vorlesen: einen Satz zurück oder vor springen.
+• Neu: Kombi-Modus – erst schnell lesen (vorläufig), bei „Mehr“ liest das gründliche Modell genauer.
+• Privatmodus löscht beim Beenden alles Gespeicherte.
 
 ### English
 Version 1.29 – safer checks and better reading aloud
 • Silkreader now also checks dates, deadlines ("4 weeks") and small amounts against your original text and marks what does not match.
 • New: "Read original aloud" – the text is read exactly as written, without AI.
 • While reading aloud: jump back or forward by one sentence.
+• New: Combo mode – reads fast first (preliminary), with "More" the thorough model reads more carefully.
+• Private mode deletes everything saved when you quit.
 
 ## Neuerungen 1.28.0 (Entwurf, erst mit dem Release einreichen)
 

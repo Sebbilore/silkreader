@@ -8,6 +8,9 @@ Bilder in `bilder/1.29.0/`. Vorher = Stand 1.28.0, Nachher = main.
 
 | Bild | Vorher | Nachher |
 |---|---|---|
+| Kombi-Modus: Einstellungen (neue Wahl „Kombi“) | – (neu) | ![](bilder/1.29.0/Einstellungen-Kombi-neu.png) |
+| Kombi-Modus: Ergebnis (Hinweis „vorläufig“ unten) | – (neu) | ![](bilder/1.29.0/Kombi-vorlaeufig-neu.png) |
+| Kombi-Modus: „Ich lese genauer, das dauert einen Moment.“ | – (neu) | ![](bilder/1.29.0/Kombi-genauer-neu.png) |
 | Vorlesen-Leiste (Satz zurück/vor, „Original vorlesen“ liest den ganzen Brief mit Zeilenumbrüchen) | ![](bilder/1.29.0/Vorlesen-vorher.png) | ![](bilder/1.29.0/Vorlesen-nachher.png) |
 
 ## 1.27.0 (Release läuft)

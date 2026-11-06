@@ -615,7 +615,7 @@
       <div id="details">
         ${more.join('')}
         ${senderLines(r.sender)}
-        ${r.more === 'pending' ? `<div id="morePending"></div>` : ''}
+        ${r.more === 'pending' || r.provisional ? `<div id="morePending"></div>` : ''}
         ${lead.length > 3 ? `<div class="sec"><ul class="lead" data-noi18n>${lead.slice(3).map((b) => `<li>${emphChecked(b)}</li>`).join('')}</ul></div>` : ''}
         ${r.key_points.length ? `<div class="sec"><div class="h">Kernaussagen</div><ul data-noi18n>${r.key_points.map((p, i) => `<li class="jump" data-type="point" data-index="${i}">${emphChecked(p)}</li>`).join('')}</ul></div>` : ''}
         ${r.findings.length ? `<div class="sec"><div class="h">Erkenntnisse</div>${r.findings.map((f, i) => `<div class="find jump" data-type="finding" data-index="${i}"><span class="k">${esc(f.kind)}</span> <span data-noi18n>${emph(f.title)}</span>${f.detail ? `<div class="d" data-noi18n>${emph(f.detail)}</div>` : ''}</div>`).join('')}</div>` : ''}
@@ -627,17 +627,17 @@
         <div class="sec quick"><button class="link" id="exLater">${silkIcon('bookmark')}${T('Später lesen')}</button><button class="link" id="exPdf">${silkIcon('file')}${T('Als PDF speichern')}</button><button class="link" id="exPrint">${silkIcon('copy')}${T('Drucken')}</button></div>
       </div>
       <div id="answers"></div>
-      <div class="aiNote">${r.checks?.unsure?.length ? `<span>${T('Gestrichelte Zahlen stehen so nicht im Text – bitte prüfen.')}</span> ` : ''}<span>${T('KI-Ergebnis. Beträge und Fristen bitte im Original prüfen.')}</span>${r.readMs ? ` <span class="took">· ${T('in {s} s gelesen', { s: Math.max(1, Math.round(r.readMs / 1000)) })}</span>` : ''}${r.sentBytes === 0 ? `<br><span class="sent">${silkIcon('lock')}<span>${T('0 Bytes ins Internet gesendet')}</span></span>` : r.sentBytes ? `<br><span class="sent cloud">${silkIcon('cloud')}<span>${T('{kb} KB an Claude gesendet', { kb: Math.max(1, Math.round(r.sentBytes / 1024)) })}</span></span>` : ''}</div>`;
+      <div class="aiNote">${r.provisional ? `<span>${T('Vorläufig (schnell gelesen). Bei „Mehr“ lese ich genauer.')}</span> ` : ''}${r.checks?.unsure?.length ? `<span>${T('Gestrichelte Zahlen stehen so nicht im Text – bitte prüfen.')}</span> ` : ''}<span>${T('KI-Ergebnis. Beträge und Fristen bitte im Original prüfen.')}</span>${r.readMs ? ` <span class="took">· ${T('in {s} s gelesen', { s: Math.max(1, Math.round(r.readMs / 1000)) })}</span>` : ''}${r.sentBytes === 0 ? `<br><span class="sent">${silkIcon('lock')}<span>${T('0 Bytes ins Internet gesendet')}</span></span>` : r.sentBytes ? `<br><span class="sent cloud">${silkIcon('cloud')}<span>${T('{kb} KB an Claude gesendet', { kb: Math.max(1, Math.round(r.sentBytes / 1024)) })}</span></span>` : ''}</div>`;
     $('moreBtn').addEventListener('click', () => {
       const open = $('details').classList.toggle('open');
       $('moreBtn').textContent = open ? T('Weniger anzeigen') : moreLabel;
       $('moreBtn').setAttribute('aria-expanded', String(open));
-      if (open && result.more === 'pending') loadMore();
+      if (open && (result.more === 'pending' || result.provisional)) loadMore();
     });
     // Maus über „Mehr“: Details schon mal anfordern – beim Klick sind sie dann früher da
     // Vorab laden, wenn die Maus kurz auf „Mehr“ ruht (nicht schon beim Darüberfahren – das kostet KI-Rechenzeit)
     let moreHover = null;
-    $('moreBtn').addEventListener('pointerenter', () => { moreHover = setTimeout(() => { if (result.more === 'pending' && !moreFetch) moreFetch = { run, p: window.spider.analyzeMore(P.doc, result) }; }, 350); });
+    $('moreBtn').addEventListener('pointerenter', () => { moreHover = setTimeout(() => { if (result.more === 'pending' && !result.provisional && !moreFetch) moreFetch = { run, p: window.spider.analyzeMore(P.doc, result) }; }, 350); });
     $('moreBtn').addEventListener('pointerleave', () => clearTimeout(moreHover));
     const reopen = P.openMore;
     if (reopen) { P.openMore = false; $('moreBtn').click(); }
@@ -677,7 +677,7 @@
     const box = $('morePending'); if (!box || box.dataset.busy) return;
     box.dataset.busy = '1';
     const my = ++moreRun, at = run;
-    box.innerHTML = weave(T('Die Spinne liest die Details …'));
+    box.innerHTML = weave(result.provisional ? T('Ich lese genauer, das dauert einen Moment.') : T('Die Spinne liest die Details …'));
     const pre = moreFetch?.run === run ? moreFetch.p : null;
     moreFetch = null;
     const res = await (pre || window.spider.analyzeMore(P.doc, result));

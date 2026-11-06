@@ -135,7 +135,7 @@
   <div id="shortcuts" class="keys"></div>
   <h2>Verhalten</h2>
   <div class="grp">
-    <div class="line"><label class="check grow"><input type="checkbox" id="privateMode"> Privatmodus: nichts im Notizbuch speichern</label></div>
+    <div class="line"><label class="check grow"><input type="checkbox" id="privateMode"> Privatmodus: nichts speichern, beim Beenden alles löschen</label></div>
     <div class="line"><label class="check grow"><input type="checkbox" id="pinCopied"> Kopierte Dateien (Strg+C im Explorer) ins Spinnennetz hängen</label></div>
     <div class="line"><label class="check grow"><input type="checkbox" id="hideInShare"> In Bildschirmfreigaben (Teams, Zoom …) unsichtbar</label></div>
     <div class="line"><label class="check grow"><input type="checkbox" id="lowPower"> Sparmodus: braucht weniger Arbeitsspeicher (nach einem Neustart)</label></div>
@@ -172,7 +172,7 @@
 
   // ---- Eingebaute KI ----
   const gb = (b) => (b / 1e9).toLocaleString(I18N.locale, { maximumFractionDigits: 2 });
-  const DESC = { fast: 'Für die meisten Briefe, antwortet in Sekunden', quality: 'Genauer bei langen Texten, braucht 8 GB Arbeitsspeicher' };
+  const DESC = { fast: 'Für die meisten Briefe, antwortet in Sekunden', quality: 'Genauer bei langen Texten, braucht 8 GB Arbeitsspeicher', combo: 'Erst schnell und vorläufig; bei „Mehr“ liest das gründliche Modell genauer' };
   let builtinModel = 'fast', modelState = null, wantAfterDl = null;
   function renderModels() {
     const m = modelState;
@@ -200,7 +200,7 @@
       wantAfterDl = b.dataset.dl;
       modelState.downloading = true; renderModels();
       $('modelProgress').className = 'hint'; $('modelProgress').textContent = T('Starte Download …');
-      window.spider.modelDownload(b.dataset.dl);
+      window.spider.modelDownload(b.dataset.dl === 'combo' ? (modelState.models.fast.ready ? 'quality' : 'fast') : b.dataset.dl);
     }
   });
   async function loadModelStatus(initial = false) {

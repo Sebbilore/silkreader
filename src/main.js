@@ -657,7 +657,7 @@ function buildTrayMenu() {
         { label: T('3 Stunden'), click: () => pauseSpider(3 * 3600e3) },
         { label: T('Bis morgen'), click: () => { const t = new Date(); t.setHours(24, 0, 0, 0); pauseSpider(t - Date.now() + 8 * 3600e3); } },
       ] },
-    { label: T('Privatmodus (nichts im Notizbuch speichern)'), type: 'checkbox', checked: !!loadSettings().privateMode,
+    { label: T('Privatmodus (nichts speichern, beim Beenden alles löschen)'), type: 'checkbox', checked: !!loadSettings().privateMode,
       click: (item) => { const st = loadSettings(); st.privateMode = item.checked; saveSettings(st); } },
     { type: 'separator' },
     { label: pro.active() ? T('Silkreader Pro ✓') : T('Silkreader Pro …'), click: () => showPopupPayload({ kind: 'pro' }) },
@@ -1398,8 +1398,12 @@ async function upgradeModels() {
 const modelReady = (key) => fs.existsSync(modelPathFor(key));
 // Ohne Auswahl: das gründliche Modell, falls es schon da ist, sonst das schnelle.
 let forceModel = null; // „Nochmal gründlich lesen“: einmalig das gründliche Modell
+// Kombi: das schnelle Modell liest zuerst (vorläufig), „Mehr“ lässt das gründliche Modell genauer nachlesen. Im Sparmodus immer.
+const comboOn = (s = loadSettings()) => s.builtinModel === 'combo' || lowPowerOn(s);
+const canDeepen = (s = loadSettings()) => comboOn(s) && modelReady('quality') && pro.allowed('quality') && require('os').totalmem() >= BUILTIN_MODELS.quality.minRamGB * 0.9 * 1024 ** 3;
 const builtinKey = (s = loadSettings()) => {
   if (forceModel && modelReady(forceModel) && pro.allowed(forceModel)) return forceModel;
+  if (comboOn(s) && modelReady('fast')) return 'fast';
   const want = BUILTIN_MODELS[s.builtinModel] ? s.builtinModel : modelReady('quality') ? 'quality' : 'fast';
   return want === 'quality' && !pro.allowed('quality') && modelReady('fast') ? 'fast' : want; // gründliches Modell gehört zu Pro
 };
@@ -2754,6 +2758,8 @@ async function analyzeHandler(event, doc) {
       result = { ...result, ...letterExtras(doc, letter) };
       result.contract = pro.allowed('contract') ? contract : null; result.contractLocked = !!contract && !pro.allowed('contract');
     } catch (e) { logLine(`Prüfung fehlgeschlagen: ${e.message}`); }
+    if (!cached && loadSettings().provider === 'builtin') result.model = builtinKey(); // Kombi: „fast“ + gründliches Modell da → vorläufig
+    result.provisional = result.model === 'fast' && canDeepen();
     result.sentBytes = 0; // Das eingebaute Modell liest auf dem PC: nichts geht ins Internet (ältere Notizbuch-Einträge mit Claude behalten ihre Angabe)
     result.readMs = cached ? 0 : Date.now() - t0;
     sw.lap('Brief-Regeln');
@@ -2802,12 +2808,21 @@ async function analyzeMore(doc, base, onProgress = () => {}) {
   const text = doc.pages.join('\n');
   return facts.verifyResult({ ...base, key_points: add.key_points, figures: add.figures, findings: [...(base.findings || []), ...add.findings], more: null }, text);
 }
+// Kombi: das gründliche Modell liest den Text noch einmal ganz und ersetzt Betrag, Frist, Aufgaben und Details
+async function deepenResult(doc) {
+  forceModel = 'quality';
+  try {
+    const r = await analyzeHandler({ sender: { send() {} } }, doc);
+    if (!r.ok) throw new Error(r.error || 'Fehler');
+    return r.result.more === 'pending' ? await analyzeMore(doc, r.result) : r.result;
+  } finally { forceModel = null; }
+}
 ipcMain.handle('analyze-more', async (event, doc, base) => {
   const t0 = Date.now();
   try {
     setBusy(true);
     analysisRunning++;
-    const result = await analyzeMore(doc, base, (c) => { if (c && typeof c === 'object' && c.stage) event.sender.send('progress', { stage: c }); });
+    const result = base?.provisional && canDeepen() ? await deepenResult(doc) : await analyzeMore(doc, base, (c) => { if (c && typeof c === 'object' && c.stage) event.sender.send('progress', { stage: c }); });
     result.moreMs = Date.now() - t0;
     logLine(`Zeit Details (Mehr aus dem Brief): ${result.moreMs} ms`);
     // Im Notizbuch nachtragen, damit die Details beim nächsten Öffnen schon da sind
@@ -2928,16 +2943,20 @@ ipcMain.handle('get-settings', () => {
 // Arbeitsspeicher des PCs (gerundet, in GB) – für Empfehlungen bei schwächeren PCs
 const ramGB = () => Math.round(require('os').totalmem() / 1024 ** 3);
 ipcMain.handle('model-status', () => ({
-  selected: builtinKey(),
+  selected: loadSettings().builtinModel === 'combo' ? 'combo' : builtinKey(),
   downloading: !!modelDownload,
   ramGB: ramGB(),
-  models: Object.fromEntries(Object.entries(BUILTIN_MODELS).map(([k, m]) => [k, { name: m.name, size: m.sizeLabel, ready: modelReady(k), tooBig: ramGB() < m.minRamGB, minRamGB: m.minRamGB, locked: !pro.allowed(k) }])),
+  models: {
+    ...Object.fromEntries(Object.entries(BUILTIN_MODELS).map(([k, m]) => [k, { name: m.name, size: m.sizeLabel, ready: modelReady(k), tooBig: ramGB() < m.minRamGB, minRamGB: m.minRamGB, locked: !pro.allowed(k) }])),
+    // Kombi: schnell lesen, bei „Mehr“ gründlich – braucht beide Modelle
+    combo: { name: 'Kombi (beide)', size: '', ready: modelReady('fast') && modelReady('quality'), tooBig: ramGB() < BUILTIN_MODELS.quality.minRamGB, minRamGB: BUILTIN_MODELS.quality.minRamGB, locked: !pro.allowed('quality') },
+  },
 }));
 ipcMain.handle('model-download', (event, key) => { startModelDownload(event.sender, key); });
 ipcMain.handle('model-cancel', async () => { modelDownloadCanceled = true; await modelDownload?.cancel(); });
 ipcMain.handle('save-settings', (_e, { language, builtinModel, lowPower, pinCopied, copyHint, privateMode, hideFullscreen, hideInShare, watchDownloads, clickMode: cm, theme, fontSize, autostart, learn, morning, askBack }) => {
   const s = loadSettings();
-  if (BUILTIN_MODELS[builtinModel]) s.builtinModel = builtinModel;
+  if (BUILTIN_MODELS[builtinModel] || builtinModel === 'combo') s.builtinModel = builtinModel;
   if (typeof lowPower === 'boolean') s.lowPower = lowPower;
   if (typeof pinCopied === 'boolean') s.pinCopied = pinCopied;
   if (typeof copyHint === 'boolean') s.copyHint = copyHint;
@@ -3167,6 +3186,7 @@ if (!app.requestSingleInstanceLock()) {
     const camOk = (wc, perm) => perm === 'media' && !!cameraWin && !cameraWin.isDestroyed() && wc === cameraWin.webContents;
     ses.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(['clipboard-sanitized-write'].includes(perm) || camOk(wc, perm)));
     ses.defaultSession.setPermissionCheckHandler((wc, perm) => ['clipboard-sanitized-write'].includes(perm) || camOk(wc, perm));
+    try { if (loadSettings().privateMode) require('./privat').wipePrivate(app.getPath('userData')); } catch {} // Privatmodus: Reste nach einem Absturz
     cocoons = new CocoonStore(path.join(app.getPath('userData'), 'cocoons.json'));
     // Der Tastatur-Helfer startet erst, wenn die Maus zur Spinne kommt (spart Arbeitsspeicher und Start-Zeit)
     // Ohne Helfer (nicht Windows oder blockiert) gibt es keine Ablagezone → Spinne bekommt größere Fangfläche
@@ -3208,7 +3228,7 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.on('before-quit', () => { quitting = true; });
-  app.on('will-quit', () => { globalShortcut.unregisterAll(); try { fs.unlinkSync(runFlag()); } catch {} });
+  app.on('will-quit', () => { globalShortcut.unregisterAll(); try { fs.unlinkSync(runFlag()); } catch {} try { if (loadSettings().privateMode) require('./privat').wipePrivate(app.getPath('userData')); } catch {} });
   // Die App läuft im Hintergrund weiter, solange die Spinne da ist.
   app.on('window-all-closed', (e) => e?.preventDefault?.());
 }

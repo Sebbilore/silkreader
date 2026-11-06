@@ -43,3 +43,6 @@ Fehlt noch: Store-Screenshots (mind. 1366×768), Poster, Box-Art, Titelbild; Vor
 | 1.27.0 | Was-ist-neu-neu.png | nur neu |
 | 1.29.0 | Vorlesen-vorher.png | vorher |
 | 1.29.0 | Vorlesen-nachher.png | nachher |
+| 1.29.0 | Einstellungen-Kombi-neu.png | nur neu |
+| 1.29.0 | Kombi-vorlaeufig-neu.png | nur neu |
+| 1.29.0 | Kombi-genauer-neu.png | nur neu |
