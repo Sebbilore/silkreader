@@ -152,7 +152,7 @@ while ($true) {
     elseif ($line -eq 'seltext') { if ($uia) { [Console]::Out.WriteLine([SilkText]::SelectedText(300000)) } else { [Console]::Out.WriteLine('-') } }
     elseif ($line -eq 'diag') { [Console]::Out.WriteLine("uia=$uia ps=$($PSVersionTable.PSVersion)") }
     elseif ($line -eq 'seq') { [Console]::Out.WriteLine([SilkKeys]::Seq()) }
-    elseif ($line -eq 'files') { $l = [System.Windows.Forms.Clipboard]::GetFileDropList(); [Console]::Out.WriteLine((@($l) -join '|')) }
+    elseif ($line -eq 'files') { $l = [System.Windows.Forms.Clipboard]::GetFileDropList(); [Console]::Out.WriteLine('F' + (@($l) -join '|')) }
     elseif ($line -eq 'ocrwarm') { SilkOcrInit; [Console]::Out.WriteLine('ok') }
     elseif ($line.StartsWith('ocrpdf ')) { $a = $line.Substring(7).Split(' '); [Console]::Out.WriteLine((SilkOcrPdf ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($a[0]))) ([int]$a[1]))) }
     elseif ($line.StartsWith('ocr ')) { [Console]::Out.WriteLine((SilkOcr ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($line.Substring(4)))))) }
@@ -339,12 +339,17 @@ async function grabSelection({ hotkey = false, noUia = false } = {}) {
   return { text: text && text.trim() ? text.trim() : null, files };
 }
 
+// Antwort des Helfers auf „files“: immer mit 'F' davor, damit sie nie leer ist (leere Zeilen würden die Warteschlange verschieben)
+function parseFilesReply(r) {
+  return r.slice(1).split('|').map((x) => x.trim()).filter((p) => p && fs.existsSync(p));
+}
+
 async function readClipboardFiles() {
   if (process.platform !== 'win32') return [];
   if (helper?.ready) {
     // schnell über den Helfer (läuft schon); hängt er, nicht lange warten
     const r = Date.now() < uiaSlowUntil ? null : await helperCommand('files', 1500);
-    if (r !== null && r !== 'err') return r.split('|').map((x) => x.trim()).filter((p) => p && fs.existsSync(p));
+    if (r !== null && r[0] === 'F') return parseFilesReply(r);
   }
   const out = await run('powershell', ['-NoProfile', '-NonInteractive', '-Command',
     'Get-Clipboard -Format FileDropList | ForEach-Object { $_.FullName }']);
@@ -384,4 +389,4 @@ async function helperOcrPdf(file, maxPages = 30, timeoutMs = 180000) {
 /** Texterkennung vorbereiten (Bibliotheken laden), wenn sie gleich gebraucht wird – Bereich wählen, Kamera */
 function warmOcr() { if (process.platform === 'win32' && helper?.ready) helperCommand('ocrwarm', 10000); }
 
-module.exports = { helperOcr, helperOcrPdf, warmOcr, setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp, isMouseDown, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable: () => process.platform === 'win32' && (!!winkeys.load() || !!helper?.ready) };
+module.exports = { parseFilesReply, helperOcr, helperOcrPdf, warmOcr, setLogger, helperDiag, uiaSelectedText, grabSelection, copyFileToClipboard, warmUp, isMouseDown, clipboardSeq, readClipboardFiles, ownClipboardActive, helperAvailable: () => process.platform === 'win32' && (!!winkeys.load() || !!helper?.ready) };
