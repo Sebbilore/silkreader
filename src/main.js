@@ -329,6 +329,12 @@ function setDropZone(on) {
 function setBusy(busy) {
   if (bubbleWin && !bubbleWin.isDestroyed()) bubbleWin.webContents.send('busy', busy);
 }
+// Datei lesen (bei Scans mit Texterkennung) dauert: sofort die Spinne zappeln lassen, nach 150 ms eine Warte-Blase zeigen
+async function withWait(p) {
+  setBusy(true);
+  const t = setTimeout(() => showPopupPayload({ kind: 'wait', text: 'Die Spinne liest die Datei … Gescannte Seiten brauchen etwas länger. Alles bleibt auf deinem Rechner.' }), 150);
+  try { return await p; } finally { clearTimeout(t); setBusy(false); }
+}
 
 // Hell oder dunkel: folgt Windows, außer in den Einstellungen ist etwas anderes gewählt.
 // Alle Fenster lesen das über prefers-color-scheme (theme.css).
@@ -836,7 +842,7 @@ const fileFromArgs = (argv) => {
 async function readFileToBubble(file) {
   logLine('Datei aus dem Explorer');
   bubbleWin?.showInactive();
-  try { showPopup(await readFileDoc(file), { autoStart: true }); }
+  try { showPopup(await withWait(readFileDoc(file)), { autoStart: true }); }
   catch (e) { showPopupPayload(e.code === 'PRO' ? { kind: 'pro', feature: e.feature } : { kind: 'message', title: 'Datei konnte nicht gelesen werden', text: String(e.message || e) }); }
 }
 const MENU_EXT = ['.pdf', '.docx', '.txt', '.md', '.png', '.jpg', '.jpeg'];
@@ -936,7 +942,7 @@ async function pickFileToBubble() {
     filters: [{ name: T('Dokumente'), extensions: DOC_EXT }],
   });
   if (r.canceled || !r.filePaths[0]) return;
-  try { showPopup(await readFileDoc(r.filePaths[0]), { autoStart: true }); }
+  try { showPopup(await withWait(readFileDoc(r.filePaths[0])), { autoStart: true }); }
   catch (e) { showPopupPayload({ kind: 'message', title: 'Datei konnte nicht gelesen werden', text: String(e.message || e) }); }
 }
 async function readFileDoc(filePath) {
@@ -1053,16 +1059,18 @@ function watchCopiedFiles() {
   let lastSeq = null, checking = false;
   setInterval(async () => {
     const st = loadSettings();
-    if (checking || (st.pinCopied === false && st.copyHint === false)) return;
+    if (checking || !bubbleWin || bubbleWin.isDestroyed() || (st.pinCopied === false && st.copyHint === false)) return;
     checking = true;
     try {
       const seq = await clipboardSeq();
       if (seq === null) return;
-      if (lastSeq !== null && seq !== lastSeq && !ownClipboardActive()) {
+      const changed = lastSeq !== null && seq !== lastSeq;
+      lastSeq = seq; // gleich merken, damit ein Fehler unten nicht jeden Takt wiederholt wird
+      if (changed && !ownClipboardActive()) {
         const files = st.pinCopied === false ? [] : await readClipboardFiles();
         if (files.length) {
           files.slice(0, 6).forEach((f) => cocoons.addFile(f));
-          bubbleWin?.webContents.send('rig-trick', 'wrap');
+          if (!bubbleWin.isDestroyed()) bubbleWin.webContents.send('rig-trick', 'wrap');
           sendCocoons();
         } else if (st.copyHint !== false && bubbleWin?.isVisible()) {
           const text = String((await clipboard.readText()) || '').trim();
@@ -1072,7 +1080,6 @@ function watchCopiedFiles() {
           }
         }
       }
-      lastSeq = seq;
     } finally { checking = false; }
   }, 900);
 }
@@ -1170,18 +1177,20 @@ async function cocoonDoc(it) {
   return it.type === 'text' ? { title: it.name, source: 'cocoon', pages: [it.text] } : readFileDoc(it.path);
 }
 // Dokument im Netz anklicken: in der Sprechblase lesen (schon gelesen und unverändert → sofort aus dem Notizbuch)
+const readingCocoons = new Set(); // zweiter Klick auf dasselbe Dokument startet nichts doppelt
 async function readCocoon(id) {
   const it = cocoons.get(id);
-  if (!it) return;
+  if (!it || readingCocoons.has(id)) return;
   if (it.type === 'file' && isFolder(it.path)) { shell.openPath(it.path); return; }
+  readingCocoons.add(id);
   try {
-    const doc = await cocoonDoc(it);
+    const doc = await withWait(cocoonDoc(it));
     const known = doc.path && loadHistory().find((h) => h.path === doc.path && h.mtime === doc.mtime);
     if (known) showPopupPayload({ kind: 'analyze', doc, result: known.result });
     else showPopup(doc, { autoStart: true });
   } catch (e) {
     showPopupPayload({ kind: 'message', title: 'Datei konnte nicht gelesen werden', text: String(e.message || e) });
-  }
+  } finally { readingCocoons.delete(id); }
 }
 ipcMain.handle('cocoon-read', (_e, id) => readCocoon(id));
 async function compareCocoons(idA, idB) {

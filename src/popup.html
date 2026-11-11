@@ -1492,7 +1492,7 @@
     if (P.kind === 'analyze' && P.result) { result = P.result; showResult(); }
     else if (P.kind === 'analyze') { $('title').textContent = P.doc.title; analyze(); }
     else if (P.kind === 'home') home();
-    else if (P.kind === 'wait') { state = 'running'; $('title').textContent = T('Einen Moment …'); $('main').innerHTML = weave(T('Die Spinne holt den Text …')); $('foot').classList.add('hidden'); }
+    else if (P.kind === 'wait') { state = 'running'; $('title').textContent = T('Einen Moment …'); $('main').innerHTML = weave(T(P.text || 'Die Spinne holt den Text …')); $('foot').classList.add('hidden'); }
     else if (P.kind === 'macaccess') macAccess();
     else if (P.kind === 'notebook') notebook();
     else if (P.kind === 'deadlines') deadlines();
