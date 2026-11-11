@@ -9,6 +9,7 @@ All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 - **Combo mode:** reads fast first (preliminary); "More" lets the thorough model read more carefully.
 - **Outlook:** read the open e-mail in classic Outlook (Ctrl+Alt+O) – only that one e-mail, only on key press, directly on your PC.
 - **Ask first:** for dates and deadlines the spider asks "Remember this?" – Yes adds it to the calendar and remembers it in the app; nothing is saved without Yes.
+- **Scans:** rotated pages (90/180/270°) in scanned PDFs and photos are now recognised; reading a file shows a waiting bubble right away.
 - **Morning deadline summary** is on by default (can be turned off). **Private mode** deletes everything saved when you quit.
 
 ## 1.28.0

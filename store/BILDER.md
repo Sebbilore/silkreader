@@ -16,6 +16,7 @@ Bilder in `bilder/1.29.0/`. Vorher = Stand 1.28.0, Nachher = main.
 | Privatmodus (Einstellungen › Erweitert): „nichts speichern, beim Beenden alles löschen“ | – (neu) | ![](bilder/1.29.0/Privatmodus-neu.png) |
 | Knopf „Outlook-Mail“ im Startfenster (nur Windows; hier mit dem Markup der App nachgebaut, da Test unter Linux) | – (neu) | ![](bilder/1.29.0/Outlook-Knopf-neu.png) |
 | Vorlesen-Leiste (Satz zurück/vor, „Original vorlesen“ liest den ganzen Brief mit Zeilenumbrüchen) | ![](bilder/1.29.0/Vorlesen-vorher.png) | ![](bilder/1.29.0/Vorlesen-nachher.png) |
+| Datei lesen: sofortige Warte-Blase „Die Spinne liest die Datei …“ | – (neu) | ![](bilder/1.29.0/Datei-lesen-warten-neu.png) |
 | Nachfrage „Soll ich mir das merken?“ aufgeräumt (kleinere Karte, Buttons nebeneinander, nichts abgeschnitten; Ja trägt zugleich in den Kalender ein und merkt in der App, der Knopf „In den Kalender“ entfällt) | ![](bilder/1.29.0/Termin-Nachfrage-aufgeraeumt-vorher.png) | ![](bilder/1.29.0/Termin-Nachfrage-aufgeraeumt-nachher.png) |
 
 ## 1.27.0 (Release läuft)
