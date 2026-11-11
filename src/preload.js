@@ -53,7 +53,6 @@ contextBridge.exposeInMainWorld('spider', {
   deadlineSave: (doc) => ipcRenderer.invoke('deadline-save', doc),
   readOutlook: () => ipcRenderer.invoke('read-outlook'),
   learnThumbs: (good) => ipcRenderer.invoke('learn-thumbs', good),
-  analyzeQuality: (doc) => ipcRenderer.invoke('analyze-quality', doc),
   analyzeMore: (doc, base) => ipcRenderer.invoke('analyze-more', doc, base),
   learnFeedback: (good) => ipcRenderer.invoke('learn-feedback', good),
   learnList: () => ipcRenderer.invoke('learn-list'),

@@ -4,9 +4,7 @@
 
 const { clipboard, ClipboardItem } = require('electron');
 const { execFile, spawn } = require('child_process');
-const path = require('path');
 const fs = require('fs');
-const os = require('os');
 const winkeys = require('./winkeys');
 const { PS_RECOG } = require('./ocrps');
 const { psEnv } = require('./psenv');
@@ -201,7 +199,6 @@ function helperCommand(cmd, timeoutMs) {
   return new Promise((resolve) => {
     const h = startWindowsHelper();
     let done = false;
-    const t0 = Date.now();
     const finish = (v) => { if (!done) { done = true; resolve(v); } };
     const timer = setTimeout(() => {
       if (cmd !== 'seq' && cmd !== 'btn') log(`Helfer: „${cmd}“ ohne Antwort nach ${timeoutMs} ms (${h.waiting.length} Befehle in der Warteschlange)`);

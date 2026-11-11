@@ -818,7 +818,6 @@ ipcMain.handle('crash-report', () => {
 ipcMain.handle('crash-never', () => { const s = loadSettings(); s.crashAsk = false; saveSettings(s); });
 
 ipcMain.handle('report-problem', (_e, { text, withLog }) => {
-  const st = loadSettings();
   let log = '';
   if (withLog) {
     try { log = fs.readFileSync(logFile(), 'utf8').split('\n').filter(Boolean).slice(-40).join('\n'); } catch {}
@@ -924,7 +923,6 @@ function maybeShowWhatsNew() {
 // ---------- Übung in der Ersteinrichtung ----------
 // Ist noch keine KI eingerichtet, zeigt die Spinne beim Übungstext ein Beispiel-Ergebnis
 function aiReady() {
-  const st = loadSettings();
   return builtinModelReady();
 }
 const PRACTICE_MARK = /Stromrechnung für März|electricity bill for March/;
@@ -2013,7 +2011,6 @@ const friendlyErr = (e) => ({ ok: false, error: friendlyError(e), needsKey: e.co
 ipcMain.handle('ask', async (event, doc, question) => {
   try {
     setBusy(true);
-    const s = loadSettings();
     const material = relevantMaterial(doc, question, 9000);
     const { value } = await llmGenerate({
       instruction: [`Beantworte diese Frage zum Text kurz und genau: „${question}“`, 'Wenn der Text keine Antwort enthält, sag das ehrlich. Gib in "quote" die wörtliche Stelle an, die die Antwort belegt (Zeichen für Zeichen aus dem Text kopiert).', factsBlock(doc)].filter(Boolean).join('\n'),
@@ -2108,7 +2105,6 @@ function cleanTranslation(t) {
 ipcMain.handle('compare', async (event, a, b) => {
   try {
     setBusy(true);
-    const s = loadSettings();
     const cut = (d) => d.pages.join('\n\n').slice(0, 7000);
     const { value } = await llmGenerate({
       instruction: `Vergleiche die beiden Dokumente „${a.title}“ (A) und „${b.title}“ (B). Nenne Gemeinsamkeiten, die wichtigsten Unterschiede (mit konkreten Zahlen, wenn vorhanden) und ein kurzes Fazit.`,
@@ -2403,11 +2399,6 @@ ipcMain.handle('deadline-save', (_e, doc) => {
   return true;
 });
 ipcMain.handle('learn-thumbs', (_e, good) => { thumbsDownRun = good ? 0 : thumbsDownRun + 1; return thumbsDownRun; });
-// Nochmal mit dem gründlichen Modell lesen (Frage nach zweimal 👎)
-ipcMain.handle('analyze-quality', async (event, doc) => {
-  forceModel = 'quality';
-  try { const r = await analyzeHandler(event, doc); thumbsDownRun = 0; return r; } finally { forceModel = null; }
-});
 
 // ---------- Guten Morgen: einmal am Morgen ein kurzer Überblick über die Fristen dieser Woche ----------
 const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
