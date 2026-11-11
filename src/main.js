@@ -60,7 +60,6 @@ const SHORTCUTS = [
   { id: 'ring', keys: 'CommandOrControl+Alt+Space', label: 'Strg+Alt+Leertaste', desc: 'Spinnennetz-Ring am Mauszeiger (z. B. auf eine Maustaste legen)' },
 ];
 // Hinweis: Strg+Alt+E/Q/M/2/3/7–0 sind auf deutschen Tastaturen AltGr-Zeichen (€, @, µ …) und daher tabu.
-const HOTKEY = SHORTCUTS[0].keys;
 
 // Kleine Aussetzer (z. B. ein Timer nach dem Schließen eines Fensters) sollen kein
 // Fehlerfenster aufpoppen lassen – stattdessen in silkreader-errors.log festhalten.
@@ -1056,8 +1055,6 @@ async function spiderTake({ autoStart = false, fromHotkey = false, mode = null }
   }
 }
 
-// Alte Bezeichnung, wird noch von Menüs benutzt
-const analyzeClipboard = () => spiderTake();
 
 // Strg+C auf Dateien/Ordner (z. B. im Explorer) → automatisch auch ins Spinnennetz
 // Längerer Text kopiert → die Spinne bietet an, ihn zu lesen (ein Klick genügt)
@@ -1285,50 +1282,6 @@ async function readDocumentInner(filePath) {
   return { title, source: ext.slice(1) || 'text', pages: [text.trim()] };
 }
 
-// ---------- Claude-Analyse ----------
-
-const ANALYSIS_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['title', 'doc_type', 'summary', 'key_points', 'figures', 'findings'],
-  properties: {
-    title: { type: 'string', description: 'Kurzer, treffender Titel für das Dokument' },
-    doc_type: { type: 'string', description: 'Art des Textes, z. B. Geschäftsbericht, Vertrag, Artikel, E-Mail' },
-    summary: { type: 'string', description: 'Das Wichtigste in 3 bis 5 kurzen Stichpunkten in einfacher Sprache, jeder Stichpunkt in einer eigenen Zeile und mit "• " am Anfang' },
-    key_points: { type: 'array', items: { type: 'string' }, description: 'Die wichtigsten Kernaussagen' },
-    figures: {
-      type: 'array',
-      description: 'Wichtige Zahlen, Daten, Fristen, Namen oder Begriffe aus dem Text',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['label', 'value', 'quote', 'page'],
-        properties: {
-          label: { type: 'string', description: 'Was die Angabe bedeutet, z. B. "Nettogewinn"' },
-          value: { type: 'string', description: 'Die Angabe kompakt, z. B. "$101,8 Mrd."' },
-          quote: { type: 'string', description: 'Exakte, wörtliche Stelle aus dem Text (3–12 Wörter), unverändert kopiert' },
-          page: { type: 'integer', description: 'Seitennummer (1, wenn es keine Seiten gibt)' },
-        },
-      },
-    },
-    findings: {
-      type: 'array',
-      description: 'Analytische Erkenntnisse: Auffälligkeiten, Risiken, Chancen, Widersprüche, nötige Handlungen',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['kind', 'title', 'detail', 'pages'],
-        properties: {
-          kind: { type: 'string', enum: ['Beobachtung', 'Risiko', 'Chance', 'Handlung', 'Widerspruch'] },
-          title: { type: 'string', description: 'Erkenntnis in einem prägnanten Satz' },
-          detail: { type: 'string', description: 'Kurze Begründung, ggf. mit Rechnung' },
-          pages: { type: 'array', items: { type: 'integer' } },
-        },
-      },
-    },
-  },
-};
-
 // ---------- Bessere KI: erst feste Regeln, dann KI ----------
 // Betrag, Frist, IBAN usw. erkennen feste Regeln sicher. Die KI bekommt sie als geprüfte Fakten
 // und soll sie nur erklären – keine eigenen Zahlen. Dazu eine kurze Anleitung je Briefart.
@@ -1364,37 +1317,6 @@ function factsBlock(doc) {
     return [guide, `Geprüfte Fakten (sicher aus dem Text, genau so verwenden – erfinde keine anderen Beträge oder Daten): ${f.join('; ')}.`,
       'Nenne Betrag und Frist (mit Datum) aus diesen Fakten in den Stichpunkten und als Handlung.'].filter(Boolean).join('\n');
   } catch { return ''; }
-}
-
-function buildPrompt(doc, language, compact = false) {
-  const body = doc.pages.length > 1
-    ? doc.pages.map((p, i) => `<page number="${i + 1}">\n${p}\n</page>`).join('\n')
-    : doc.pages[0];
-  return [
-    `Lies das folgende Dokument ("${doc.title}") vollständig und analysiere es wie ein erfahrener Analyst.`,
-    `Antworte auf ${language}.`,
-    '',
-    'Liefere:',
-    ...(compact ? [
-      // Kurze Antwort für das eingebaute Modell: weniger Text = viel schneller
-      '- "summary": das Wichtigste in 3 bis 5 kurzen Stichpunkten (jeder in eigener Zeile, mit "• " am Anfang) und höchstens 5 kurze Kernaussagen,',
-      '- 4 bis 12 wichtige Angaben (Zahlen, Beträge, Daten, Fristen, Personen). Das Feld "quote" muss eine kurze wörtliche Stelle aus dem Dokument sein (3 bis 8 Wörter),',
-      '- 3 bis 5 Erkenntnisse mit je einem kurzen Satz als Begründung.',
-      'Fasse dich kurz.',
-    ] : [
-      '- "summary": das Wichtigste in 3 bis 5 kurzen Stichpunkten (jeder in eigener Zeile, mit "• " am Anfang), dazu die Kernaussagen,',
-      '- 6 bis 30 wichtige Angaben (Zahlen, Beträge, Daten, Fristen, Personen, Begriffe) – je nach Länge und Dichte des Textes. Das Feld "quote" muss eine wörtliche, zusammenhängende Stelle aus dem Dokument sein (Zeichen für Zeichen kopiert), damit sie im Text markiert werden kann,',
-      '- 3 bis 8 echte Erkenntnisse, die über bloßes Nacherzählen hinausgehen: Kennzahlen/Verhältnisse selbst ausrechnen, wo es sinnvoll ist, Risiken, Fristen, Widersprüche oder nötige Handlungen benennen.',
-    ]),
-    'Schreib in einfacher, verständlicher Sprache: kurze Sätze, Fachbegriffe kurz erklären.',
-    'Erfinde nichts, was nicht im Text steht oder sich daraus ableiten lässt.',
-    ...(factsBlock(doc) ? ['', factsBlock(doc)] : []),
-    ...(learnHints(doc) ? ['', learnHints(doc)] : []),
-    '',
-    '<document>',
-    body,
-    '</document>',
-  ].join('\n');
 }
 
 async function analyze(doc, onProgress) {
