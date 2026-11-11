@@ -229,7 +229,7 @@ function createBubble() {
   protectFromCapture(bubbleWin);
   bubbleWin.setIgnoreMouseEvents(true, { forward: true });
   bubbleWin.loadFile(path.join(__dirname, 'bubble.html'));
-  bubbleWin.on('show', () => { userHidden = false; });
+  bubbleWin.on('show', () => { userHidden = false; bubbleWin.setSkipTaskbar(true); });
   bubbleWin.webContents.on('did-finish-load', () => {
     if (!createBubble.shown) { createBubble.shown = true; logLine(`Zeit Start: Spinne da nach ${sinceStart()} ms seit Programmstart`); }
     bubbleWin.webContents.send('rig-init', { length: loadSettings().rig?.length ?? 90, minLen: RIG.minLen, maxLen: RIG.maxLen, clickMode: clickMode() });
@@ -883,6 +883,8 @@ function watchFullscreen() {
     // Sicherheitsnetz: Spinne unsichtbar, ohne dass jemand einen Grund hat → zurückholen (verlorenes Fenster-Ereignis)
     if (!bubbleWin.isVisible() && !userHidden && !hiddenForFullscreen && Date.now() >= pauseUntil
       && !(mainWin && !mainWin.isDestroyed() && mainWin.isVisible() && !mainWin.isMinimized())) { rigHiddenForMain = false; bubbleWin.showInactive(); logLine('Spinne war weg: wieder angezeigt'); }
+    // Windows zeigt manchmal trotzdem ein Taskleisten-Symbol der Spinne: nur Lesefenster/Einstellungen sollen dort stehen
+    for (const w of [bubbleWin, popupWin, ringWin]) if (w && !w.isDestroyed()) w.setSkipTaskbar(true);
     if (bubbleWin.isVisible() && !over) { bubbleWin.setAlwaysOnTop(true, 'floating'); bubbleWin.moveTop(); }
     if (process.platform !== 'win32' || loadSettings().hideFullscreen === false) return; // Vollbild-Erkennung nur unter Windows
     const busy = winkeys.fullscreenBusy();
