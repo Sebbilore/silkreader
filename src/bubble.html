@@ -209,7 +209,7 @@
   });
 
   // ---------- Zustand ----------
-  let minLen = 24, maxLen = 230;
+  let minLen = 24;
   let baseLen = 90;           // gewünschte Fadenlänge
   let len = -40, lenV = 0;    // aktuelle Länge (startet oben versteckt → fällt herunter)
   let theta = 0.25, omega = 0; // Pendelwinkel
@@ -224,7 +224,7 @@
   let wasNear = false, lastHello = 0;
   let spiderPos = { x: AX, y: 60 };
   let override = null; // direkte Position (z. B. beim Netzbauen), sonst Pendel
-  let last = performance.now(), lastDraw = 0;
+  let last = performance.now();
   const SLEEP_AFTER = 120000;
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)'); // Windows: „Animationen anzeigen“ aus
 
@@ -351,7 +351,6 @@
     const calm = !active && document.body.classList.contains('faded');
     const minGap = sleeping ? 500 : active ? 0 : calm ? 250 : 140;
     schedule(minGap);
-    lastDraw = now;
 
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
@@ -915,7 +914,7 @@
 
   // ---------- Klick-Modus: Mausrad auf der Spinne ----------
   const MODES = [['read', 'Lesen', ''], ['translate', 'Übersetzen', '⇄'], ['simplify', 'Einfach', 'Aa'], ['reply', 'Antworten', '↩']];
-  let clickMode = 'read', lastWheel = 0, tipTimer = null, glassesUntil = 0;
+  let clickMode = 'read', tipTimer = null, glassesUntil = 0;
   let taskMode = null, taskUntil = 0, shownAcc = null, talking = false;
   const ACC = { read: 'accRead', translate: 'accTranslate', simplify: 'accSimplify', reply: 'accReply', halloween: 'accHalloween', xmas: 'accXmas', newyear: 'accNewyear' };
   // Welches Accessoire trägt die Spinne gerade? Läuft eine Aufgabe: deren Accessoire (Lesebrille, Mütze, Glühbirne, Brief),
@@ -990,7 +989,7 @@
     if (typeof d.read === 'number') drawGrowWeb(d.read);
     if (typeof d.bookmarks === 'number') { bookmarks = d.bookmarks; $('note').style.display = bookmarks ? '' : 'none'; $('noteN').textContent = bookmarks > 1 ? bookmarks : ''; }
   });
-  window.spider.onRigInit((d) => { minLen = d.minLen; maxLen = d.maxLen; baseLen = d.length; setClickMode(d.clickMode, false); });
+  window.spider.onRigInit((d) => { minLen = d.minLen; baseLen = d.length; setClickMode(d.clickMode, false); });
   window.spider.onCursor((p) => {
     cursor = p;
     checkTickle(p);
