@@ -96,7 +96,7 @@ const shortcutActions = {
   analyze: () => spiderTake({ fromHotkey: true, autoStart: true, mode: 'read' }),
   cocoon: () => cocoonFromSelection(),
   cocoons: () => { bubbleWin.show(); Menu.buildFromTemplate(cocoonsMenuTemplate()).popup({ window: bubbleWin }); },
-  toggle: () => (bubbleWin.isVisible() ? bubbleWin.hide() : bubbleWin.show()),
+  toggle: () => (bubbleWin.isVisible() ? (userHidden = true, bubbleWin.hide()) : bubbleWin.show()),
   translate: () => transformSelection('translate'),
   simplify: () => transformSelection('simplify'),
   reply: () => transformSelection('reply'),
@@ -164,6 +164,7 @@ const DRAFT_MODELS = {
   'draft-quality': { uri: 'hf:unsloth/Qwen3.5-0.8B-GGUF:Q4_K_M', file: 'Qwen3.5-0.8B-Q4_K_M.gguf', for: 'quality', sizeLabel: '0,5 GB' },
 };
 let bubbleWin = null;
+let userHidden = false; // Nutzer hat die Spinne selbst ausgeblendet (Menü/Tray) – dann holt sie nichts zurück
 let mainWin = null;
 let settingsWin = null;
 let tray = null;
@@ -228,6 +229,7 @@ function createBubble() {
   protectFromCapture(bubbleWin);
   bubbleWin.setIgnoreMouseEvents(true, { forward: true });
   bubbleWin.loadFile(path.join(__dirname, 'bubble.html'));
+  bubbleWin.on('show', () => { userHidden = false; });
   bubbleWin.webContents.on('did-finish-load', () => {
     if (!createBubble.shown) { createBubble.shown = true; logLine(`Zeit Start: Spinne da nach ${sinceStart()} ms seit Programmstart`); }
     bubbleWin.webContents.send('rig-init', { length: loadSettings().rig?.length ?? 90, minLen: RIG.minLen, maxLen: RIG.maxLen, clickMode: clickMode() });
@@ -652,7 +654,7 @@ async function runRingAction(id) {
     }
     case 'reader': return showMain();
     case 'settings': return showPopupPayload({ kind: 'settings' });
-    case 'hide': return bubbleWin?.hide();
+    case 'hide': userHidden = true; return bubbleWin?.hide();
     case 'about': return showPopupPayload({ kind: 'about' });
     case 'pro': return showPopupPayload({ kind: 'pro' });
   }
@@ -878,6 +880,9 @@ function watchFullscreen() {
     // Windows (und macOS nach dem Ausblenden des Dock-Symbols) nehmen „immer oben“ weg: immer wieder setzen
     // (nicht, solange Spinnennetz-Menü oder Sprechblase offen sind – die sollen über der Spinne bleiben)
     const over = [ringWin, popupWin].some((w) => w && !w.isDestroyed() && w.isVisible());
+    // Sicherheitsnetz: Spinne unsichtbar, ohne dass jemand einen Grund hat → zurückholen (verlorenes Fenster-Ereignis)
+    if (!bubbleWin.isVisible() && !userHidden && !hiddenForFullscreen && Date.now() >= pauseUntil
+      && !(mainWin && !mainWin.isDestroyed() && mainWin.isVisible() && !mainWin.isMinimized())) { rigHiddenForMain = false; bubbleWin.showInactive(); logLine('Spinne war weg: wieder angezeigt'); }
     if (bubbleWin.isVisible() && !over) { bubbleWin.setAlwaysOnTop(true, 'floating'); bubbleWin.moveTop(); }
     if (process.platform !== 'win32' || loadSettings().hideFullscreen === false) return; // Vollbild-Erkennung nur unter Windows
     const busy = winkeys.fullscreenBusy();
@@ -1113,7 +1118,7 @@ ipcMain.on('camera-done', async (e, dataUrl) => {
     logLine(`Foto mit ${files.length} Seiten`);
     bubbleWin?.showInactive();
     const docs = [];
-    for (const f of files) docs.push(await readFileDoc(f));
+    for (const f of files) docs.push(await withWait(readFileDoc(f)));
     showPopup({ title: T('Brief ({n} Seiten)', { n: files.length }), source: 'camera', pages: docs.flatMap((d) => d.pages) }, { autoStart: true });
   } catch (err) {
     showPopupPayload(err.code === 'PRO' ? { kind: 'pro', feature: err.feature } : { kind: 'message', title: 'Datei konnte nicht gelesen werden', text: String(err.message || err) });
@@ -1224,7 +1229,9 @@ async function pickFile() {
 
 async function openFile(filePath, opts) {
   try {
-    showDocument(await readDocument(filePath), opts);
+    const doc = await withWait(readDocument(filePath));
+    if (popupWin?.isVisible() && popupWin.__kind === 'wait') popupWin.hide();
+    showDocument(doc, opts);
   } catch (e) {
     dialog.showErrorBox(T('Datei konnte nicht gelesen werden'), String(e.message || e));
   }
@@ -2196,7 +2203,7 @@ function icsEvents(items) {
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Silkreader//DE', ...items.flatMap(({ title, date, note }, i) => {
     const d = date.replace(/-/g, '');
     const next = new Date(`${date}T00:00:00`); next.setDate(next.getDate() + 1);
-    const d2 = next.toISOString().slice(0, 10).replace(/-/g, '');
+    const d2 = `${next.getFullYear()}${String(next.getMonth() + 1).padStart(2, '0')}${String(next.getDate()).padStart(2, '0')}`;
     return ['BEGIN:VEVENT', `UID:${Date.now()}-${i}@silkreader`, `DTSTAMP:${stamp}Z`,
       `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${d2}`, `SUMMARY:${esc(title)}`, `DESCRIPTION:${esc(note)}`,
       'BEGIN:VALARM', 'TRIGGER:-P1D', 'ACTION:DISPLAY', `DESCRIPTION:${esc(title)}`, 'END:VALARM', 'END:VEVENT'];
@@ -2904,7 +2911,7 @@ ipcMain.handle('pick-file-bubble', async () => {
     filters: [{ name: T('Dokumente'), extensions: DOC_EXT }],
   });
   if (r.canceled || !r.filePaths[0]) return { ok: false };
-  try { return { ok: true, doc: await readFileDoc(r.filePaths[0]) }; } catch (e) { return { ok: false, error: String(e.message || e), pro: e.code === 'PRO' ? e.feature : null }; }
+  try { return { ok: true, doc: await withWait(readFileDoc(r.filePaths[0])) }; } catch (e) { return { ok: false, error: String(e.message || e), pro: e.code === 'PRO' ? e.feature : null }; }
 });
 ipcMain.handle('region-capture', () => { popupWin?.hide(); return regionCapture(); });
 ipcMain.handle('open-reader', (_e, doc, result, focus) => {
@@ -3042,7 +3049,7 @@ function classicMenu() {
     { label: T('Bildschirmbereich lesen'), click: () => regionCapture() },
     { label: T('Notizbuch'), click: () => showNotebook() },
     { label: T('Spinnennetz-Ring öffnen'), click: () => openRing({ at: spiderScreenPos() }) },
-    { label: T('Spinne ausblenden'), click: () => bubbleWin.hide() },
+    { label: T('Spinne ausblenden'), click: () => { userHidden = true; bubbleWin.hide(); } },
   ]);
 }
 

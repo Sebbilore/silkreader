@@ -94,5 +94,13 @@ const sj = 'Erster Satz hier. Zweiter Satz folgt! Dritter Satz? Ende.';
 ok('Satz vor', F.sentenceJump(sj, 3, 1) === 18 && F.sentenceJump(sj, 20, 1) === 38 && F.sentenceJump(sj, 55, 1) === null);
 ok('Satz zurück: Anfang des aktuellen, kurz danach der vorige', F.sentenceJump(sj, 35, -1) === 18 && F.sentenceJump(sj, 20, -1) === 0 && F.sentenceJump(sj, 2, -1) === 0);
 
+// Kalender-Datei: Ende = nächster lokaler Tag (nicht UTC, sonst DTEND = DTSTART in Deutschland)
+{
+  const src = fs.readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  const ics = new Function(`${src.match(/function icsEvents[\s\S]*?\n}\n/)[0]}; return icsEvents;`)();
+  const out = ics([{ title: 'x', date: '2026-11-30', note: '' }, { title: 'y', date: '2026-12-31', note: '' }]);
+  ok('Kalender: Ende ist der nächste Tag', out.includes('DTSTART;VALUE=DATE:20261130\r\nDTEND;VALUE=DATE:20261201') && out.includes('DTEND;VALUE=DATE:20270101'));
+}
+
 console.log(fails ? `${fails} Fehler` : 'alles gut');
 process.exit(fails ? 1 : 0);

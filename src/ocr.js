@@ -58,7 +58,7 @@ function recognizeTextSpawn(file) {
   const encoded = Buffer.from(OCR_SCRIPT(file), 'utf16le').toString('base64');
   return new Promise((resolve) => {
     execFile('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded],
-      { windowsHide: true, timeout: 30000, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, env: psEnv() },
+      { windowsHide: true, timeout: 90000, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, env: psEnv() },
       (err, stdout) => resolve(err ? '' : String(stdout).trim()));
   });
 }
@@ -84,6 +84,7 @@ $null = [Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics, ContentType =
 $file = Await ([Windows.Storage.StorageFile]::GetFileFromPathAsync('${file.replace(/'/g, "''")}')) ([Windows.Storage.StorageFile])
 $pdf = Await ([Windows.Data.Pdf.PdfDocument]::LoadFromFileAsync($file)) ([Windows.Data.Pdf.PdfDocument])
 $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
+$script:silkRot = $null
 $n = [Math]::Min([int]$pdf.PageCount, ${maxPages})
 for ($i = 0; $i -lt $n; $i++) {
   $page = $pdf.GetPage([uint32]$i)
@@ -92,7 +93,7 @@ for ($i = 0; $i -lt $n; $i++) {
   $ms = New-Object Windows.Storage.Streams.InMemoryRandomAccessStream
   AwaitAction ($page.RenderToStreamAsync($ms, $opts))
   $decoder = Await ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($ms)) ([Windows.Graphics.Imaging.BitmapDecoder])
-  $text = SilkRecog $decoder $engine
+  $text = SilkRecog $decoder $engine $true
   [Console]::Out.WriteLine('@@SEITE@@')
   $text
 }
@@ -110,7 +111,7 @@ function recognizePdfSpawn(file, maxPages) {
   const encoded = Buffer.from(PDF_SCRIPT(file, maxPages), 'utf16le').toString('base64');
   return new Promise((resolve) => {
     execFile('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded],
-      { windowsHide: true, timeout: 180000, encoding: 'utf8', maxBuffer: 50 * 1024 * 1024, env: psEnv() },
+      { windowsHide: true, timeout: 60000 + 15000 * maxPages, encoding: 'utf8', maxBuffer: 50 * 1024 * 1024, env: psEnv() },
       (err, stdout) => resolve(err ? [] : String(stdout).split('@@SEITE@@').slice(1).map((t) => t.trim())));
   });
 }

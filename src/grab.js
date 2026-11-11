@@ -126,6 +126,7 @@ function SilkOcrPdf([string]$path, [int]$max) {
   $aw = { param($op, [Type]$type) $t = $script:asTask.MakeGenericMethod($type).Invoke($null, @($op)); $t.Wait(-1) | Out-Null; $t.Result }
   $file = & $aw ([Windows.Storage.StorageFile]::GetFileFromPathAsync($path)) ([Windows.Storage.StorageFile])
   $pdf = & $aw ([Windows.Data.Pdf.PdfDocument]::LoadFromFileAsync($file)) ([Windows.Data.Pdf.PdfDocument])
+  $script:silkRot = $null
   $n = [Math]::Min([int]$pdf.PageCount, $max)
   $pages = @()
   for ($i = 0; $i -lt $n; $i++) {
@@ -135,7 +136,7 @@ function SilkOcrPdf([string]$path, [int]$max) {
     $ms = New-Object Windows.Storage.Streams.InMemoryRandomAccessStream
     $t = $script:asAction.Invoke($null, @($page.RenderToStreamAsync($ms, $opts))); $t.Wait(-1) | Out-Null
     $decoder = & $aw ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($ms)) ([Windows.Graphics.Imaging.BitmapDecoder])
-    $text = SilkRecog $decoder $script:ocrEngine
+    $text = SilkRecog $decoder $script:ocrEngine $true
     $ms.Dispose()
     $pages += [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($text))
   }
@@ -370,7 +371,7 @@ async function copyFileToClipboard(filePath) {
 }
 
 /** Texterkennung über den laufenden Helfer. null = Helfer nicht bereit oder Fehler (dann eigene PowerShell starten). */
-async function helperOcr(file, timeoutMs = 30000) {
+async function helperOcr(file, timeoutMs = 90000) {
   if (process.platform !== 'win32' || !helper?.ready) return null;
   const r = await helperCommand(`ocr ${Buffer.from(file, 'utf8').toString('base64')}`, timeoutMs);
   if (!r || r[0] !== 'T') return null;
@@ -378,7 +379,7 @@ async function helperOcr(file, timeoutMs = 30000) {
 }
 
 /** Gescannte PDF über den Helfer: Seitentexte, oder null (dann eigene PowerShell). */
-async function helperOcrPdf(file, maxPages = 30, timeoutMs = 180000) {
+async function helperOcrPdf(file, maxPages = 30, timeoutMs = 60000 + 15000 * maxPages) {
   if (process.platform !== 'win32' || !helper?.ready) return null;
   const r = await helperCommand(`ocrpdf ${Buffer.from(file, 'utf8').toString('base64')} ${maxPages}`, timeoutMs);
   if (!r || r[0] !== 'P') return null;

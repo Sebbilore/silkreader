@@ -981,7 +981,7 @@
       busyDialog = false;
       if (r.ok) { setBack(home); P = { kind: 'analyze', doc: r.doc }; $('title').textContent = r.doc.title; analyze(); }
       else if (r.pro) { setBack(home); proView(r.pro); }
-      else if (r.error) $('main').insertAdjacentHTML('afterbegin', `<p class="error">${esc(r.error)}</p>`);
+      else if (r.error) { await home(); $('main').insertAdjacentHTML('afterbegin', `<p class="error">${esc(r.error)}</p>`); }
     });
     $('qRegion').addEventListener('click', () => window.spider.regionCapture());
     $('qCam').addEventListener('click', () => window.spider.openCamera());

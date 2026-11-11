@@ -7,10 +7,12 @@ const GOOD = 40; // so viele Wort-Buchstaben reichen: dann ist die Seite richtig
 const ocrScore = (text) => (String(text).match(new RegExp(WORD, 'gu')) || []).reduce((n, w) => n + w.length, 0);
 
 const PS_RECOG = `
-function SilkRecog($decoder, $engine) {
+function SilkRecog($decoder, $engine, [bool]$keep = $false) {
   foreach ($n in 'BitmapTransform', 'BitmapRotation', 'ExifOrientationMode', 'ColorManagementMode') { $null = Invoke-Expression "[Windows.Graphics.Imaging.$n, Windows.Graphics, ContentType = WindowsRuntime]" }
   $best = ''; $bs = -1
-  foreach ($r in 0..3) {
+  # PDF: die Drehung der ersten Seite zuerst probieren; reicht sie, ist die Seite fertig (spart 3/4 der Zeit)
+  $order = if ($keep -and $null -ne $script:silkRot) { @($script:silkRot) + @(0..3 | Where-Object { $_ -ne $script:silkRot }) } else { 0..3 }
+  foreach ($r in $order) {
     $tr = New-Object Windows.Graphics.Imaging.BitmapTransform
     $tr.Rotation = [Windows.Graphics.Imaging.BitmapRotation]$r
     $t = $asTask.MakeGenericMethod([Windows.Graphics.Imaging.SoftwareBitmap]).Invoke($null, @($decoder.GetSoftwareBitmapAsync($decoder.BitmapPixelFormat, $decoder.BitmapAlphaMode, $tr, [Windows.Graphics.Imaging.ExifOrientationMode]::RespectExifOrientation, [Windows.Graphics.Imaging.ColorManagementMode]::DoNotColorManage)))
@@ -20,7 +22,7 @@ function SilkRecog($decoder, $engine) {
     $text = ($t2.Result.Lines | ForEach-Object { $_.Text }) -join [char]10
     $s = 0
     foreach ($m in [regex]::Matches($text, '${WORD}')) { $s += $m.Length }
-    if ($s -gt $bs) { $best = $text; $bs = $s }
+    if ($s -gt $bs) { $best = $text; $bs = $s; if ($keep) { $script:silkRot = $r } }
     if ($bs -ge ${GOOD}) { break }
   }
   return $best

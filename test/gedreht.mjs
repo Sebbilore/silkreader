@@ -10,4 +10,5 @@ assert.ok(ocrScore(sideways) < ocrScore(upright) / 4, 'gedrehter Text ergibt vie
 assert.ok(ocrScore(watermark) < GOOD, 'nur Wasserzeichen ist zu wenig: es wird gedreht probiert');
 assert.equal(ocrScore(''), 0);
 assert.ok(PS_RECOG.includes('\\p{L}{3,}') && PS_RECOG.includes(`-ge ${GOOD}`), 'PowerShell nutzt dieselben Werte');
+assert.ok(PS_RECOG.includes('$script:silkRot'), 'PDF: Drehung der ersten Seite wird gemerkt');
 console.log('OK  gedrehte Scans: Auswahl');

@@ -10,6 +10,7 @@ All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 - **Outlook:** read the open e-mail in classic Outlook (Ctrl+Alt+O) – only that one e-mail, only on key press, directly on your PC.
 - **Ask first:** for dates and deadlines the spider asks "Remember this?" – Yes adds it to the calendar and remembers it in the app; nothing is saved without Yes.
 - **Scans:** rotated pages (90/180/270°) in scanned PDFs and photos are now recognised; reading a file shows a waiting bubble right away.
+- **Fixes:** the waiting bubble now also shows when reading a file via the bubble button or the reader; calendar entries end on the correct day; the spider comes back if it was lost; rotated PDFs are rotated once and read faster, with more time for slow PCs.
 - **Morning deadline summary** is on by default (can be turned off). **Private mode** deletes everything saved when you quit.
 
 ## 1.28.0
