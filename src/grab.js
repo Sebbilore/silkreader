@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const winkeys = require('./winkeys');
+const { PS_RECOG } = require('./ocrps');
 const { psEnv } = require('./psenv');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -107,6 +108,7 @@ function SilkOcrInit() {
     $script:ocrReady = $true
   }
 }
+${PS_RECOG}
 function SilkOcr([string]$path) {
   SilkOcrInit
   $aw = { param($op, [Type]$type) $t = $script:asTask.MakeGenericMethod($type).Invoke($null, @($op)); $t.Wait(-1) | Out-Null; $t.Result }
@@ -114,10 +116,8 @@ function SilkOcr([string]$path) {
   $stream = & $aw ($file.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
   try {
     $decoder = & $aw ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
-    $bitmap = & $aw ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
-    $result = & $aw ($script:ocrEngine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
+    $text = SilkRecog $decoder $script:ocrEngine
   } finally { $stream.Dispose() }
-  $text = ($result.Lines | ForEach-Object { $_.Text }) -join [char]10
   return 'T' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($text))
 }
 # Gescannte PDF: jede Seite als Bild berechnen und erkennen; Seiten als Base64, durch | getrennt
@@ -135,10 +135,9 @@ function SilkOcrPdf([string]$path, [int]$max) {
     $ms = New-Object Windows.Storage.Streams.InMemoryRandomAccessStream
     $t = $script:asAction.Invoke($null, @($page.RenderToStreamAsync($ms, $opts))); $t.Wait(-1) | Out-Null
     $decoder = & $aw ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($ms)) ([Windows.Graphics.Imaging.BitmapDecoder])
-    $bitmap = & $aw ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
-    $result = & $aw ($script:ocrEngine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
+    $text = SilkRecog $decoder $script:ocrEngine
     $ms.Dispose()
-    $pages += [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((($result.Lines | ForEach-Object { $_.Text }) -join [char]10)))
+    $pages += [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($text))
   }
   return 'P' + ($pages -join '|')
 }
