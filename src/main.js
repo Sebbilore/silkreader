@@ -4,7 +4,7 @@
 
 const {
   app, BrowserWindow, ipcMain, clipboard, globalShortcut, Menu, Tray,
-  dialog, screen, nativeImage, shell, desktopCapturer,
+  dialog, screen, Notification, nativeImage, shell, desktopCapturer,
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -2312,7 +2312,6 @@ function celebrateIfAllDone(before) {
 }
 // Erinnerung als Windows-Benachrichtigung: 3 Tage vorher und am Tag davor (je einmal)
 function remindDeadlines() {
-  const { Notification } = require('electron');
   if (!Notification.isSupported()) return;
   const st = loadDeadlineState();
   let changed = false;
@@ -2470,7 +2469,6 @@ function remindBookmarks() {
     list.find((x) => x.id === b.id).told = true;
     logLine('Erinnerung: später lesen');
     if (bubbleWin?.isVisible()) bubbleWin.webContents.send('rig-trick', 'hello');
-    const { Notification } = require('electron');
     if (Notification.isSupported()) {
       const n = new Notification({ title: T('Später lesen: {t}', { t: b.title }), body: T('Du wolltest diesen Brief jetzt lesen.'), actions: [{ type: 'button', text: T('Jetzt lesen') }, { type: 'button', text: T('Morgen') }] });
       n.on('click', () => openBookmark(b.id));
