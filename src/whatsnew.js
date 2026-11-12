@@ -1,7 +1,7 @@
 // „Was ist neu?“ – erscheint nach einem Update einmal als Sprechblase an der Spinne.
 // Gezeigt wird nur der Eintrag der aktuellen Version; ältere Einträge stehen in CHANGELOG.md.
 module.exports = {
-  '1.29.0': {
+  '1.30.0': {
     de: [
       '• Die Spinne prüft jetzt auch Daten, Fristen und kleine Beträge gegen deinen Originaltext.',
       '• Neu: „Original vorlesen“, mit einem Satz zurück oder vor.',

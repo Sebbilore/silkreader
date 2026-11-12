@@ -7,7 +7,7 @@ Fortlaufendes Dokument: Bei jeder neuen Version aktualisieren (Checkliste unten)
 | | |
 |---|---|
 | Veröffentlicht im Store | 1.25.x (`package.json` auf main: 1.25.1) |
-| In Vorbereitung | 1.28.0 auf GitHub veröffentlicht. Store-Paket 1.28.0 gebaut am 6. Nov., Probe-Installation grün (Actions „Store-Paket“, Lauf 42191863621, Entwurfs-Release `store-v1.28.0`, bereit zum Hochladen im Partner Center). 1.29.0 inkl. Aufräumen (U1–U4) wird veröffentlicht, Store-Paket 1.29.0 wird neu gebaut |
+| In Vorbereitung | 1.28.0 auf GitHub veröffentlicht. Store-Paket 1.28.0 gebaut am 6. Nov., Probe-Installation grün (Actions „Store-Paket“, Lauf 42191863621, Entwurfs-Release `store-v1.28.0`, bereit zum Hochladen im Partner Center). 1.30.0 inkl. Aufräumen (U1–U4) wird veröffentlicht, Store-Paket 1.30.0 wird neu gebaut |
 | Produkt-ID (Store-Link) | 9PHKJW54RGDS – https://apps.microsoft.com/detail/9PHKJW54RGDS |
 | Pro-Add-on | `silkreader.pro`, Store-ID 9NBHSZQJ7CJP (Pro ist noch „bald“) |
 | Paketname (Identity/Name) | SebbiLore.Silkreader |
@@ -47,10 +47,10 @@ Hinweis: Die fünf Dateien in `uploads/hearth/` (Stand 5. Nov.) sind keine Silkr
 4. Partner Center: neue Einreichung → Paket (`.msix`) hochladen, Neuerungen DE/EN einfügen, Screenshots prüfen, einreichen.
 5. Store-Bilder prüfen (Tabelle „Bilder für den Store“), `store/BILDER.md` und Bilder in `store/bilder/<Version>/` aktualisieren.
 
-## Neuerungen 1.29.0
+## Neuerungen 1.30.0
 
 ### Deutsch
-Version 1.29 – sicherer und besser vorlesen
+Version 1.30 – sicherer und besser vorlesen
 • Die Spinne prüft jetzt auch Daten, Fristen („4 Wochen“) und kleine Beträge gegen deinen Originaltext und markiert, was nicht stimmt.
 • Neu: „Original vorlesen“ – der Text wird so vorgelesen, wie er dasteht, ohne KI.
 • Beim Vorlesen: einen Satz zurück oder vor springen.
@@ -63,7 +63,7 @@ Version 1.29 – sicherer und besser vorlesen
 • Aufgeräumt: jede Aktion nur einmal. „Merken“ legt einen Brief in „Meine Briefe“ und fragt, ob die Spinne erinnern soll.
 
 ### English
-Version 1.29 – safer checks and better reading aloud
+Version 1.30 – safer checks and better reading aloud
 • Silkreader now also checks dates, deadlines ("4 weeks") and small amounts against your original text and marks what does not match.
 • New: "Read original aloud" – the text is read exactly as written, without AI.
 • While reading aloud: jump back or forward by one sentence.

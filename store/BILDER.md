@@ -2,24 +2,24 @@
 
 Fortlaufend pro Version: neue Version = neuer Abschnitt oben, Bilder in `store/bilder/<Version>/`. „Vorher“ ist immer der Stand der vorigen Version, „Nachher“ der neue. Ideen und Begründungen: `docs/ideen.md`. Store-Unterlagen: `store/STORE.md`.
 
-## 1.29.0
+## 1.30.0
 
-Bilder in `bilder/1.29.0/`. Vorher = Stand 1.28.0, Nachher = main.
+Bilder in `bilder/1.30.0/`. Vorher = Stand 1.28.0, Nachher = main.
 
 | Bild | Vorher | Nachher |
 |---|---|---|
-| Kombi-Modus: Einstellungen (neue Wahl „Kombi“) | – (neu) | ![](bilder/1.29.0/Einstellungen-Kombi-neu.png) |
-| Kombi-Modus: Ergebnis (Hinweis „vorläufig“ unten) | – (neu) | ![](bilder/1.29.0/Kombi-vorlaeufig-neu.png) |
-| Kombi-Modus: „Ich lese genauer, das dauert einen Moment.“ | – (neu) | ![](bilder/1.29.0/Kombi-genauer-neu.png) |
-| Neue Nachfrage bei Terminen und Fristen („Soll ich mir das merken? Zahnarzt-Termin, 12.11.“, Ja oder Nein, nichts wird ohne Ja gespeichert) | – (neu) | ![](bilder/1.29.0/Termin-Nachfrage-neu.png) |
-| Einstellungen: Morgenmeldung jetzt standardmäßig an, Hinweis zu Outlook (klassisch, nur die geöffnete Mail) | – (neu) | ![](bilder/1.29.0/Einstellungen-Outlook-neu.png) |
-| Privatmodus (Einstellungen › Erweitert): „nichts speichern, beim Beenden alles löschen“ | – (neu) | ![](bilder/1.29.0/Privatmodus-neu.png) |
-| Knopf „Outlook-Mail“ im Startfenster (nur Windows; hier mit dem Markup der App nachgebaut, da Test unter Linux) | – (neu) | ![](bilder/1.29.0/Outlook-Knopf-neu.png) |
-| Aufgeräumt: Fußzeile Vorlesen · Kopieren · Merken, Reiter „Antworten“ weg | ![](bilder/1.29.0/Aufraeumen-Ergebnis-vorher.png) | ![](bilder/1.29.0/Aufraeumen-Ergebnis-nachher.png) |
-| Aufgeräumt: kürzere Einstellungen (Outlook-Text unter Erweitert, Pro unten) | ![](bilder/1.29.0/Aufraeumen-Einstellungen-vorher.png) | ![](bilder/1.29.0/Aufraeumen-Einstellungen-nachher.png) |
-| Vorlesen-Leiste (Satz zurück/vor, „Original vorlesen“ liest den ganzen Brief mit Zeilenumbrüchen) | ![](bilder/1.29.0/Vorlesen-vorher.png) | ![](bilder/1.29.0/Vorlesen-nachher.png) |
-| Datei lesen: sofortige Warte-Blase „Die Spinne liest die Datei …“ | – (neu) | ![](bilder/1.29.0/Datei-lesen-warten-neu.png) |
-| Nachfrage „Soll ich mir das merken?“ aufgeräumt (kleinere Karte, Buttons nebeneinander, nichts abgeschnitten; Ja trägt zugleich in den Kalender ein und merkt in der App, der Knopf „In den Kalender“ entfällt) | ![](bilder/1.29.0/Termin-Nachfrage-aufgeraeumt-vorher.png) | ![](bilder/1.29.0/Termin-Nachfrage-aufgeraeumt-nachher.png) |
+| Kombi-Modus: Einstellungen (neue Wahl „Kombi“) | – (neu) | ![](bilder/1.30.0/Einstellungen-Kombi-neu.png) |
+| Kombi-Modus: Ergebnis (Hinweis „vorläufig“ unten) | – (neu) | ![](bilder/1.30.0/Kombi-vorlaeufig-neu.png) |
+| Kombi-Modus: „Ich lese genauer, das dauert einen Moment.“ | – (neu) | ![](bilder/1.30.0/Kombi-genauer-neu.png) |
+| Neue Nachfrage bei Terminen und Fristen („Soll ich mir das merken? Zahnarzt-Termin, 12.11.“, Ja oder Nein, nichts wird ohne Ja gespeichert) | – (neu) | ![](bilder/1.30.0/Termin-Nachfrage-neu.png) |
+| Einstellungen: Morgenmeldung jetzt standardmäßig an, Hinweis zu Outlook (klassisch, nur die geöffnete Mail) | – (neu) | ![](bilder/1.30.0/Einstellungen-Outlook-neu.png) |
+| Privatmodus (Einstellungen › Erweitert): „nichts speichern, beim Beenden alles löschen“ | – (neu) | ![](bilder/1.30.0/Privatmodus-neu.png) |
+| Knopf „Outlook-Mail“ im Startfenster (nur Windows; hier mit dem Markup der App nachgebaut, da Test unter Linux) | – (neu) | ![](bilder/1.30.0/Outlook-Knopf-neu.png) |
+| Aufgeräumt: Fußzeile Vorlesen · Kopieren · Merken, Reiter „Antworten“ weg | ![](bilder/1.30.0/Aufraeumen-Ergebnis-vorher.png) | ![](bilder/1.30.0/Aufraeumen-Ergebnis-nachher.png) |
+| Aufgeräumt: kürzere Einstellungen (Outlook-Text unter Erweitert, Pro unten) | ![](bilder/1.30.0/Aufraeumen-Einstellungen-vorher.png) | ![](bilder/1.30.0/Aufraeumen-Einstellungen-nachher.png) |
+| Vorlesen-Leiste (Satz zurück/vor, „Original vorlesen“ liest den ganzen Brief mit Zeilenumbrüchen) | ![](bilder/1.30.0/Vorlesen-vorher.png) | ![](bilder/1.30.0/Vorlesen-nachher.png) |
+| Datei lesen: sofortige Warte-Blase „Die Spinne liest die Datei …“ | – (neu) | ![](bilder/1.30.0/Datei-lesen-warten-neu.png) |
+| Nachfrage „Soll ich mir das merken?“ aufgeräumt (kleinere Karte, Buttons nebeneinander, nichts abgeschnitten; Ja trägt zugleich in den Kalender ein und merkt in der App, der Knopf „In den Kalender“ entfällt) | ![](bilder/1.30.0/Termin-Nachfrage-aufgeraeumt-vorher.png) | ![](bilder/1.30.0/Termin-Nachfrage-aufgeraeumt-nachher.png) |
 
 ## 1.27.0 (Release läuft)
 

@@ -3,7 +3,7 @@
 All notable changes to Silkreader. / Alle wichtigen Änderungen an Silkreader.
 
 
-## 1.29.0
+## 1.30.0
 - **Check of dates and amounts:** dates, deadlines ("4 weeks") and small amounts are checked against your original text; what does not match is marked.
 - **Read original aloud** (without AI), with one sentence back / forward.
 - **Combo mode:** reads fast first (preliminary); "More" lets the thorough model read more carefully.

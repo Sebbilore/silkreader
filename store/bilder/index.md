@@ -41,19 +41,19 @@ Fehlt noch: Store-Screenshots (mind. 1366×768), Poster, Box-Art, Titelbild; Vor
 | 1.27.0 | Auswahl-nach-Lesen-vorher.png | vorher |
 | 1.27.0 | Auswahl-nach-Lesen-nachher.png | nachher |
 | 1.27.0 | Was-ist-neu-neu.png | nur neu |
-| 1.29.0 | Vorlesen-vorher.png | vorher |
-| 1.29.0 | Vorlesen-nachher.png | nachher |
-| 1.29.0 | Einstellungen-Kombi-neu.png | nur neu |
-| 1.29.0 | Kombi-vorlaeufig-neu.png | nur neu |
-| 1.29.0 | Kombi-genauer-neu.png | nur neu |
-| 1.29.0 | Termin-Nachfrage-neu.png | nur neu |
-| 1.29.0 | Einstellungen-Outlook-neu.png | nur neu |
-| 1.29.0 | Termin-Nachfrage-aufgeraeumt-vorher.png | vorher |
-| 1.29.0 | Termin-Nachfrage-aufgeraeumt-nachher.png | nachher |
-| 1.29.0 | Privatmodus-neu.png | nur neu |
-| 1.29.0 | Outlook-Knopf-neu.png | nur neu |
-| 1.29.0 | Datei-lesen-warten-neu.png | nur neu |
-| 1.29.0 | Aufraeumen-Ergebnis-vorher.png | vorher |
-| 1.29.0 | Aufraeumen-Ergebnis-nachher.png | nachher |
-| 1.29.0 | Aufraeumen-Einstellungen-vorher.png | vorher |
-| 1.29.0 | Aufraeumen-Einstellungen-nachher.png | nachher |
+| 1.30.0 | Vorlesen-vorher.png | vorher |
+| 1.30.0 | Vorlesen-nachher.png | nachher |
+| 1.30.0 | Einstellungen-Kombi-neu.png | nur neu |
+| 1.30.0 | Kombi-vorlaeufig-neu.png | nur neu |
+| 1.30.0 | Kombi-genauer-neu.png | nur neu |
+| 1.30.0 | Termin-Nachfrage-neu.png | nur neu |
+| 1.30.0 | Einstellungen-Outlook-neu.png | nur neu |
+| 1.30.0 | Termin-Nachfrage-aufgeraeumt-vorher.png | vorher |
+| 1.30.0 | Termin-Nachfrage-aufgeraeumt-nachher.png | nachher |
+| 1.30.0 | Privatmodus-neu.png | nur neu |
+| 1.30.0 | Outlook-Knopf-neu.png | nur neu |
+| 1.30.0 | Datei-lesen-warten-neu.png | nur neu |
+| 1.30.0 | Aufraeumen-Ergebnis-vorher.png | vorher |
+| 1.30.0 | Aufraeumen-Ergebnis-nachher.png | nachher |
+| 1.30.0 | Aufraeumen-Einstellungen-vorher.png | vorher |
+| 1.30.0 | Aufraeumen-Einstellungen-nachher.png | nachher |
