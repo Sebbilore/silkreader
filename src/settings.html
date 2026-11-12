@@ -82,12 +82,6 @@
 <body>
 <h1><svg viewBox="-36 -30 72 60" aria-hidden="true"><g stroke="currentColor" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 -5L18 -15L24 -4M10 -1L21 -7L28 4M10 3L20 2L26 13M8 7L16 9L20 20M-8 -5L-18 -15L-24 -4M-10 -1L-21 -7L-28 4M-10 3L-20 2L-26 13M-8 7L-16 9L-20 20"/></g><circle r="11" fill="currentColor"/></svg>Einstellungen</h1>
 
-<section class="pro" id="proCard"><svg viewBox="-40 -32 80 64" aria-hidden="true"><g stroke="var(--pink)" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 -5L18 -15L24 -4M10 -1L21 -7L28 4M10 3L20 2L26 13M8 7L16 9L20 20M-8 -5L-18 -15L-24 -4M-10 -1L-21 -7L-28 4M-10 3L-20 2L-26 13M-8 7L-16 9L-20 20"/></g><circle r="11" fill="#2b2b2b" stroke="var(--pink)" stroke-width="1.4"/><ellipse cx="-4.2" cy="-1.6" rx="3.6" ry="4.1" fill="#fff"/><ellipse cx="4.2" cy="-1.6" rx="3.6" ry="4.1" fill="#fff"/></svg>
-  <div class="grow"><b>Silkreader Pro</b><span class="soon" id="proSoon">kommt bald</span><span class="on hidden" id="proOn">✓ aktiv</span>
-    <div class="hint" style="margin:0">Brief-Hilfe, Antworten, Übersetzen, Vertrags-Check und mehr.</div></div>
-  <button class="primary" id="proBtn">Code einlösen</button>
-</section>
-
 <h2>KI auf diesem PC</h2>
 <p class="lead">Alles läuft offline. Deine Briefe verlassen den PC nicht.</p>
 <div class="grp" id="modelChoice"></div>
@@ -113,7 +107,6 @@
   <div class="line"><label class="check grow"><input type="checkbox" id="morning"> Morgens kurz die Fristen der Woche zeigen</label></div>
   <div class="line"><label class="check grow"><input type="checkbox" id="askBack"> Von selbst nachfragen, wenn es passt</label></div>
 </div>
-<p class="hint">Outlook (klassisch, Windows): Strg+Alt+O oder der Knopf „Outlook-Mail“ liest nur die gerade geöffnete Mail, direkt auf diesem PC, ohne Anmeldung. Andere Mails werden nicht angefasst, im Hintergrund passiert nichts, nichts wird verschickt. Das neue Outlook hat dafür keine Schnittstelle: Dort Text markieren oder einen Bildschirmbereich lesen lassen.</p>
 <p class="hint hidden" id="askReset"><a id="askResetLink"></a></p>
 
 <h2>Was ich gelernt habe</h2>
@@ -142,8 +135,15 @@
     <div class="line"><label class="check grow"><input type="checkbox" id="lowPower"> Sparmodus: braucht weniger Arbeitsspeicher (nach einem Neustart)</label></div>
   </div>
 
+<p class="hint" style="margin-top:12px">Outlook (klassisch, Windows): Strg+Alt+O oder der Knopf „Outlook-Mail“ liest nur die gerade geöffnete Mail, direkt auf diesem PC, ohne Anmeldung. Andere Mails werden nicht angefasst, im Hintergrund passiert nichts, nichts wird verschickt. Das neue Outlook hat dafür keine Schnittstelle: Dort Text markieren oder einen Bildschirmbereich lesen lassen.</p>
   <div class="foot" style="margin-top:14px"><a id="lLog">Protokoll öffnen</a></div>
 </details>
+
+<section class="pro" id="proCard"><svg viewBox="-40 -32 80 64" aria-hidden="true"><g stroke="var(--pink)" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 -5L18 -15L24 -4M10 -1L21 -7L28 4M10 3L20 2L26 13M8 7L16 9L20 20M-8 -5L-18 -15L-24 -4M-10 -1L-21 -7L-28 4M-10 3L-20 2L-26 13M-8 7L-16 9L-20 20"/></g><circle r="11" fill="#2b2b2b" stroke="var(--pink)" stroke-width="1.4"/><ellipse cx="-4.2" cy="-1.6" rx="3.6" ry="4.1" fill="#fff"/><ellipse cx="4.2" cy="-1.6" rx="3.6" ry="4.1" fill="#fff"/></svg>
+  <div class="grow"><b>Silkreader Pro</b><span class="soon" id="proSoon">kommt bald</span><span class="on hidden" id="proOn">✓ aktiv</span>
+    <div class="hint" style="margin:0">Brief-Hilfe, Antworten, Übersetzen, Vertrags-Check und mehr.</div></div>
+  <button class="primary" id="proBtn">Code einlösen</button>
+</section>
 
 <div class="foot"><a id="lPriv">Datenschutz</a><a id="lLic">Lizenzen</a><span class="saved" id="msg">Änderungen gelten sofort</span></div>
 

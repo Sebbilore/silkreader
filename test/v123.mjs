@@ -97,9 +97,8 @@ pop = await show(brief('77,00', '92,00', '15.12.2030', '2. Oktober 2030'), 'Rech
 ok('Ohne Lernen keine Vergleiche', !(await pop.$('.senders')));
 
 // 6) Später lesen: Zettel am Faden, Erinnerung öffnet den Brief
-await pop.click('#moreActs'); await sleep(200);
-const laterBtn = await pop.$('[data-a="Später lesen"]');
-ok('„Später lesen“ im Menü', !!laterBtn);
+const laterBtn = await pop.$('[data-a="Merken"]');
+ok('„Merken“ in der Fußzeile', !!laterBtn);
 await laterBtn?.click(); await sleep(300);
 await pop.click('#laterBox [data-when="evening"]'); await sleep(500);
 ok('Erinnerung bestätigt', /Ich erinnere dich/.test(await pop.textContent('#laterBox')));

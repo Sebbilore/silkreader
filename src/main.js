@@ -2436,12 +2436,12 @@ function remindAt(when, now = new Date()) {
 ipcMain.handle('bookmark-add', (_e, doc, result, when) => {
   const list = loadBookmarks().filter((b) => b.text !== doc.pages.join('\n').slice(0, 2000));
   const at = remindAt(when);
-  list.push({ id: `${Date.now()}`, at, title: result?.title || doc.title, text: doc.pages.join('\n').slice(0, 2000), doc: { title: doc.title, source: doc.source, pages: doc.pages.map((p) => p.slice(0, 100000)) }, result: result || null });
+  list.push({ id: `${Date.now()}`, at, told: when === 'none', title: result?.title || doc.title, text: doc.pages.join('\n').slice(0, 2000), doc: { title: doc.title, source: doc.source, pages: doc.pages.map((p) => p.slice(0, 100000)) }, result: result || null });
   saveBookmarks(list.slice(-20));
-  logLine('Später lesen gemerkt');
+  logLine('Gemerkt');
   return { ok: true, at };
 });
-ipcMain.handle('bookmark-list', () => loadBookmarks().map((b) => ({ id: b.id, at: b.at, title: b.title })));
+ipcMain.handle('bookmark-list', () => loadBookmarks().map((b) => ({ id: b.id, at: b.at, title: b.title, told: b.told })));
 ipcMain.handle('bookmark-open', (_e, id) => openBookmark(id));
 ipcMain.handle('bookmark-remove', (_e, id) => saveBookmarks(loadBookmarks().filter((b) => b.id !== id)));
 function openBookmark(id) {

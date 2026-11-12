@@ -8,6 +8,7 @@ module.exports = {
       '• Neu: Kombi-Modus (erst schnell, bei „Mehr“ genauer) und Outlook-Mail lesen (Strg+Alt+O).',
       '• Gedrehte Scans werden erkannt, und beim Datei-Lesen zeigt die Spinne sofort, dass sie arbeitet.',
       '• Bei Terminen fragt die Spinne kurz nach. Ohne Ja wird nichts gespeichert. Alles bleibt auf deinem PC.',
+      '• Aufgeräumt: Jede Aktion gibt es nur einmal. „Merken“ legt einen Brief in „Meine Briefe“ und fragt, ob ich dich erinnern soll.',
     ],
     en: [
       '• Silkreader now also checks dates, deadlines and small amounts against your original text.',
@@ -15,6 +16,7 @@ module.exports = {
       '• New: Combo mode (fast first, more careful with "More") and read an Outlook e-mail (Ctrl+Alt+O).',
       '• Rotated scans are recognised, and when reading a file the spider shows at once that it is working.',
       '• For dates the spider asks briefly. Nothing is saved without your Yes. Everything stays on your PC.',
+      '• Tidier: every action only once. "Save" puts a letter in My letters and asks if you want a reminder.',
     ],
   },
   '1.28.0': {
