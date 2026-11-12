@@ -7,7 +7,7 @@ Fortlaufendes Dokument: Bei jeder neuen Version aktualisieren (Checkliste unten)
 | | |
 |---|---|
 | Veröffentlicht im Store | 1.25.x (`package.json` auf main: 1.25.1) |
-| In Vorbereitung | 1.28.0 auf GitHub veröffentlicht. Store-Paket 1.28.0 gebaut am 6. Nov., Probe-Installation grün (Actions „Store-Paket“, Lauf 42191863621, Entwurfs-Release `store-v1.28.0`, bereit zum Hochladen im Partner Center). 1.29.0 ist Entwurf (noch nicht in `package.json`) |
+| In Vorbereitung | 1.28.0 auf GitHub veröffentlicht. Store-Paket 1.28.0 gebaut am 6. Nov., Probe-Installation grün (Actions „Store-Paket“, Lauf 42191863621, Entwurfs-Release `store-v1.28.0`, bereit zum Hochladen im Partner Center). 1.29.0 inkl. Aufräumen (U1–U4) wird veröffentlicht, Store-Paket 1.29.0 wird neu gebaut |
 | Produkt-ID (Store-Link) | 9PHKJW54RGDS – https://apps.microsoft.com/detail/9PHKJW54RGDS |
 | Pro-Add-on | `silkreader.pro`, Store-ID 9NBHSZQJ7CJP (Pro ist noch „bald“) |
 | Paketname (Identity/Name) | SebbiLore.Silkreader |
@@ -47,7 +47,7 @@ Hinweis: Die fünf Dateien in `uploads/hearth/` (Stand 5. Nov.) sind keine Silkr
 4. Partner Center: neue Einreichung → Paket (`.msix`) hochladen, Neuerungen DE/EN einfügen, Screenshots prüfen, einreichen.
 5. Store-Bilder prüfen (Tabelle „Bilder für den Store“), `store/BILDER.md` und Bilder in `store/bilder/<Version>/` aktualisieren.
 
-## Neuerungen 1.29.0 (Entwurf, noch nicht veröffentlicht)
+## Neuerungen 1.29.0
 
 ### Deutsch
 Version 1.29 – sicherer und besser vorlesen
@@ -60,6 +60,7 @@ Version 1.29 – sicherer und besser vorlesen
 • Bei Terminen und Fristen fragt die Spinne kurz nach, ob sie sie merken soll. Ohne Ja wird nichts gespeichert.
 • Die Morgenmeldung der Fristen ist jetzt standardmäßig an (abschaltbar).
 • Privatmodus löscht beim Beenden alles Gespeicherte.
+• Aufgeräumt: jede Aktion nur einmal. „Merken“ legt einen Brief in „Meine Briefe“ und fragt, ob die Spinne erinnern soll.
 
 ### English
 Version 1.29 – safer checks and better reading aloud
@@ -72,6 +73,7 @@ Version 1.29 – safer checks and better reading aloud
 • For dates and deadlines the spider asks briefly whether to remember them. Nothing is saved without your Yes.
 • The morning deadline summary is now on by default (can be turned off).
 • Private mode deletes everything saved when you quit.
+• Tidier: every action only once. "Save" puts a letter in My letters and asks if the spider should remind you.
 
 ## Neuerungen 1.28.0 (Entwurf, erst mit dem Release einreichen)
 

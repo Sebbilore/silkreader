@@ -53,3 +53,7 @@ Fehlt noch: Store-Screenshots (mind. 1366×768), Poster, Box-Art, Titelbild; Vor
 | 1.29.0 | Privatmodus-neu.png | nur neu |
 | 1.29.0 | Outlook-Knopf-neu.png | nur neu |
 | 1.29.0 | Datei-lesen-warten-neu.png | nur neu |
+| 1.29.0 | Aufraeumen-Ergebnis-vorher.png | vorher |
+| 1.29.0 | Aufraeumen-Ergebnis-nachher.png | nachher |
+| 1.29.0 | Aufraeumen-Einstellungen-vorher.png | vorher |
+| 1.29.0 | Aufraeumen-Einstellungen-nachher.png | nachher |
