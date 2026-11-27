@@ -6,7 +6,8 @@ import path from 'path';
 const [shots, logo, out] = process.argv.slice(2).map((p) => path.resolve(p));
 const img = (f) => `file://${shots}/${f}`;
 const FPS = 30;
-const DUR = [4.5, 5.5, 5, 7.5, 5.5, 4.5, 6.5, 4.5];
+const S = 1.3; // Tempo: alles läuft 30 % schneller
+const DUR = [3.5, 4.2, 3.8, 5.8, 4.2, 3.5, 5, 3.5];
 const TXT = [['Got a letter you', "don't quite", 'understand?'], ['Just highlight', 'the text.'], ['Tap the spider.'], ['See what matters:', 'how much,', 'and by when.'], ['It can read it', 'out loud, too.'], ['Warns you about', 'scam letters.']];
 const CSS = `*{box-sizing:border-box}body{margin:0;width:1920px;height:1080px;position:relative;overflow:hidden;font-family:Inter,sans-serif;background:linear-gradient(135deg,#fbf8f6,#efe8e4)}
 .abs{position:absolute}.paper{position:absolute;left:150px;top:60px;width:760px;height:960px;background:#fff;border-radius:6px;box-shadow:0 12px 40px rgba(0,0,0,.18);padding:56px 64px;font-size:25px;line-height:1.5;color:#222}
@@ -86,7 +87,7 @@ for (let i = 0; i < SCENES.length; i++) {
   await pg.goto(`file://${out}/s${i + 1}.html`); await pg.waitForTimeout(500);
   const N = Math.round(DUR[i] * FPS);
   for (let f = 0; f < N; f++) {
-    await pg.evaluate((t) => window.seek(t), f / FPS);
+    await pg.evaluate((t) => window.seek(t), (f / FPS) * S);
     await pg.screenshot({ path: `${dir}/${String(f).padStart(4, '0')}.jpg`, type: 'jpeg', quality: 93 });
   }
   console.log('Szene', i + 1, N, 'Bilder');
