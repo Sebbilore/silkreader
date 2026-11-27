@@ -30,15 +30,23 @@ const spider = `<img class="spider" id="spider" src="${img('spider.png')}">`;
 const textHtml = (n) => (TXT[n] || []).map((l, i) => `<div class="line" id="t${i}">${l}</div>`).join('') + '<div class="bar" id="bar"></div>';
 // gemeinsame Hilfen (laufen in der Seite)
 const JS = `const cl=(x)=>Math.min(1,Math.max(0,x)),eo=(x)=>1-Math.pow(1-cl(x),3),eb=(x)=>{x=cl(x);const c=1.70158+1;return 1+c*Math.pow(x-1,3)+1.70158*Math.pow(x-1,2)},lerp=(a,b,x)=>a+(b-a)*x;
-function texts(t,start=0.35){const n=document.querySelectorAll('.line').length;const lh=82;const top=540-(n*lh)/2;document.querySelectorAll('.line').forEach((e,i)=>{const p=eo((t-start-i*0.18)/0.5);e.style.top=(top+i*lh+(1-p)*28)+'px';e.style.opacity=p});const b=document.getElementById('bar');if(b){b.style.top=(top-34)+'px';b.style.opacity=eo((t-start)/0.4);b.style.width=(90*eo((t-start)/0.5))+'px'}}
+function texts(t,start=0.35){const n=document.querySelectorAll('.line').length;const lh=82;const top=(window.TOP0||540)-(n*lh)/2;document.querySelectorAll('.line').forEach((e,i)=>{const p=eo((t-start-i*0.18)/0.5);e.style.top=(top+i*lh+(1-p)*28)+'px';e.style.opacity=p});const b=document.getElementById('bar');if(b){b.style.top=(top-34)+'px';b.style.opacity=eo((t-start)/0.4);b.style.width=(90*eo((t-start)/0.5))+'px'}}
 function curAt(x,y,o=1){const c=document.getElementById('cur');c.style.left=x+'px';c.style.top=y+'px';c.style.opacity=o}
 function selTo(n){const p=document.getElementById('sel').firstChild;const s=getSelection();s.removeAllRanges();if(n<=0)return null;const r=document.createRange();r.setStart(p,0);r.setEnd(p,Math.min(n,p.length));s.addRange(r);const q=document.createRange();q.setStart(p,Math.min(n,p.length));q.setEnd(p,Math.min(n,p.length));const rs=r.getClientRects();const l=rs[rs.length-1];return l?{x:l.right,y:l.bottom-6}:null}
 function selStart(){const p=document.getElementById('sel').firstChild;const r=document.createRange();r.setStart(p,0);r.setEnd(p,1);const l=r.getClientRects()[0];return{x:l.left,y:l.top+16}}
 `;
+const EXTRA = [
+ `body{background:linear-gradient(135deg,#1b1b1f,#33242e)}.line{left:120px;color:#fff}.bar{left:120px}.paper{left:1010px;top:70px}`,
+ ``,
+ `.line{left:120px}.bar{left:120px}`,
+ `body{background:linear-gradient(135deg,#fdf0f5,#f3dbe6)}.line{left:120px}.bar{left:120px}.popup{left:1080px}`,
+ `body{background:linear-gradient(135deg,#1b1b1f,#33242e)}.line{left:0;width:1920px;text-align:center;color:#fff}.bar{display:none}`,
+ `body{background:linear-gradient(135deg,#fdf1ef,#f6d3cf)}`,
+ ``, ``];
 const SCENES = [
   { body: letter + `<div class="q" id="q1">?</div><div class="q" id="q2">?</div>`, seek: `
     const p=eo(t/0.9);const pa=document.getElementById('paper');pa.style.transform='translateY('+((1-p)*140)+'px) rotate('+((1-p)*-2)+'deg) scale('+(1+0.05*t/4.5)+')';pa.style.opacity=cl(t/0.5);pa.style.transformOrigin='30% 40%';
-    const q=(id,s,x,y)=>{const e=document.getElementById(id);const k=eb((t-s)/0.5);e.style.left=x+'px';e.style.top=(y-k*14)+'px';e.style.transform='scale('+k+')';e.style.opacity=k?1:0};q('q1',1.1,980,300);q('q2',1.6,1010,520);texts(t,0.45)` },
+    const q=(id,s,x,y)=>{const e=document.getElementById(id);const k=eb((t-s)/0.5);e.style.left=x+'px';e.style.top=(y-k*14)+'px';e.style.transform='scale('+k+')';e.style.opacity=k?1:0};q('q1',1.1,930,260);q('q2',1.6,890,560);texts(t,0.45)` },
   { body: letter + spider + arrow, seek: `
     const ss=selStart();const total=document.getElementById('sel').firstChild.length;
     const moveT=eo(t/1.0);const n=Math.round(total*cl((t-1.0)/2.3));
@@ -46,20 +54,20 @@ const SCENES = [
     if(pos)curAt(pos.x,pos.y);else curAt(lerp(1000,ss.x,moveT),lerp(800,ss.y,moveT));
     const d=eb((t-3.3)/0.9);const sp=document.getElementById('spider');sp.style.top=(-640+d*640-0)+'px';sp.style.top=(-500+d*500)+'px';
     texts(t,0.5)` },
-  { body: letter + spider + `<div class="ring" id="r1"></div><div class="ring" id="r2"></div>` + arrow, seek: `
-    selTo(document.getElementById('sel').firstChild.length);
-    const from={x:826,y:650},to={x:1000,y:225};const m=eo(t/1.2);curAt(lerp(from.x,to.x,m),lerp(from.y,to.y,m)-Math.sin(m*Math.PI)*40);
-    const sq=t>1.3&&t<1.6?0.92:1;const sp=document.getElementById('spider');sp.style.top='0px';sp.style.transformOrigin='50% 20%';sp.style.transform='scale('+sq+')';
-    const ring=(id,s,sz)=>{const k=cl((t-s)/0.9);const e=document.getElementById(id);const w=sz*(0.4+k);e.style.width=e.style.height=w+'px';e.style.left=(990-w/2)+'px';e.style.top=(205-w/2)+'px';e.style.opacity=t<s?0:0.7*(1-k)};ring('r1',1.35,240);ring('r2',1.6,240);
-    document.getElementById('paper').style.opacity=1-0.35*cl((t-3.6)/1.2);texts(t,0.4)` },
+  { body: `<img class="spider" id="spider" style="left:1000px;width:700px" src="${img('spider.png')}"><div class="ring" id="r1"></div><div class="ring" id="r2"></div>` + arrow, seek: `
+    const m=eo(t/1.0);const dr=eb(t/0.9);const sp=document.getElementById('spider');
+    const bx=1342,by=318;curAt(lerp(1500,bx+10,m),lerp(900,by+20,m)-Math.sin(m*Math.PI)*60);
+    const sq=t>1.3&&t<1.6?0.94:1;sp.style.top=(-500+dr*500)+'px';sp.style.transformOrigin='50% 25%';sp.style.transform='scale('+sq+')';
+    const ring=(id,s,sz)=>{const k=cl((t-s)/0.9);const e=document.getElementById(id);const w=sz*(0.4+k);e.style.width=e.style.height=w+'px';e.style.left=(bx-w/2)+'px';e.style.top=(by-w/2)+'px';e.style.opacity=t<s?0:0.7*(1-k)};ring('r1',1.35,420);ring('r2',1.6,420);texts(t,0.4)` },
   { body: `<img class="popup" id="p1" src="${img('result.png')}"><img class="popup" id="p2" src="${img('result-bullets.png')}">`, seek: `
     const a=eb(t/0.7);const k=cl(t/0.35);const z=t<4?1+0.3*eo((t-1.2)/2.6):1+0.12*eo((t-4.6)/2.8);
     const sw=eo((t-3.9)/0.6);const base='translateY('+((1-a)*60)+'px) scale('+(0.9+0.1*a)+')';
     const p1=document.getElementById('p1'),p2=document.getElementById('p2');
-    for(const e of [p1,p2]){e.style.transformOrigin='0 '+(t<4?'25%':'10%');e.style.transform='scale('+z+') '+base}
+    for(const e of [p1,p2]){e.style.transformOrigin='100% '+(t<4?'25%':'10%');e.style.transform='scale('+z+') '+base}
     p1.style.opacity=k*(1-sw);p2.style.opacity=k*sw;texts(t,0.6)` },
-  { body: `<img class="popup" id="p1" src="${img('readaloud.png')}">`, seek: `
-    const a=eb(t/0.7);const z=1+0.3*eo((t-0.9)/3.5);const p1=document.getElementById('p1');p1.style.transformOrigin='0 8%';p1.style.transform='translateY('+((1-a)*60)+'px) scale('+(z*(0.9+0.1*a))+')';p1.style.opacity=cl(t/0.35);texts(t,0.5)` },
+  { body: `<div id="w" class="abs" style="left:520px;top:380px;width:880px;height:640px;overflow:hidden;border-radius:20px;background:#fafafa"><img id="p1" class="abs" src="${img('readaloud.png')}" style="left:-30px;top:-30px;height:1250px;transform-origin:0 0"></div>`, seek: `
+    window.TOP0=210;const a=eb(t/0.7);const w=document.getElementById('w');w.style.transform='translateY('+((1-a)*80)+'px)';w.style.opacity=cl(t/0.3);
+    document.getElementById('p1').style.transform='scale('+(1+0.12*eo((t-0.9)/3.5))+')';texts(t,0.2)` },
   { body: `<img class="popup" id="p1" src="${img('scam.png')}">`, seek: `
     const a=eb(t/0.7);const z=1+0.2*eo((t-1.2)/3);const shake=t>0.9&&t<1.4?Math.sin((t-0.9)*60)*8*(1.4-t)/0.5:0;
     const p1=document.getElementById('p1');p1.style.transformOrigin='0 10%';p1.style.transform='translate('+shake+'px,'+((1-a)*60)+'px) scale('+(z*(0.9+0.1*a))+')';p1.style.opacity=cl(t/0.35);texts(t,0.5)` },
@@ -83,7 +91,7 @@ const only = process.env.ONLY ? process.env.ONLY.split(',').map(Number) : null;
 for (let i = 0; i < SCENES.length; i++) {
   if (only && !only.includes(i + 1)) continue;
   const dir = `${out}/s${i + 1}`; fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(`${out}/s${i + 1}.html`, `<meta charset="utf-8"><style>${CSS}</style><body>${SCENES[i].body}${i < 6 ? textHtml(i) : ''}<script>${JS}window.seek=(t)=>{${SCENES[i].seek}}</script></body>`);
+  fs.writeFileSync(`${out}/s${i + 1}.html`, `<meta charset="utf-8"><style>${CSS}${EXTRA[i]}</style><body>${SCENES[i].body}${i < 6 ? textHtml(i) : ''}<script>${JS}window.seek=(t)=>{${SCENES[i].seek}}</script></body>`);
   await pg.goto(`file://${out}/s${i + 1}.html`); await pg.waitForTimeout(500);
   const N = Math.round(DUR[i] * FPS);
   for (let f = 0; f < N; f++) {
