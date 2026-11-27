@@ -1462,9 +1462,9 @@ async function unloadBuiltinModel() {
 }
 
 // Das Modell belegt 1–2,5 GB Arbeitsspeicher. Deshalb wird es erst geladen, wenn sich eine
-// Analyse anbahnt (Maus über der Spinne, Analysefenster offen …), und nach 10 Minuten ohne
+// Analyse anbahnt (Maus über der Spinne, Analysefenster offen …), und nach 3 Minuten (bei 16 GB Arbeitsspeicher oder mehr 10) ohne
 // Benutzung wieder freigegeben – so bremst Silkreader den PC im Hintergrund nicht aus.
-const MODEL_IDLE_MS = 3 * 60 * 1000;
+const MODEL_IDLE_MS = (require('os').totalmem() >= 15.5 * 2 ** 30 ? 10 : 3) * 60 * 1000; // viel Arbeitsspeicher: länger behalten, spart das Neuladen
 const PRELOAD_KEEP_MS = 60 * 1000; // nur vorgeladen (Maus kam vorbei), aber nichts gelesen: nach 1 Minute wieder frei
 let lastModelUse = 0; // zuletzt wirklich gelesen, gefragt, übersetzt …
 let lastPreload = 0;  // zuletzt nur vorsorglich geladen
@@ -1537,12 +1537,9 @@ const LEAN_SCHEMA = { ...BUILTIN_SHORT_SCHEMA, properties: { ...BUILTIN_SHORT_SC
   key_points: { type: 'array', items: str(130), maxItems: 3 }, figures: { type: 'array', items: LEAN_FIGURE, maxItems: 4 } } };
 const LEAN_SCHEMA_NUMBERS = { ...LEAN_SCHEMA, properties: { ...LEAN_SCHEMA.properties, figures: { type: 'array', items: LEAN_FIGURE, minItems: 2, maxItems: 4 } } };
 // Zwei Stufen: zuerst das, was die Blase oben zeigt – danach (bei „Mehr“) die Details
-const TWO_STAGE_TASKS = [
-  'Du bekommst unten ein Dokument (oft einen Brief, eine Rechnung oder einen Bescheid). Zahlen, Beträge und Daten immer genau so wie im Text.',
-  'Aufgabe 1: Als "summary" das Wichtigste in 3 bis 4 kurzen Stichpunkten. Als "actions": Was muss der Empfänger tun? 1 bis 2 konkrete Sätze mit Betrag und Datum – ist nichts zu tun, leer lassen. Dazu Titel und Art des Dokuments.',
-  'Aufgabe 2: Bis zu 3 weitere Kernaussagen (nicht die schon genannten Stichpunkte wiederholen), bis zu 4 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "value" genau so wie im Text) und bis zu 3 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen).',
-  'Fasse dich immer kurz.',
-].join('\n');
+const TASK_INTRO = 'Du bekommst unten ein Dokument (oft einen Brief, eine Rechnung oder einen Bescheid). Zahlen, Beträge und Daten immer genau so wie im Text.';
+const TASK_1 = 'Aufgabe 1: Als "summary" das Wichtigste in 3 bis 4 kurzen Stichpunkten. Als "actions": Was muss der Empfänger tun? 1 bis 2 konkrete Sätze mit Betrag und Datum – ist nichts zu tun, leer lassen. Dazu Titel und Art des Dokuments.';
+const TASK_2 = 'Aufgabe 2: Bis zu 3 weitere Kernaussagen (nicht die schon genannten Stichpunkte wiederholen), bis zu 4 wichtige Angaben (Zahlen, Beträge, Fristen, Namen; "value" genau so wie im Text) und bis zu 3 echte Erkenntnisse (Risiken, Chancen, nötige Handlungen). Fasse dich kurz.';
 // Reihenfolge = Reihenfolge der Antwort: die Stichpunkte zuerst, damit die Blase sie früh zeigen kann
 const QUICK_SCHEMA = { type: 'object', additionalProperties: false, required: ['summary', 'actions', 'title', 'doc_type'],
   properties: { summary: BULLETS, actions: { type: 'array', items: str(140), maxItems: 2 }, title: str(80), doc_type: str(40) } };
@@ -1670,6 +1667,10 @@ function trimForAI(text) {
   return out.trim().length > 40 ? out : text; // nie fast alles wegschneiden
 }
 
+// Gespräch der ersten Stufe: Die Details fragen im selben Gespräch weiter (Qwen3.5 kann nichts mittendrin löschen, ein neues Gespräch läse das Dokument neu ein)
+const { canFollow } = require('./chatkeep');
+function dropChat(rt) { if (rt?.chat) { try { rt.chat.session.dispose({ disposeSequence: false }); } catch {} rt.chat = null; } }
+
 async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null } = {}) {
   const key = builtinKey(s);
   const info = BUILTIN_MODELS[key];
@@ -1696,14 +1697,17 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
   if (shared) { rt.busy = true; rt.seqKey = seqKey; if (rt.warming) await rt.warming.catch(() => {}); if (!rt.seq) { try { Object.assign(rt, await newSequence(baseSize)); } catch (e) { rt.busy = false; throw e; } } }
   let cur = shared ? rt : (own = await newSequence(baseSize));
   try {
-    const ask = async (prompt, schema, maxTokens, stream) => {
+    // keep: Gespräch für die Details behalten; follow: Folgefrage im selben Gespräch (nichts wird neu eingelesen)
+    const ask = async (prompt, schema, maxTokens, stream, { keep = false, follow = null } = {}) => {
       // Reicht der Platz nicht (z. B. viele Notizen am Schluss), größeren Kontext anlegen
       const need = model.tokenize(prompt).length + maxTokens + 400;
-      if (need > cur.ctx.contextSize) {
+      if (!follow && need > cur.ctx.contextSize) {
         await own?.ctx.dispose();
         cur = own = await newSequence(Math.min(need, model.trainContextSize || need));
       }
-      const session = new LlamaChatSession({ contextSequence: cur.seq, systemPrompt, chatWrapper: await qwenWrapper() });
+      if (!follow) dropChat(rt); else rt.chat = null; // Folgefrage nutzt das Gespräch einmal
+      const session = follow || new LlamaChatSession({ contextSequence: cur.seq, systemPrompt, chatWrapper: await qwenWrapper() });
+      let kept = false;
       const grammar = await jsonGrammar(llama, schema);
       const t0 = Date.now();
       let firstAt = 0;
@@ -1715,9 +1719,13 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
         });
         lastGen = { promptTokens: model.tokenize(prompt).length, outTokens: model.tokenize(text).length, firstMs: firstAt - t0, genMs: Date.now() - firstAt, totalMs: Date.now() - t0 };
         logLine(`Zeit KI-Antwort (${key}${stage === 'more' ? ', Details' : ''}): ${lastGen.totalMs} ms – ${lastGen.promptTokens} Token einlesen bis zum ersten Wort ${lastGen.firstMs} ms, ${lastGen.outTokens} Token schreiben ${lastGen.genMs} ms (${(lastGen.outTokens / Math.max(0.001, lastGen.genMs / 1000)).toFixed(1)} Token/s)`);
-        try { return grammar.parse(text); } catch (e) { logLine(`KI-Antwort nicht lesbar: ${JSON.stringify(text.slice(0, 160))}`); throw e; }
+        try {
+          const parsed = grammar.parse(text);
+          if (keep && cur === rt) { rt.chat = { session, seq: cur.seq, docText: keep, used: lastGen.promptTokens + lastGen.outTokens }; kept = true; }
+          return parsed;
+        } catch (e) { logLine(`KI-Antwort nicht lesbar: ${JSON.stringify(text.slice(0, 160))}`); throw e; }
       } finally {
-        session.dispose({ disposeSequence: false });
+        if (!kept) session.dispose({ disposeSequence: false });
       }
     };
 
@@ -1726,18 +1734,21 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
     const hasNumbers = (t) => /\d[\d.,]*\s?(%|€|Euro|Mio|Mrd|Prozent|Tage|\d{4})/.test(t);
     // Zwei Stufen (kurze Texte): Feste Aufgaben vorn (bleiben von Brief zu Brief eingelesen), dann das Dokument
     // (bleibt für die Details eingelesen), zum Schluss nur noch, welche Aufgabe jetzt dran ist.
-    const docFirst = (docText, task) => [TWO_STAGE_TASKS, '', '<document>', docText, '</document>', `Titel der Datei: „${doc.title}“.`,
-      ...(factsBlock(doc) ? [factsBlock(doc)] : []), ...(learnHints(doc) ? [learnHints(doc)] : []), '', task].join('\n');
+    const docFirst = (docText, tasks) => [tasks, '', '<document>', docText, '</document>', `Titel der Datei: „${doc.title}“.`,
+      ...(factsBlock(doc) ? [factsBlock(doc)] : []), ...(learnHints(doc) ? [learnHints(doc)] : [])].join('\n');
     if (chunks.length <= 1 && stage === 'more') {
       const docText = chunks[0]?.text || '';
       onProgress({ stage: 'Liest die Details …', step: 1, steps: 1 });
-      return ask(docFirst(docText, ['Erledige jetzt Aufgabe 2.', base?.summary ? `Schon genannt:\n${base.summary}` : ''].join('\n')), hasNumbers(docText) ? DETAIL_SCHEMA_NUMBERS : DETAIL_SCHEMA, 900, false);
+      const dSchema = hasNumbers(docText) ? DETAIL_SCHEMA_NUMBERS : DETAIL_SCHEMA;
+      const follow = canFollow(rt, cur, docText, model.tokenize(TASK_2).length + 900 + 100);
+      if (follow) { logLine('Details: Folgefrage im selben Gespräch'); return ask(TASK_2, dSchema, 900, false, { follow }); }
+      return ask([docFirst(docText, [TASK_INTRO, TASK_2].join('\n')), base?.summary ? `Schon genannt:\n${base.summary}` : ''].filter(Boolean).join('\n'), dSchema, 900, false);
     }
     if (chunks.length <= 1 && SPEED.twoStage) {
       const docText = chunks[0]?.text || '';
       onProgress({ stage: 'Liest …', step: 1, steps: 1 });
       let streamed = '', quickSent = false;
-      const r = await ask(docFirst(docText, 'Erledige jetzt Aufgabe 1.'), SPEED.short ? QUICK_SCHEMA_SHORT : QUICK_SCHEMA, 600, (c) => {
+      const r = await ask(docFirst(docText, [TASK_INTRO, TASK_1].join('\n')), SPEED.short ? QUICK_SCHEMA_SHORT : QUICK_SCHEMA, 600, (c) => {
         onProgress(c);
         if (quickSent) return;
         streamed += c;
@@ -1746,7 +1757,7 @@ async function analyzeBuiltin(doc, s, onProgress, { stage = 'quick', base = null
         quickSent = true;
         try { onProgress({ quick: { ...normalizeResult({ summary: JSON.parse(m[1]) }), title: null } }); } catch {} // Titel kommt hier erst danach
         onProgress({ stage: 'Schreibt, was zu tun ist …', step: 1, steps: 1 });
-      });
+      }, { keep: docText });
       const out = addEventSentences(normalizeResult({ ...r, findings: (r.actions || []).map((a) => ({ kind: 'Handlung', title: a, detail: '', pages: [1] })) }), doc.pages.join('\n'));
       return { ...out, more: 'pending' };
     }
@@ -1949,14 +1960,21 @@ async function llmGenerate({ instruction, material = '', schema = null, maxToken
     truncated = true;
   }
   const prompt = `${instruction}\n${lang}${text ? `\n\n<text>\n${text}\n</text>` : ''}`;
-  const ctx = await model.createContext({ contextSize: model.tokenize(prompt).length + maxTokens + 300, flashAttention: 'auto' });
+  // Ist der vorbereitete Kontext frei und groß genug, den nehmen (spart das Anlegen, ca. 0,5 s)
+  const need = model.tokenize(prompt).length + maxTokens + 300;
+  const rt = llamaRuntime;
+  const warm = SPEED.keep && rt && rt.key === key && rt.seq && !rt.busy && !rt.warming && rt.ctx.contextSize >= need ? rt : null;
+  if (warm) { warm.busy = true; dropChat(warm); }
+  const ctx = warm ? null : await model.createContext({ contextSize: need, flashAttention: 'auto' });
+  let session;
   try {
-    const session = new LlamaChatSession({ contextSequence: ctx.getSequence(), systemPrompt: 'Du bist ein hilfreicher, präziser Assistent.', chatWrapper: await qwenWrapper() });
+    session = new LlamaChatSession({ contextSequence: warm ? warm.seq : ctx.getSequence(), systemPrompt: 'Du bist ein hilfreicher, präziser Assistent.', chatWrapper: await qwenWrapper() });
     const grammar = schema ? await jsonGrammar(llama, schema) : undefined;
     const out = await session.prompt(prompt, { grammar: grammar?.grammar, maxTokens, temperature: 0.3, onTextChunk: onChunk });
     return { value: schema ? grammar.parse(out) : out.trim(), truncated };
   } finally {
-    await ctx.dispose();
+    session?.dispose({ disposeSequence: false });
+    if (warm) warm.busy = false; else await ctx.dispose();
     lastModelUse = Date.now();
   }
 }
