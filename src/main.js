@@ -1462,9 +1462,9 @@ async function unloadBuiltinModel() {
 }
 
 // Das Modell belegt 1–2,5 GB Arbeitsspeicher. Deshalb wird es erst geladen, wenn sich eine
-// Analyse anbahnt (Maus über der Spinne, Analysefenster offen …), und nach 10 Minuten ohne
+// Analyse anbahnt (Maus über der Spinne, Analysefenster offen …), und nach 3 Minuten (bei 16 GB Arbeitsspeicher oder mehr 10) ohne
 // Benutzung wieder freigegeben – so bremst Silkreader den PC im Hintergrund nicht aus.
-const MODEL_IDLE_MS = 3 * 60 * 1000;
+const MODEL_IDLE_MS = (require('os').totalmem() >= 15.5 * 2 ** 30 ? 10 : 3) * 60 * 1000; // viel Arbeitsspeicher: länger behalten, spart das Neuladen
 const PRELOAD_KEEP_MS = 60 * 1000; // nur vorgeladen (Maus kam vorbei), aber nichts gelesen: nach 1 Minute wieder frei
 let lastModelUse = 0; // zuletzt wirklich gelesen, gefragt, übersetzt …
 let lastPreload = 0;  // zuletzt nur vorsorglich geladen
@@ -1960,14 +1960,21 @@ async function llmGenerate({ instruction, material = '', schema = null, maxToken
     truncated = true;
   }
   const prompt = `${instruction}\n${lang}${text ? `\n\n<text>\n${text}\n</text>` : ''}`;
-  const ctx = await model.createContext({ contextSize: model.tokenize(prompt).length + maxTokens + 300, flashAttention: 'auto' });
+  // Ist der vorbereitete Kontext frei und groß genug, den nehmen (spart das Anlegen, ca. 0,5 s)
+  const need = model.tokenize(prompt).length + maxTokens + 300;
+  const rt = llamaRuntime;
+  const warm = SPEED.keep && rt && rt.key === key && rt.seq && !rt.busy && !rt.warming && rt.ctx.contextSize >= need ? rt : null;
+  if (warm) { warm.busy = true; dropChat(warm); }
+  const ctx = warm ? null : await model.createContext({ contextSize: need, flashAttention: 'auto' });
+  let session;
   try {
-    const session = new LlamaChatSession({ contextSequence: ctx.getSequence(), systemPrompt: 'Du bist ein hilfreicher, präziser Assistent.', chatWrapper: await qwenWrapper() });
+    session = new LlamaChatSession({ contextSequence: warm ? warm.seq : ctx.getSequence(), systemPrompt: 'Du bist ein hilfreicher, präziser Assistent.', chatWrapper: await qwenWrapper() });
     const grammar = schema ? await jsonGrammar(llama, schema) : undefined;
     const out = await session.prompt(prompt, { grammar: grammar?.grammar, maxTokens, temperature: 0.3, onTextChunk: onChunk });
     return { value: schema ? grammar.parse(out) : out.trim(), truncated };
   } finally {
-    await ctx.dispose();
+    session?.dispose({ disposeSequence: false });
+    if (warm) warm.busy = false; else await ctx.dispose();
     lastModelUse = Date.now();
   }
 }
